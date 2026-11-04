@@ -329,6 +329,15 @@ function renderDashboardCards() {
   }).join('');
 }
 function renderTransactions() {
+  const minAmount = $('amount-min').value.trim() ? parseCurrencyInput($('amount-min').value) : null;
+  const maxAmount = $('amount-max').value.trim() ? parseCurrencyInput($('amount-max').value) : null;
+  const invalidRange = minAmount !== null && maxAmount !== null && minAmount > maxAmount;
+  $('amount-range-error').hidden = !invalidRange;
+  for (const id of ['amount-min', 'amount-max']) {
+    $(id).setAttribute('aria-invalid', String(invalidRange));
+    if (invalidRange) $(id).setAttribute('aria-describedby', 'amount-range-error');
+    else $(id).removeAttribute('aria-describedby');
+  }
   const query = $('search-input').value.trim().toLocaleLowerCase('pt-BR');
   const allCharges = Core.monthlyRecords(expenses, settlements, selectedMonth());
   const shareByCharge = new Map(Core.categoryChargeShares(allCharges).map((share) => [`${share.expenseId}::${share.installmentIndex}`, share.percent]));
@@ -337,21 +346,21 @@ function renderTransactions() {
     const haystack = `${charge.expense.description} ${charge.expense.category} ${charge.expense.payment} ${card?.name || ''} ${card?.bank || ''}`.toLocaleLowerCase('pt-BR');
     return !query || haystack.includes(query);
   });
-  const filteredCharges = Core.filterTransactionCharges(searchedCharges, {
+  const filteredCharges = invalidRange ? [] : Core.filterTransactionCharges(searchedCharges, {
     type: $('type-filter').value,
     category: $('category-filter').value,
     payment: $('payment-filter').value,
-    minAmount: $('amount-min').value.trim() ? parseCurrencyInput($('amount-min').value) : null,
-    maxAmount: $('amount-max').value.trim() ? parseCurrencyInput($('amount-max').value) : null,
+    minAmount,
+    maxAmount,
   });
   const charges = Core.sortTransactionCharges(filteredCharges, $('sort-order').value);
   const page = Core.paginate(charges, transactionPage, transactionPageSize);
   transactionPage = page.page;
   const hasFilters = $('payment-filter').value || query || $('type-filter').value || $('category-filter').value || $('amount-min').value || $('amount-max').value;
-  $('transactions-list').innerHTML = page.items.length ? page.items.map((charge) => renderExpenseRow(charge, true, shareByCharge.get(`${charge.expense.id}::${charge.index}`) ?? 0)).join('') : `<p class="empty-note">${hasFilters ? 'Nenhum lançamento deste mês combina com a busca e os filtros.' : 'Ainda não há registros neste mês.'}</p>`;
+  $('transactions-list').innerHTML = page.items.length ? page.items.map((charge) => renderExpenseRow(charge, true, shareByCharge.get(`${charge.expense.id}::${charge.index}`) ?? 0)).join('') : `<p class="empty-note">${invalidRange ? 'Corrija o intervalo de valores para visualizar os lançamentos.' : hasFilters ? 'Nenhum lançamento deste mês combina com a busca e os filtros.' : 'Ainda não há registros neste mês.'}</p>`;
   const firstItem = page.totalItems ? (page.page - 1) * page.pageSize + 1 : 0;
   const lastItem = page.totalItems ? firstItem + page.items.length - 1 : 0;
-  $('transactions-count').textContent = page.totalItems ? `Exibindo ${firstItem}–${lastItem} de ${page.totalItems} lançamentos` : 'Nenhum lançamento neste mês';
+  $('transactions-count').textContent = invalidRange ? 'Intervalo de valores inválido' : page.totalItems ? `Exibindo ${firstItem}–${lastItem} de ${page.totalItems} lançamentos` : 'Nenhum lançamento neste mês';
   $('page-indicator').textContent = `${page.page} / ${page.totalPages}`;
   $('previous-page').disabled = page.page <= 1;
   $('next-page').disabled = page.page >= page.totalPages;

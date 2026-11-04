@@ -156,3 +156,34 @@ test('filters payment and receipt methods, resets pagination and clears incompat
   assert.equal(await page.locator('#payment-filter option[value="Cartão"]').count(),0);
   assert.equal(await page.locator('#transactions-list .expense-row').count(),2);
 });
+
+
+test('explains an inverted amount range and clears the error when corrected or reset',async()=>{
+  await page.evaluate(()=>{
+    const d=new Date();const firstDate=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+    localStorage.setItem('meu-financeiro-v1',JSON.stringify([{id:'range-record',description:'Conta',amount:100,type:'expense',payment:'Pix',category:'Moradia',installments:1,firstDate}]));
+  });
+  await page.reload();
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
+  await page.getByLabel('Valor mínimo',{exact:true}).fill('100,00');
+  await page.getByLabel('Valor máximo',{exact:true}).fill('3,00');
+  assert.equal(await page.locator('#amount-range-error').count(),1);
+  assert.equal(await page.locator('#amount-range-error').isVisible(),true);
+  assert.match(await page.locator('#amount-range-error').innerText(),/De.*não pode ser maior.*Até/);
+  assert.equal(await page.locator('#amount-min').getAttribute('aria-invalid'),'true');
+  assert.equal(await page.locator('#amount-max').getAttribute('aria-invalid'),'true');
+  assert.match(await page.locator('#transactions-list').innerText(),/Corrija o intervalo/);
+  await page.getByLabel('Valor máximo',{exact:true}).fill('100,00');
+  assert.equal(await page.locator('#amount-range-error').isHidden(),true);
+  assert.equal(await page.locator('#amount-min').getAttribute('aria-invalid'),'false');
+  assert.equal(await page.locator('#transactions-list .expense-row').count(),1,'equal endpoints are valid and inclusive');
+  await page.locator('#amount-min').fill('200,00');
+  assert.equal(await page.locator('#amount-range-error').isVisible(),true);
+  await page.locator('#clear-filters').click();
+  assert.equal(await page.locator('#amount-range-error').isHidden(),true);
+  assert.equal(await page.locator('#amount-max').getAttribute('aria-describedby'),null);
+  assert.equal(await page.locator('#transactions-list .expense-row').count(),1);
+  await page.locator('#amount-min').fill('100,00');
+  assert.equal(await page.locator('#amount-range-error').isHidden(),true,'a single open bound is valid');
+  assert.equal(await page.locator('#transactions-list .expense-row').count(),1);
+});
