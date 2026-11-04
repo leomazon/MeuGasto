@@ -184,6 +184,7 @@ function updateRecordType(selectedCategory = '') {
   const methods = income ? ['Transferência', 'Pix', 'Dinheiro'] : ['Pix', 'Dinheiro', 'Cartão'];
   $('payment').innerHTML = methods.map(method => `<option value="${method}">${method}</option>`).join('');
   $('payment').value = methods.includes(previousPayment) ? previousPayment : methods[0];
+  $('description').placeholder = income ? 'Ex.: salário, serviço prestado' : 'Ex.: mercado, conta de luz';
   $('payment-label').textContent = income ? 'Forma de recebimento' : 'Forma de pagamento';
   $('record-date-label').textContent = income ? 'Data de recebimento' : 'Data do primeiro pagamento';
   if (income) $('first-date').max = localDateKey(); else $('first-date').removeAttribute('max');
