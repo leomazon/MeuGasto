@@ -22,6 +22,7 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 - Compras no cartão à vista ou parceladas. O app distribui o valor total em cobranças mensais; a última parcela ajusta a diferença de centavos.
 - Exportação e importação de backup em JSON.
 - Filtros de lançamentos por tipo (receita/despesa), categoria e intervalo de valores.
+- Ordenação de lançamentos por data, categoria (A–Z ou Z–A), maior ou menor valor, aplicada antes da paginação.
 - Campos de dinheiro formatados automaticamente em reais.
 - Layout adaptado para celular e computador.
 

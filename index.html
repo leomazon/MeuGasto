@@ -114,6 +114,7 @@
             <fieldset class="amount-range-filter"><legend class="sr-only">Faixa de valor</legend><div class="amount-range-fields"><label class="filter-field">De<input id="amount-min" type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor mínimo" /></label><label class="filter-field">Até<input id="amount-max" type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor máximo" /></label></div></fieldset>
             <button class="clear-filters-button" id="clear-filters" type="button">Limpar filtros</button>
           </div>
+          <div class="transactions-order"><label for="sort-order">Ordenar por</label><select id="sort-order"><option value="date-desc">Mais recentes</option><option value="category-asc">Categoria: A–Z</option><option value="category-desc">Categoria: Z–A</option><option value="amount-desc">Maior valor</option><option value="amount-asc">Menor valor</option></select></div>
           <div id="transactions-list" class="transactions-list"></div>
           <div class="pagination-bar" aria-label="Paginação dos lançamentos">
             <span class="pagination-count" id="transactions-count">Nenhum lançamento neste mês</span>

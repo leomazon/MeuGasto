@@ -165,3 +165,19 @@ test('combines monthly income and expense installments and filters by record typ
   assert.deepEqual(Core.filterTransactionCharges(records,{type:'expense'}).map(r=>r.expense.id), ['purchase']);
   assert.equal(Core.monthlyOverview(entries, [], '2026-11').total, 200);
 });
+
+
+test('sorts monthly records by category and amount without mutating their source order', () => {
+  const records = [
+    { expense:{id:'health',category:'Saúde'}, amount:15.5, date:new Date(2026,10,3) },
+    { expense:{id:'food',category:'Alimentação'}, amount:100, date:new Date(2026,10,1) },
+    { expense:{id:'education',category:'Educação'}, amount:9.99, date:new Date(2026,10,2) },
+  ];
+  const ids = mode => Core.sortTransactionCharges(records,mode).map(r=>r.expense.id);
+  assert.deepEqual(ids('category-asc'),['food','education','health']);
+  assert.deepEqual(ids('category-desc'),['health','education','food']);
+  assert.deepEqual(ids('amount-asc'),['education','health','food']);
+  assert.deepEqual(ids('amount-desc'),['food','health','education']);
+  assert.deepEqual(ids('date-desc'),['health','education','food']);
+  assert.deepEqual(records.map(r=>r.expense.id),['health','food','education']);
+});

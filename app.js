@@ -304,12 +304,13 @@ function renderTransactions() {
     const haystack = `${charge.expense.description} ${charge.expense.category} ${charge.expense.payment} ${card?.name || ''} ${card?.bank || ''}`.toLocaleLowerCase('pt-BR');
     return !query || haystack.includes(query);
   });
-  const charges = Core.filterTransactionCharges(searchedCharges, {
+  const filteredCharges = Core.filterTransactionCharges(searchedCharges, {
     type: $('type-filter').value,
     category: $('category-filter').value,
     minAmount: $('amount-min').value.trim() ? parseCurrencyInput($('amount-min').value) : null,
     maxAmount: $('amount-max').value.trim() ? parseCurrencyInput($('amount-max').value) : null,
   });
+  const charges = Core.sortTransactionCharges(filteredCharges, $('sort-order').value);
   const page = Core.paginate(charges, transactionPage, transactionPageSize);
   transactionPage = page.page;
   const hasFilters = query || $('type-filter').value || $('category-filter').value || $('amount-min').value || $('amount-max').value;
@@ -652,6 +653,7 @@ function initialize() {
   $('next-month').addEventListener('click', () => { const date = dateFromKey(`${selectedMonth()}-01`); date.setMonth(date.getMonth() + 1); transactionPage = 1; setMonth(monthKey(date)); });
   $('month-picker').addEventListener('change', () => { transactionPage = 1; render(); });
   $('search-input').addEventListener('input', () => { transactionPage = 1; renderTransactions(); });
+  $('sort-order').addEventListener('change', () => { transactionPage = 1; renderTransactions(); });
   $('type-filter').addEventListener('change', () => { updateCategoryFilter(); transactionPage = 1; renderTransactions(); });
   $('category-filter').addEventListener('change', () => { transactionPage = 1; renderTransactions(); });
   for (const id of ['amount-min', 'amount-max']) $(id).addEventListener('input', (event) => {
@@ -661,6 +663,7 @@ function initialize() {
   });
   $('clear-filters').addEventListener('click', () => {
     $('search-input').value = '';
+    $('sort-order').value = 'date-desc';
     $('type-filter').value = '';
     updateCategoryFilter();
     $('category-filter').value = '';

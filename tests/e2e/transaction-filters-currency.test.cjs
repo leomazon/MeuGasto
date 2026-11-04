@@ -90,3 +90,35 @@ test('formats purchase amounts and card limits as Brazilian reais while typing',
   await cardDialog.getByRole('button', { name: 'Salvar cartão' }).click();
   assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-cards-v1'))))[0].limit, 2000);
 });
+
+
+test('sorts all filtered monthly records before pagination and resets the page on sort changes', async () => {
+  await page.evaluate(() => {
+    const d=new Date(); const month=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const entries=Array.from({length:12},(_,index)=>({id:`row-${index+1}`,description:`Registro ${index+1}`,type:index===11?'income':'expense',category:index===11?'Prestação de serviço':index%2?'Alimentação':'Moradia',amount:(index+1)*10,installments:1,payment:'Pix',firstDate:`${month}-${String(index+1).padStart(2,'0')}`}));
+    localStorage.setItem('meu-financeiro-v1',JSON.stringify(entries));
+  });
+  await page.reload();
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
+  await page.getByRole('button',{name:'Próxima página',exact:true}).click();
+  await page.getByLabel('Ordenar por',{exact:true}).selectOption('amount-asc');
+  assert.equal(await page.locator('#page-indicator').innerText(),'1 / 2');
+  assert.equal(await page.locator('#transactions-list .expense-name strong').first().innerText(),'Registro 1');
+  await page.getByRole('button',{name:'Próxima página',exact:true}).click();
+  assert.deepEqual(await page.locator('#transactions-list .expense-name strong').allTextContents(),['Registro 11','Registro 12']);
+  await page.getByLabel('Ordenar por',{exact:true}).selectOption('amount-desc');
+  assert.equal(await page.locator('#transactions-list .expense-name strong').first().innerText(),'Registro 12');
+  await page.getByLabel('Ordenar por',{exact:true}).selectOption('category-asc');
+  assert.equal(await page.locator('#transactions-list .expense-name strong').first().innerText(),'Registro 10');
+  await page.getByLabel('Ordenar por',{exact:true}).selectOption('category-desc');
+  assert.equal(await page.locator('#transactions-list .expense-name strong').first().innerText(),'Registro 12');
+  await page.locator('#type-filter').selectOption('expense');
+  await page.locator('#category-filter').selectOption('Moradia');
+  await page.locator('#amount-min').fill('30,00');
+  await page.locator('#amount-max').fill('80,00');
+  await page.getByLabel('Ordenar por',{exact:true}).selectOption('amount-asc');
+  assert.deepEqual(await page.locator('#transactions-list .expense-name strong').allTextContents(),['Registro 3','Registro 5','Registro 7']);
+  await page.locator('#clear-filters').click();
+  assert.equal(await page.getByLabel('Ordenar por',{exact:true}).inputValue(),'date-desc');
+  assert.equal(await page.locator('#transactions-list .expense-name strong').first().innerText(),'Registro 12');
+});

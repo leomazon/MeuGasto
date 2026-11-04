@@ -131,6 +131,18 @@
         && (maximum === null || amount <= maximum);
     });
   }
+  function sortTransactionCharges(charges, order = 'date-desc') {
+    const recentFirst = (a, b) => b.date - a.date;
+    return [...charges].sort((a, b) => {
+      if (order === 'amount-asc') return cents(a.amount) - cents(b.amount) || recentFirst(a, b);
+      if (order === 'amount-desc') return cents(b.amount) - cents(a.amount) || recentFirst(a, b);
+      if (order === 'category-asc' || order === 'category-desc') {
+        const comparison = (a.expense.category || 'Outros').localeCompare(b.expense.category || 'Outros', 'pt-BR', { sensitivity: 'base', numeric: true });
+        return (order === 'category-desc' ? -comparison : comparison) || recentFirst(a, b);
+      }
+      return recentFirst(a, b);
+    });
+  }
   function cardUsed(expenses, payments, cardId) {
     const usedCents = expenses.filter((expense) => expense.payment === 'Cartão' && expense.cardId === cardId)
       .reduce((total, expense) => total + Array.from({ length: Number(expense.installments) }, (_, index) => Math.round(chargeRemaining(expense, index, payments) * 100)).reduce((sum, amount) => sum + amount, 0), 0);
@@ -161,6 +173,7 @@
     averageChargeSummary,
     paginate,
     filterTransactionCharges,
+    sortTransactionCharges,
     allocateFullPayment,
     availableLimit,
   };
