@@ -512,4 +512,5 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 
 .bank-picker-trigger.is-placeholder{grid-template-columns:minmax(0,1fr) 20px}
 .bank-picker-trigger.is-placeholder .bank-badge-selected{display:none}
-.bank-picker-options.opens-up{top:auto;bottom:calc(100% + 5px)}
+#card-dialog.bank-picker-open{min-height:min(540px,calc(100vh - 32px))}
+@media(max-width:760px){#card-dialog.bank-picker-open{min-height:min(560px,calc(100vh - 24px))}}

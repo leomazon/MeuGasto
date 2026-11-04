@@ -463,22 +463,7 @@ function setupBankPicker() {
   const setOpen = (open, focusSelected = false) => {
     options.hidden = !open;
     trigger.setAttribute('aria-expanded', String(open));
-    if (open) {
-      const dialogBounds = $('card-dialog').getBoundingClientRect();
-      const triggerBounds = trigger.getBoundingClientRect();
-      const maxMenuHeight = Number.parseFloat(getComputedStyle(options).maxHeight) || 260;
-      const menuHeight = Math.min(options.scrollHeight, maxMenuHeight);
-      const spaceBelow = Math.max(0, dialogBounds.bottom - triggerBounds.bottom - 10);
-      const spaceAbove = Math.max(0, triggerBounds.top - dialogBounds.top - 10);
-      const openAbove = spaceBelow < menuHeight && spaceAbove > spaceBelow;
-      const availableSpace = openAbove ? spaceAbove : spaceBelow;
-      options.classList.toggle('opens-up', openAbove);
-      if (availableSpace < maxMenuHeight) options.style.maxHeight = `${Math.max(100, availableSpace)}px`;
-      else options.style.removeProperty('max-height');
-    } else {
-      options.classList.remove('opens-up');
-      options.style.removeProperty('max-height');
-    }
+    $('card-dialog').classList.toggle('bank-picker-open', open);
     if (open && focusSelected) (options.querySelector('[aria-selected="true"]') || options.querySelector('[role="option"]'))?.focus();
   };
   select.addEventListener('change', () => { syncBankPicker(); updateOtherBankField(); });
