@@ -539,3 +539,39 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .meugasto-notice .notyf__message{color:var(--ink);font-size:14px;font-weight:600;line-height:1.45;overflow-wrap:anywhere;opacity:1;animation:none}
 @media(max-width:480px){.notyf{padding:16px}.meugasto-notice{width:min(410px,calc(100vw - 32px));max-width:none;border-radius:13px!important}.meugasto-notice .notyf__wrapper{padding-right:7px}}
 @media(prefers-reduced-motion:reduce){.meugasto-notice,.meugasto-notice *{animation-duration:.01ms!important;animation-delay:.01ms!important;transition-duration:.01ms!important}}
+
+/* Monthly close: realized cash flow separated from amounts still due. */
+.monthly-closing-panel{margin-bottom:20px;padding:23px;border:1px solid var(--line);border-radius:16px;background:var(--white)}
+.closing-header{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.closing-header h2{margin:0;font-family:Manrope,sans-serif;font-size:20px;letter-spacing:-.45px}
+.closing-header .balance-note{margin:5px 0 0}
+.closing-month-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:10px;background:var(--lavender);color:#5e4a92;font-size:12px;font-weight:700;text-transform:capitalize;white-space:nowrap}
+.closing-month-chip .material-icons{font-size:17px}
+.closing-actual-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:19px}
+.closing-actual-metric{display:grid;gap:9px;padding:15px 16px;border:1px solid var(--line);border-radius:12px;background:#fcfbfe}
+.closing-actual-metric>span,.closing-pending-card>div:first-child>span{color:var(--muted);font-size:12px;font-weight:600}
+.closing-actual-metric>strong{font-family:Manrope,sans-serif;font-size:22px;letter-spacing:-.5px}
+.closing-actual-metric.is-income>strong{color:var(--green)}
+.closing-actual-metric:not(.is-income):not(.is-balance)>strong{color:#b44450}
+.closing-actual-metric.is-balance>strong{color:var(--green)}
+.closing-actual-metric.is-balance>strong.negative-balance{color:#b44450}
+.closing-open-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:23px 0 11px}
+.closing-open-heading h3{margin:0;font-family:Manrope,sans-serif;font-size:14px}
+.closing-open-heading p{margin:0;color:var(--muted);font-size:11px}
+.closing-pending-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.closing-pending-card{min-width:0;display:grid;align-content:start;gap:10px;padding:14px 15px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.closing-pending-card>div:first-child{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.closing-pending-card small{color:#918b9d;font-size:10px;text-align:right}
+.closing-pending-card>strong{font-size:18px;font-variant-numeric:tabular-nums;letter-spacing:-.25px}
+#closing-to-receive{color:var(--green)}
+#closing-to-pay{color:#b44450}
+#closing-open-cards{color:var(--purple)}
+.closing-card-list{display:grid;gap:0;border-top:1px solid #f0edf4}
+.closing-card-line{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f0edf4}
+.closing-card-line:last-child{border-bottom:0;padding-bottom:0}
+.closing-card-line>span{min-width:0;overflow-wrap:anywhere;font-size:11px;font-weight:700}
+.closing-card-line small{display:block;margin-top:3px;text-align:left;font-size:10px;font-weight:400}
+.closing-card-line>strong{font-size:11px;white-space:nowrap}
+.closing-empty{margin:0;padding:8px 0 0;color:#918b9d;font-size:11px}
+@media(max-width:900px){.closing-pending-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.closing-invoices-card{grid-column:1/-1}}
+@media(max-width:600px){.monthly-closing-panel{padding:18px}.closing-actual-grid,.closing-pending-grid{grid-template-columns:1fr}.closing-invoices-card{grid-column:auto}.closing-actual-metric{grid-template-columns:1fr auto;align-items:center}.closing-actual-metric>strong{font-size:19px}.closing-open-heading{align-items:flex-start;flex-direction:column;gap:4px}.closing-pending-card>strong{font-size:19px}}

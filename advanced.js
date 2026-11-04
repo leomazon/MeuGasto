@@ -128,7 +128,31 @@ function trendChartMarkup(series) {
   }).join('');
   return `<svg class="trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Gráfico de colunas agrupadas com receitas previstas em verde e despesas previstas em vermelho, por mês"><title>Evolução mensal de receitas e despesas previstas</title>${bands}${grid}<line class="trend-axis" x1="${left}" y1="${top}" x2="${left}" y2="${top+plotHeight}"/><line class="trend-axis" x1="${left}" y1="${top+plotHeight}" x2="${width-right}" y2="${top+plotHeight}"/>${bars}</svg>`;
 }
+function renderMonthlyClosing() {
+  const closing=Core.monthlyClosing(expenses,settlements,selectedMonth());
+  $('closing-month').textContent=monthLabel(selectedMonth());
+  $('closing-received').textContent=currency.format(closing.received);
+  $('closing-paid').textContent=currency.format(closing.paid);
+  $('closing-balance').textContent=currency.format(closing.balance);
+  $('closing-balance').className=closing.balance<0 ? 'negative-balance' : 'income-value';
+  $('closing-to-receive').textContent=currency.format(closing.toReceive);
+  $('closing-to-receive-count').textContent=closing.toReceiveCount
+    ? `${closing.toReceiveCount} receita${closing.toReceiveCount===1 ? '' : 's'} pendente${closing.toReceiveCount===1 ? '' : 's'}`
+    : 'Nenhuma receita pendente';
+  $('closing-to-pay').textContent=currency.format(closing.toPay);
+  $('closing-to-pay-count').textContent=closing.toPayCount
+    ? `${closing.toPayCount} despesa${closing.toPayCount===1 ? '' : 's'} pendente${closing.toPayCount===1 ? '' : 's'}`
+    : 'Nenhuma despesa pendente';
+  $('closing-open-cards').textContent=currency.format(closing.openCardTotal);
+  $('closing-open-cards-count').textContent=closing.openCardCount
+    ? `${closing.openCardCount} fatura${closing.openCardCount===1 ? '' : 's'} · ${closing.openCardChargeCount} cobrança${closing.openCardChargeCount===1 ? '' : 's'}`
+    : 'Nenhuma fatura em aberto';
+  $('closing-card-list').innerHTML=closing.openCardBills.length
+    ? closing.openCardBills.map(bill=>`<div class="closing-card-line"><span>${escapeHtml(bill.cardName)}<small>${bill.charges} cobrança${bill.charges===1 ? '' : 's'} em aberto</small></span><strong>${currency.format(bill.amount)}</strong></div>`).join('')
+    : '<p class="closing-empty">Sem faturas abertas neste mês.</p>';
+}
 function renderInsights() {
+  renderMonthlyClosing();
   const actual = Core.monthlyCashFlow(expenses,settlements,selectedMonth());
   $('actual-income').textContent=currency.format(actual.income);
   $('actual-expenses').textContent=currency.format(actual.expenses);

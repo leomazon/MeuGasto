@@ -43,6 +43,39 @@ after(async () => {
 });
 
 
+test('shows actual monthly totals and splits pending amounts from unpaid card invoices', async () => {
+  const month = await page.locator('#month-picker').inputValue();
+  await page.evaluate((selectedMonth) => {
+    const date = day => `${selectedMonth}-${String(day).padStart(2,'0')}`;
+    const entries = [
+      {id:'salary',description:'Salário',type:'income',status:'planned',amount:1000,firstDate:date(1),installments:1,payment:'Pix',category:'Salário'},
+      {id:'project',description:'Serviço a receber',type:'income',status:'planned',amount:250,firstDate:date(10),installments:1,payment:'Pix',category:'Prestação de serviço'},
+      {id:'rent',description:'Aluguel',type:'expense',status:'planned',amount:300,firstDate:date(2),installments:1,payment:'Pix',category:'Moradia'},
+      {id:'groceries',description:'Mercado',type:'expense',amount:80,firstDate:date(3),installments:1,payment:'Dinheiro',category:'Alimentação'},
+      {id:'card-purchase',description:'Compra no cartão',type:'expense',status:'planned',amount:200,firstDate:date(4),installments:1,payment:'Cartão',cardId:'nu',card:'Nubank',category:'Compras'},
+      {id:'card-transfer',description:'Pagamento da fatura',type:'debt-transfer',amount:120,firstDate:date(5),installments:1,payment:'Cartão',cardId:'bb',card:'Ourocard',category:'Outros'},
+    ];
+    const payments = [
+      {id:'salary-paid',expenseId:'salary',installmentIndex:0,amount:1000,date:date(6),method:'Pix'},
+      {id:'rent-partial',expenseId:'rent',installmentIndex:0,amount:100,date:date(7),method:'Pix'},
+      {id:'card-partial',expenseId:'card-purchase',installmentIndex:0,amount:50,date:date(8),method:'Pix'},
+    ];
+    localStorage.setItem('meu-financeiro-v1',JSON.stringify(entries));
+    localStorage.setItem('meugasto-card-payments-v1',JSON.stringify(payments));
+  }, month);
+  await page.reload();
+  await page.getByRole('button',{name:'Análises',exact:true}).click();
+
+  assert.equal((await page.locator('#closing-received').innerText()).replace(/\s/g,''),'R$1.000,00');
+  assert.equal((await page.locator('#closing-paid').innerText()).replace(/\s/g,''),'R$230,00');
+  assert.equal((await page.locator('#closing-balance').innerText()).replace(/\s/g,''),'R$770,00');
+  assert.equal((await page.locator('#closing-to-receive').innerText()).replace(/\s/g,''),'R$250,00');
+  assert.equal((await page.locator('#closing-to-pay').innerText()).replace(/\s/g,''),'R$200,00');
+  assert.equal((await page.locator('#closing-open-cards').innerText()).replace(/\s/g,''),'R$270,00');
+  assert.match(await page.locator('#closing-card-list').innerText(),/Nubank.*150,00/s);
+  assert.match(await page.locator('#closing-card-list').innerText(),/Ourocard.*120,00/s);
+});
+
 
 test('confirms and reopens receipts and cash payments without changing projected totals', async () => {
   await page.getByRole('button',{name:'Lançamentos',exact:true}).click();

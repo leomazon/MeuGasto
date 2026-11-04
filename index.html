@@ -100,6 +100,33 @@
         </section>
 
         <section class="analytics-view" id="analytics-view" hidden>
+          <section class="monthly-closing-panel" aria-labelledby="closing-title">
+            <div class="closing-header">
+              <div><h2 id="closing-title">Fechamento mensal</h2><p class="balance-note">Confira o que entrou, saiu e ainda está em aberto.</p></div>
+              <span class="closing-month-chip"><span class="material-icons" aria-hidden="true">event_note</span><span id="closing-month"></span></span>
+            </div>
+            <div class="closing-actual-grid">
+              <article class="closing-actual-metric is-income"><span>Receitas recebidas</span><strong id="closing-received">R$ 0,00</strong></article>
+              <article class="closing-actual-metric"><span>Despesas pagas</span><strong id="closing-paid">R$ 0,00</strong></article>
+              <article class="closing-actual-metric is-balance"><span>Saldo realizado</span><strong id="closing-balance">R$ 0,00</strong></article>
+            </div>
+            <div class="closing-open-heading"><h3>Valores pendentes</h3><p>Faturas de cartão são mostradas à parte para evitar contagem dupla.</p></div>
+            <div class="closing-pending-grid">
+              <article class="closing-pending-card">
+                <div><span>A receber</span><small id="closing-to-receive-count">Nenhum registro</small></div>
+                <strong id="closing-to-receive">R$ 0,00</strong>
+              </article>
+              <article class="closing-pending-card">
+                <div><span>Despesas a pagar</span><small id="closing-to-pay-count">Nenhum registro</small></div>
+                <strong id="closing-to-pay">R$ 0,00</strong>
+              </article>
+              <article class="closing-pending-card closing-invoices-card">
+                <div><span>Faturas em aberto</span><small id="closing-open-cards-count">Nenhuma fatura</small></div>
+                <strong id="closing-open-cards">R$ 0,00</strong>
+                <div id="closing-card-list" class="closing-card-list"><p class="closing-empty">Sem faturas abertas neste mês.</p></div>
+              </article>
+            </div>
+          </section>
           <div class="lower-grid category-comparison">
             <section class="category-panel">
               <div class="section-title-row"><div><h2>Despesas por categoria</h2><p class="eyebrow">DESPESAS</p></div><button class="text-button" id="all-categories">Ver lançamentos <span aria-hidden="true">↗</span></button></div>

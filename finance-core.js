@@ -126,6 +126,45 @@
     }
     return {income:income/100,expenses:expenses/100,balance:(income-expenses)/100};
   }
+  function monthlyClosing(entries,payments,month) {
+    const actual=monthlyCashFlow(entries,payments,month);
+    let toReceiveCents=0, toPayCents=0, toReceiveCount=0, toPayCount=0;
+    for (const record of monthlyRecords(entries,payments,month)) {
+      const remaining=Math.max(0,cents(record.amount)-cents(realizedAmount(record.expense,record.index,payments)));
+      if (!remaining) continue;
+      if (record.expense.type==='income') { toReceiveCents+=remaining; toReceiveCount++; }
+      else if (record.expense.payment!=='Cartão') { toPayCents+=remaining; toPayCount++; }
+    }
+    const cardGroups=new Map();
+    let openCardChargeCount=0;
+    for (const charge of monthCharges(entries,payments,null,month)) {
+      if (charge.expense.payment!=='Cartão' || charge.remaining<=0) continue;
+      const cardId=String(charge.expense.cardId || '');
+      const cardName=String(charge.expense.card || 'Cartão sem identificação');
+      const key=cardId || `name:${cardName}`;
+      const current=cardGroups.get(key) || {cardId,cardName,amountCents:0,charges:0};
+      current.amountCents+=cents(charge.remaining);
+      current.charges++;
+      cardGroups.set(key,current);
+      openCardChargeCount++;
+    }
+    const openCardBills=[...cardGroups.values()]
+      .map(({amountCents,...bill})=>({...bill,amount:amountCents/100}))
+      .sort((a,b)=>a.cardName.localeCompare(b.cardName,'pt-BR',{sensitivity:'base'}));
+    return {
+      received:actual.income,
+      paid:actual.expenses,
+      balance:actual.balance,
+      toReceive:toReceiveCents/100,
+      toReceiveCount,
+      toPay:toPayCents/100,
+      toPayCount,
+      openCardTotal:openCardBills.reduce((sum,bill)=>sum+cents(bill.amount),0)/100,
+      openCardCount:openCardBills.length,
+      openCardChargeCount,
+      openCardBills,
+    };
+  }
   function budgetProgress(entries,payments,budgets,month) {
     const spent=new Map(categoryBreakdown(transactionCharges(entries,payments,month)).map(c=>[c.category,c.amount]));
     return budgets.map(item=>{
@@ -242,6 +281,7 @@
   const api = {
     installmentAmount,
     installmentDate,
+    monthlyClosing,
     cardDueDate,
     isChargeOverdue,
     chargeRemaining,

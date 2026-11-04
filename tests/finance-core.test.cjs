@@ -269,6 +269,33 @@ test('separates projected and actual cashflow by receipt or payment date without
  assert.deepEqual(Core.monthlyCashFlow(entries,payments,'2026-12'),{income:0,expenses:500,balance:-500});
  assert.equal(Core.monthlyBalance(entries,payments,'2026-11').balance,480);
 });
+test('summarizes a monthly close with actuals, unpaid cash records and open card balances',()=>{
+ const entries=[
+  {id:'salary',type:'income',status:'planned',amount:1000,firstDate:'2026-11-01',installments:1,payment:'Pix'},
+  {id:'project',type:'income',status:'planned',amount:250,firstDate:'2026-11-10',installments:1,payment:'Pix'},
+  {id:'rent',type:'expense',status:'planned',amount:300,firstDate:'2026-11-02',installments:1,payment:'Pix'},
+  {id:'groceries',type:'expense',amount:80,firstDate:'2026-11-03',installments:1,payment:'Dinheiro'},
+  {id:'card-purchase',type:'expense',status:'planned',amount:200,firstDate:'2026-11-04',installments:1,payment:'Cartão',cardId:'nu',card:'Nubank'},
+  {id:'card-transfer',type:'debt-transfer',amount:120,firstDate:'2026-11-05',installments:1,payment:'Cartão',cardId:'bb',card:'Ourocard'},
+ ];
+ const payments=[
+  {id:'salary-paid',expenseId:'salary',installmentIndex:0,amount:1000,date:'2026-11-06',method:'Pix'},
+  {id:'rent-partial',expenseId:'rent',installmentIndex:0,amount:100,date:'2026-11-07',method:'Pix'},
+  {id:'card-partial',expenseId:'card-purchase',installmentIndex:0,amount:50,date:'2026-11-08',method:'Pix'},
+ ];
+ assert.deepEqual(Core.monthlyClosing(entries,payments,'2026-11'),{
+  received:1000,paid:230,balance:770,toReceive:250,toReceiveCount:1,toPay:200,toPayCount:1,
+  openCardTotal:270,openCardCount:2,openCardChargeCount:2,
+  openCardBills:[
+   {cardId:'nu',cardName:'Nubank',amount:150,charges:1},
+   {cardId:'bb',cardName:'Ourocard',amount:120,charges:1},
+  ],
+ });
+ assert.deepEqual(Core.monthlyClosing([],[],'2026-11'),{
+  received:0,paid:0,balance:0,toReceive:0,toReceiveCount:0,toPay:0,toPayCount:0,
+  openCardTotal:0,openCardCount:0,openCardChargeCount:0,openCardBills:[],
+ });
+});
 test('legacy one-off records remain realized and recurring future records remain planned',()=>{
  const entries=[{id:'legacy',type:'income',amount:50,installments:1,firstDate:'2026-11-01'}, {id:'fixed',type:'income',recurring:true,status:'realized',amount:100,installments:1,firstDate:'2026-11-01'}];
  assert.equal(Core.monthlyCashFlow(entries,[],'2026-11').income,150);
