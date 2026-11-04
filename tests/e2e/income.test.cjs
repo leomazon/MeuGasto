@@ -69,7 +69,7 @@ test('manages income and expenses through one form and filters them by type and 
   assert.equal(await page.locator('#transactions-list .expense-row').count(),1);
   await page.getByRole('button',{name:'Editar Serviço recebido',exact:true}).click();
   assert.equal(await form.getByRole('radio',{name:'Receita',exact:true}).isChecked(),true);
-  await form.locator('#category').selectOption('Trabalho físico');
+  await form.locator('#category').selectOption('Salário');
   await form.locator('#amount').fill('1500,00');
   await form.getByRole('button',{name:'Salvar alterações',exact:true}).click();
   await page.locator('#clear-filters').click();
@@ -86,7 +86,7 @@ test('manages income and expenses through one form and filters them by type and 
   const downloaded=page.waitForEvent('download');
   await page.getByRole('button',{name:'Baixar backup'}).click();
   const backup=JSON.parse(fs.readFileSync(await (await downloaded).path(),'utf8'));
-  assert.equal(backup.expenses.find(e=>e.type==='income').category,'Trabalho físico');
+  assert.equal(backup.expenses.find(e=>e.type==='income').category,'Salário');
   await page.reload();
   await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
   await page.getByRole('button',{name:'Excluir Serviço recebido',exact:true}).click();

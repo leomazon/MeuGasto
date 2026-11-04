@@ -65,6 +65,7 @@ test('shows Material icons in expense and income category choices', async () => 
   await page.goto(appUrl);
   await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
   await page.locator('#new-expense').click();
+  assert.equal(await page.locator('input[name="record-type"][value="expense"] + span').evaluate(button=>getComputedStyle(button).backgroundColor),'rgb(180, 71, 82)');
 
   await page.locator('#category-trigger').click();
   const expenseOptions=page.locator('#category-options [role="option"]');
@@ -77,11 +78,41 @@ test('shows Material icons in expense and income category choices', async () => 
   await page.locator('input[name="record-type"][value="income"]').check();
   await page.locator('#category-trigger').click();
   const incomeOptions=page.locator('#category-options [role="option"]');
-  assert.equal(await incomeOptions.count(),7);
+  assert.equal(await incomeOptions.count(),6);
   assert.equal(await incomeOptions.first().locator('.material-icons').innerText(),'handyman');
+  assert.equal(await incomeOptions.filter({hasText:'Trabalho físico'}).count(),0);
+  const otherIncomeIcon=incomeOptions.filter({hasText:'Outras receitas'}).locator('.material-icons');
+  assert.equal(await otherIncomeIcon.innerText(),'north_east');
+  assert.equal(await otherIncomeIcon.evaluate(icon=>getComputedStyle(icon).color),'rgb(74, 145, 184)');
   await incomeOptions.filter({hasText:'Vendas'}).click();
   assert.equal(await page.locator('#category').inputValue(),'Vendas');
   assert.equal(await page.locator('#category-selected-icon').innerText(),'shopping_bag');
+});
+
+test('shows centered icons for payment methods and keeps the selected method in the form', async () => {
+  await page.goto(appUrl);
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
+  await page.locator('#new-expense').click();
+  await page.locator('#payment-trigger').click();
+
+  const methods=page.locator('#payment-options [role="option"]');
+  assert.deepEqual(await methods.evaluateAll(elements=>elements.map(option=>option.lastElementChild.textContent)),['Pix','Dinheiro','Cartão']);
+  assert.equal(await methods.nth(0).locator('.payment-picker-pix').count(),1);
+  assert.equal(await methods.nth(1).locator('.material-icons').innerText(),'payments');
+  assert.equal(await methods.nth(2).locator('.material-icons').innerText(),'credit_card');
+  await methods.filter({hasText:'Dinheiro'}).click();
+  assert.equal(await page.locator('#payment').inputValue(),'Dinheiro');
+  assert.equal(await page.locator('#payment-selected-name').innerText(),'Dinheiro');
+  const iconStyle=await page.locator('#payment-selected-icon').evaluate(icon=>getComputedStyle(icon));
+  assert.equal(iconStyle.display,'grid');
+  assert.equal(iconStyle.alignItems,'center');
+  assert.equal(iconStyle.justifyItems,'center');
+
+  await page.locator('input[name="record-type"][value="income"]').check();
+  await page.locator('#payment-trigger').click();
+  const receiptMethods=page.locator('#payment-options [role="option"]');
+  assert.deepEqual(await receiptMethods.evaluateAll(elements=>elements.map(option=>option.lastElementChild.textContent)),['Transferência','Pix','Dinheiro']);
+  assert.equal(await receiptMethods.first().locator('.material-icons').innerText(),'account_balance');
 });
 
 

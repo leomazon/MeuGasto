@@ -12,12 +12,11 @@ const CATEGORY_DATA = [
 ];
 const INCOME_CATEGORY_DATA = [
   { name: 'Prestação de serviço', icon: 'handyman', color: '#317c62', iconColor: '#c8793a' },
-  { name: 'Trabalho físico', icon: 'construction', color: '#317c62', iconColor: '#4a91b8' },
   { name: 'Salário', icon: 'work', color: '#317c62', iconColor: '#317c62' },
   { name: 'Vendas', icon: 'shopping_bag', color: '#317c62', iconColor: '#c89b38' },
   { name: 'Rendimentos', icon: 'trending_up', color: '#317c62', iconColor: '#8a68c4' },
   { name: 'Aluguéis', icon: 'home_work', color: '#317c62', iconColor: '#46977c' },
-  { name: 'Outras receitas', icon: 'south_west', color: '#317c62', iconColor: '#d56c90' },
+  { name: 'Outras receitas', icon: 'north_east', color: '#317c62', iconColor: '#4a91b8' },
 ];
 const STORAGE_KEY = 'meu-financeiro-v1'; // Keep the existing key so current expenses stay available.
 const CARD_STORAGE_KEY = 'meugasto-cards-v1';
@@ -203,12 +202,13 @@ function updatePaymentFilter() {
 function updateRecordType(selectedCategory = '') {
   const income = recordType() === 'income';
   const previousPayment = $('payment').value;
-  $('category').innerHTML = recordCategories(income ? 'income' : 'expense').map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
+  $('category').innerHTML = recordCategories(income ? 'income' : 'expense').filter(item=>item.name!=='Trabalho físico' || selectedCategory==='Trabalho físico').map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
   if (selectedCategory) $('category').value = selectedCategory;
   syncCategoryPicker();
   const methods = recordPaymentMethods(income ? 'income' : 'expense');
   $('payment').innerHTML = methods.map(method => `<option value="${method}">${method}</option>`).join('');
   $('payment').value = methods.includes(previousPayment) ? previousPayment : methods[0];
+  syncPaymentPicker();
   $('description').placeholder = income ? 'Ex.: salário, serviço prestado' : 'Ex.: mercado, conta de luz';
   $('payment-label').textContent = income ? 'Forma de recebimento' : 'Forma de pagamento';
   $('record-date-label').textContent = income ? 'Data de recebimento' : 'Data do primeiro pagamento';
@@ -264,6 +264,67 @@ function setupCategoryPicker() {
   });
   document.addEventListener('pointerdown',event=>{if (!picker.contains(event.target)) setOpen(false);});
   syncCategoryPicker();
+}
+function paymentMethodInfo(method) {
+  const methods={
+    Pix:{icon:'pix',color:'#299e91',image:'pix-symbol.svg'},
+    Dinheiro:{icon:'payments',color:'#b78027'},
+    Cartão:{icon:'credit_card',color:'#6541c8'},
+    Transferência:{icon:'account_balance',color:'#4a91b8'},
+  };
+  return methods[method] || {icon:'swap_horiz',color:'#8b8298'};
+}
+function paymentIconMarkup(method) {
+  const info=paymentMethodInfo(method);
+  return info.image ? `<img class="payment-picker-pix" src="${info.image}" alt="" />` : `<span class="material-icons" aria-hidden="true">${escapeHtml(info.icon)}</span>`;
+}
+function syncPaymentPicker() {
+  const select=$('payment'), trigger=$('payment-trigger');
+  if (!select || !trigger) return;
+  const selected=$('payment-selected-icon'), info=paymentMethodInfo(select.value);
+  selected.innerHTML=paymentIconMarkup(select.value);
+  selected.style.color=info.color;
+  selected.style.backgroundColor=`${info.color}1a`;
+  $('payment-selected-name').textContent=select.value;
+  $('payment-options').innerHTML=[...select.options].map(option=>{
+    const methodInfo=paymentMethodInfo(option.value);
+    return `<div class="payment-picker-option" role="option" tabindex="-1" data-payment-option="${escapeHtml(option.value)}" aria-selected="${String(option.value===select.value)}"><span class="payment-picker-option-icon" style="color:${methodInfo.color};background-color:${methodInfo.color}1a">${paymentIconMarkup(option.value)}</span><span>${escapeHtml(option.value)}</span></div>`;
+  }).join('');
+}
+function setupPaymentPicker() {
+  const select=$('payment'), picker=$('payment-picker'), trigger=$('payment-trigger'), options=$('payment-options');
+  const setOpen=(open,focusSelected=false)=>{
+    options.hidden=!open;
+    trigger.setAttribute('aria-expanded',String(open));
+    if (open && focusSelected) (options.querySelector('[aria-selected="true"]') || options.querySelector('[role="option"]'))?.focus();
+  };
+  select.addEventListener('change',syncPaymentPicker);
+  trigger.addEventListener('click',()=>setOpen(options.hidden));
+  trigger.addEventListener('keydown',event=>{
+    if (event.key==='ArrowDown' || event.key==='ArrowUp') {event.preventDefault();setOpen(true,true);}
+  });
+  options.addEventListener('click',event=>{
+    const option=event.target.closest('[data-payment-option]');
+    if (!option) return;
+    select.value=option.dataset.paymentOption;
+    select.dispatchEvent(new Event('input',{bubbles:true}));
+    select.dispatchEvent(new Event('change',{bubbles:true}));
+    setOpen(false);trigger.focus();
+  });
+  options.addEventListener('keydown',event=>{
+    const items=[...options.querySelectorAll('[role="option"]')], index=items.indexOf(document.activeElement);
+    let next=index;
+    if (event.key==='ArrowDown') next=Math.min(items.length-1,index+1);
+    else if (event.key==='ArrowUp') next=Math.max(0,index-1);
+    else if (event.key==='Home') next=0;
+    else if (event.key==='End') next=items.length-1;
+    else if (event.key==='Escape') {event.preventDefault();setOpen(false);trigger.focus();return;}
+    else if (event.key==='Enter' || event.key===' ') {event.preventDefault();document.activeElement.click();return;}
+    else return;
+    event.preventDefault();items[next]?.focus();
+  });
+  document.addEventListener('pointerdown',event=>{if (!picker.contains(event.target)) setOpen(false);});
+  syncPaymentPicker();
 }
 function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
 function dateFromKey(value) { const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day); }
@@ -825,6 +886,7 @@ function initialize() {
   $('month-picker').value = monthKey(new Date());
   $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
   setupCategoryPicker();
+  setupPaymentPicker();
   updateCategoryFilter(); updatePaymentFilter();
   $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
   populateCardSelect($('card-select'));
