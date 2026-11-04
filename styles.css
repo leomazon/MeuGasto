@@ -363,14 +363,14 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .analytics-view .category-comparison{margin-top:0}
 .overview-view .actual-panel{margin-top:14px}
 .overview-view .summary-row{margin-top:14px}
-.overview-recent{min-height:0;margin-top:0}
+.overview-recent{min-height:0;margin-top:24px}
 .overview-recent .recent-list{margin-top:8px}
 .cards-view .cards-heading{margin:18px 0 20px}
 .cards-view .cards-intro{margin:7px 0 0;color:var(--muted);font-size:14px}
 .cards-view .dashboard-cards{margin-bottom:26px}
 .card-bills-label{margin:0 0 10px}
 #overview-view:not([hidden]),#transactions-view:not([hidden]),#cards-view:not([hidden]),#analytics-view:not([hidden]){animation:view-arrive .32s cubic-bezier(.2,.7,.25,1) both}
-@media(max-width:760px){.analytics-view{padding-top:12px}.overview-recent{margin-top:0}.cards-view .cards-heading{align-items:flex-start}}
+@media(max-width:760px){.analytics-view{padding-top:12px}.overview-recent{margin-top:18px}.cards-view .cards-heading{align-items:flex-start}}
 
 .category-picker{position:relative;min-width:0}
 .category-picker select{position:absolute!important;top:0;left:0;width:1px!important;height:1px!important;padding:0!important;opacity:0;pointer-events:none}
