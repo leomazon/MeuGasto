@@ -199,6 +199,7 @@ test('uses larger readable type for transaction details and card billing details
 });
 
 test('adds a cash purchase and shows cash separately beside Pix and card in the overview', async () => {
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
   await page.getByRole('button', { name: 'Novo gasto' }).click();
   const dialog = page.locator('#expense-dialog');
   await dialog.locator('#description').fill('Compra em dinheiro');
@@ -210,6 +211,7 @@ test('adds a cash purchase and shows cash separately beside Pix and card in the 
   }));
   assert.equal(await dialog.locator('#card-details-row').isHidden(), true, 'cash purchases should not ask for card details');
   await dialog.getByRole('button', { name: 'Salvar gasto' }).click();
+  await page.getByRole('button', { name: 'Visão geral', exact: true }).click();
 
   const amountText = async (selector) => (await page.locator(selector).innerText()).replace(/\u00a0/g, ' ');
   assert.equal(await amountText('#cash-total'), 'R$ 12,50');

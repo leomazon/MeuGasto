@@ -305,7 +305,7 @@ function render() {
   $('month-long-label').textContent = selectedMonthTitle;
   $('month-long-label').hidden = false;
   $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : view === 'receitas' ? 'Receitas' : 'Lançamentos';
-  $('new-expense-top').hidden = view === 'lancamentos' || view === 'receitas';
+  $('new-expense-top').hidden = view !== 'cartoes';
   document.querySelector('.app-shell').classList.toggle('transactions-active', view === 'lancamentos');
   document.querySelector('.app-shell').classList.add('page-title-active');
   $('date-greeting').textContent = `SEU RESUMO DE ${monthLabel(selectedMonth())}`;
