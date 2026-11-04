@@ -123,7 +123,11 @@
             <button class="clear-filters-button" id="clear-filters" type="button">Limpar filtros</button>
           </div>
           <div class="transactions-order"><label for="sort-order">Ordenar por</label><select id="sort-order"><option value="date-desc">Mais recentes</option><option value="category-asc">Categoria: A–Z</option><option value="category-desc">Categoria: Z–A</option><option value="amount-desc">Maior valor</option><option value="amount-asc">Menor valor</option></select></div>
-          <div id="transactions-list" class="transactions-list"></div>
+          <div id="transactions-results" class="transactions-results">
+            <div id="transactions-list" class="transactions-list"></div>
+            <div id="transactions-skeleton" class="transactions-list transactions-skeleton" aria-hidden="true" hidden></div>
+          </div>
+          <span id="transactions-loading-status" class="sr-only" role="status"></span>
           <div class="pagination-bar" aria-label="Paginação dos lançamentos">
             <span class="pagination-count" id="transactions-count">Nenhum lançamento neste mês</span>
             <div class="pagination-controls">

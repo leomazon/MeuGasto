@@ -343,10 +343,26 @@ function validateTransactionRange() {
   }
   return { minAmount, maxAmount, invalidRange };
 }
+function setTransactionsLoading(loading) {
+  const container = $('transactions-results');
+  const list = $('transactions-list');
+  const wasLoading = container.classList.contains('is-filtering');
+  if (loading && !wasLoading) {
+    const count = Math.max(1, list.querySelectorAll('.expense-row').length);
+    $('transactions-skeleton').innerHTML = Array.from({ length: count }, () => '<div class="skeleton-row"><span class="skeleton-block skeleton-icon"></span><div class="skeleton-description"><span class="skeleton-block skeleton-title"></span><span class="skeleton-block skeleton-detail"></span></div><span class="skeleton-block skeleton-amount"></span></div>').join('');
+  }
+  container.classList.toggle('is-filtering', loading);
+  container.setAttribute('aria-busy', String(loading));
+  $('transactions-skeleton').hidden = !loading;
+  list.inert = loading;
+  list.setAttribute('aria-busy', String(loading));
+  if (loading) list.setAttribute('aria-hidden', 'true'); else list.removeAttribute('aria-hidden');
+  if (loading !== wasLoading) $('transactions-loading-status').textContent = loading ? 'Atualizando lançamentos…' : '';
+}
 function scheduleTransactionFilters() {
   clearTimeout(transactionFilterTimer);
   transactionPage = 1;
-  $('transactions-list').setAttribute('aria-busy', 'true');
+  setTransactionsLoading(true);
   transactionFilterTimer = setTimeout(renderTransactions, TRANSACTION_FILTER_PAUSE);
 }
 function renderTransactions() {
@@ -384,7 +400,7 @@ function renderTransactions() {
   $('previous-page').disabled = page.page <= 1;
   $('next-page').disabled = page.page >= page.totalPages;
   $('page-size').value = String(transactionPageSize);
-  $('transactions-list').setAttribute('aria-busy', 'false');
+  setTransactionsLoading(false);
 }
 function cardMonthCharges(cardId, month = selectedMonth()) { return chargesForMonth(month, cardId).filter((charge) => charge.expense.payment === 'Cartão' && charge.remaining > 0); }
 function renderCardItem(card) {

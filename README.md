@@ -23,7 +23,7 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 - Compras no cartão à vista ou parceladas. O app distribui o valor total em cobranças mensais; a última parcela ajusta a diferença de centavos.
 - Exportação e importação de backup em JSON.
 - Filtros de lançamentos por tipo (receita/despesa), categoria, forma de pagamento ou recebimento e intervalo de valores.
-- Busca e valores dos filtros são aplicados após 1 segundo sem digitação, mantendo a lista estável; Enter aplica a busca imediatamente.
+- Busca e valores dos filtros são aplicados após 1 segundo sem digitação, mostrando um skeleton sem alterar a altura da lista; Enter aplica a busca imediatamente.
 - Ordenação de lançamentos por data, categoria (A–Z ou Z–A), maior ou menor valor, aplicada antes da paginação.
 - Registros fixos mensais de receitas e despesas, repetidos a partir da data inicial. Desmarcar a opção ao editar encerra a repetição após o mês selecionado e preserva o histórico.
 - Para registros fixos no cartão, cada mês tem sua própria liquidação; apenas os meses já iniciados comprometem o limite. O valor informado é mensal, sem parcelamento.
