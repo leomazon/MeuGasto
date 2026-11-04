@@ -61,6 +61,7 @@ test('shows separate monthly category charts and income shares that survive filt
   assert.match(await mainRow.locator('.category-share').getAttribute('aria-label'),/75% da categoria Prestação de serviço/);
   assert.equal(await mainRow.locator('.category-share-track i').evaluate(e=>getComputedStyle(e).backgroundColor),incomeColor);
   await page.locator('#search-input').fill('Serviço principal');
+  await page.waitForFunction(()=>document.querySelector('#transactions-list').getAttribute('aria-busy')==='false');
   assert.equal(await page.locator('#transactions-list .expense-row').count(),1);
   assert.match(await mainRow.locator('.category-share').innerText(),/75%/);
   await page.getByRole('button',{name:'Visão geral',exact:true}).click();

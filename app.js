@@ -53,6 +53,9 @@ let settlements = loadSettlements();
 let view = 'inicio';
 let transactionPage = 1;
 let transactionPageSize = 10;
+let transactionFilterTimer = null;
+let lastTransactionMarkup = null;
+const TRANSACTION_FILTER_PAUSE = 1000;
 let toastTimer;
 let settlementTarget = null;
 let pendingDelete = null;
@@ -328,7 +331,7 @@ function renderDashboardCards() {
     return `<article class="dashboard-card"><span class="card-chip" aria-hidden="true">▰</span><div class="dashboard-card-info"><strong>${escapeHtml(card.name)}</strong><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><strong class="dashboard-card-available">${currency.format(available)}<small> disponível</small></strong><div class="card-progress"><i style="width:${percent}%"></i></div></article>`;
   }).join('');
 }
-function renderTransactions() {
+function validateTransactionRange() {
   const minAmount = $('amount-min').value.trim() ? parseCurrencyInput($('amount-min').value) : null;
   const maxAmount = $('amount-max').value.trim() ? parseCurrencyInput($('amount-max').value) : null;
   const invalidRange = minAmount !== null && maxAmount !== null && minAmount > maxAmount;
@@ -338,6 +341,18 @@ function renderTransactions() {
     if (invalidRange) $(id).setAttribute('aria-describedby', 'amount-range-error');
     else $(id).removeAttribute('aria-describedby');
   }
+  return { minAmount, maxAmount, invalidRange };
+}
+function scheduleTransactionFilters() {
+  clearTimeout(transactionFilterTimer);
+  transactionPage = 1;
+  $('transactions-list').setAttribute('aria-busy', 'true');
+  transactionFilterTimer = setTimeout(renderTransactions, TRANSACTION_FILTER_PAUSE);
+}
+function renderTransactions() {
+  clearTimeout(transactionFilterTimer);
+  transactionFilterTimer = null;
+  const { minAmount, maxAmount, invalidRange } = validateTransactionRange();
   const query = $('search-input').value.trim().toLocaleLowerCase('pt-BR');
   const allCharges = Core.monthlyRecords(expenses, settlements, selectedMonth());
   const shareByCharge = new Map(Core.categoryChargeShares(allCharges).map((share) => [`${share.expenseId}::${share.installmentIndex}`, share.percent]));
@@ -357,7 +372,11 @@ function renderTransactions() {
   const page = Core.paginate(charges, transactionPage, transactionPageSize);
   transactionPage = page.page;
   const hasFilters = $('payment-filter').value || query || $('type-filter').value || $('category-filter').value || $('amount-min').value || $('amount-max').value;
-  $('transactions-list').innerHTML = page.items.length ? page.items.map((charge) => renderExpenseRow(charge, true, shareByCharge.get(`${charge.expense.id}::${charge.index}`) ?? 0)).join('') : `<p class="empty-note">${invalidRange ? 'Corrija o intervalo de valores para visualizar os lançamentos.' : hasFilters ? 'Nenhum lançamento deste mês combina com a busca e os filtros.' : 'Ainda não há registros neste mês.'}</p>`;
+  const markup = page.items.length ? page.items.map((charge) => renderExpenseRow(charge, true, shareByCharge.get(`${charge.expense.id}::${charge.index}`) ?? 0)).join('') : `<p class="empty-note">${invalidRange ? 'Corrija o intervalo de valores para visualizar os lançamentos.' : hasFilters ? 'Nenhum lançamento deste mês combina com a busca e os filtros.' : 'Ainda não há registros neste mês.'}</p>`;
+  if (markup !== lastTransactionMarkup) {
+    $('transactions-list').innerHTML = markup;
+    lastTransactionMarkup = markup;
+  }
   const firstItem = page.totalItems ? (page.page - 1) * page.pageSize + 1 : 0;
   const lastItem = page.totalItems ? firstItem + page.items.length - 1 : 0;
   $('transactions-count').textContent = invalidRange ? 'Intervalo de valores inválido' : page.totalItems ? `Exibindo ${firstItem}–${lastItem} de ${page.totalItems} lançamentos` : 'Nenhum lançamento neste mês';
@@ -365,6 +384,7 @@ function renderTransactions() {
   $('previous-page').disabled = page.page <= 1;
   $('next-page').disabled = page.page >= page.totalPages;
   $('page-size').value = String(transactionPageSize);
+  $('transactions-list').setAttribute('aria-busy', 'false');
 }
 function cardMonthCharges(cardId, month = selectedMonth()) { return chargesForMonth(month, cardId).filter((charge) => charge.expense.payment === 'Cartão' && charge.remaining > 0); }
 function renderCardItem(card) {
@@ -719,15 +739,16 @@ function initialize() {
   $('prev-month').addEventListener('click', () => { const date = dateFromKey(`${selectedMonth()}-01`); date.setMonth(date.getMonth() - 1); transactionPage = 1; setMonth(monthKey(date)); });
   $('next-month').addEventListener('click', () => { const date = dateFromKey(`${selectedMonth()}-01`); date.setMonth(date.getMonth() + 1); transactionPage = 1; setMonth(monthKey(date)); });
   $('month-picker').addEventListener('change', () => { transactionPage = 1; render(); });
-  $('search-input').addEventListener('input', () => { transactionPage = 1; renderTransactions(); });
+  $('search-input').addEventListener('input', scheduleTransactionFilters);
+  $('search-input').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); transactionPage = 1; renderTransactions(); } });
   $('sort-order').addEventListener('change', () => { transactionPage = 1; renderTransactions(); });
   $('type-filter').addEventListener('change', () => { updateCategoryFilter(); updatePaymentFilter(); transactionPage = 1; renderTransactions(); });
   $('payment-filter').addEventListener('change', () => { transactionPage = 1; renderTransactions(); });
   $('category-filter').addEventListener('change', () => { transactionPage = 1; renderTransactions(); });
   for (const id of ['amount-min', 'amount-max']) $(id).addEventListener('input', (event) => {
     formatCurrencyInput(event.currentTarget);
-    transactionPage = 1;
-    renderTransactions();
+    validateTransactionRange();
+    scheduleTransactionFilters();
   });
   $('clear-filters').addEventListener('click', () => {
     $('search-input').value = '';

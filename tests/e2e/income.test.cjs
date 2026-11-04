@@ -65,6 +65,7 @@ test('manages income and expenses through one form and filters them by type and 
   await page.locator('#type-filter').selectOption('income');
   await page.locator('#category-filter').selectOption('Prestação de serviço');
   await page.locator('#amount-min').fill('900,00');
+  await page.waitForFunction(()=>document.querySelector('#transactions-list').getAttribute('aria-busy')==='false');
   assert.equal(await page.locator('#transactions-list .expense-row').count(),1);
   await page.getByRole('button',{name:'Editar Serviço recebido',exact:true}).click();
   assert.equal(await form.getByRole('radio',{name:'Receita',exact:true}).isChecked(),true);
