@@ -9,5 +9,8 @@
   },
   "devDependencies": {
     "playwright": "1.62.1"
+  },
+  "dependencies": {
+    "notyf": "^3.10.0"
   }
 }

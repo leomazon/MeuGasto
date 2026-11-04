@@ -175,7 +175,7 @@ test('lets the user settle one card installment from monthly transactions', asyn
   await dialog.getByRole('button', { name: 'Confirmar pagamento' }).click();
 
   const payments = await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-card-payments-v1') || '[]'));
-  assert.equal(payments.length, 1, `payment should persist; toast: ${await page.locator('#toast').innerText()}; data: ${await page.evaluate(() => localStorage.getItem('meugasto-card-payments-v1'))}`);
+  assert.equal(payments.length, 1, `payment should persist; toast: ${await page.locator('.notyf__message').allInnerTexts()}; data: ${await page.evaluate(() => localStorage.getItem('meugasto-card-payments-v1'))}`);
   assert.equal(payments[0].expenseId, 'e2e-card-purchase');
   assert.equal(payments[0].installmentIndex, 0);
   assert.equal(await page.locator('#transactions-list').getByText('Liquidado', { exact: true }).count(), 1);

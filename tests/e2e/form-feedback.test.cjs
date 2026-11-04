@@ -68,8 +68,7 @@ test('clears a corrected card field error and shows a success toast after saving
   await page.getByLabel('Dia de vencimento mensal').fill('15');
   await page.locator('#save-card').click();
 
-  assert.equal(await page.locator('#toast').getAttribute('data-tone'), 'success');
-  assert.equal(await page.locator('#toast').innerText(), 'Cartão salvo.');
+  assert.equal(await page.locator('.notyf__toast--success .notyf__message').innerText(), 'Cartão salvo.');
 });
 
 test('shows expense field errors in Portuguese and confirms a saved record', async () => {
@@ -86,6 +85,21 @@ test('shows expense field errors in Portuguese and confirms a saved record', asy
   await page.getByLabel('Descrição').fill('Mercado');
   await page.getByLabel('Valor total').fill('2550');
   await page.locator('#save-expense').click();
-  assert.equal(await page.locator('#toast').getAttribute('data-tone'), 'success');
-  assert.equal(await page.locator('#toast').innerText(), 'Registro salvo.');
+  assert.equal(await page.locator('.notyf__toast--success .notyf__message').innerText(), 'Registro salvo.');
+});
+
+test('shows branded accessible success and error notifications in a stack', async () => {
+  await page.goto(appUrl);
+  await page.evaluate(() => {
+    showToast('Registro salvo.', 'success');
+    showToast('Não foi possível salvar.', 'error');
+  });
+
+  const toasts = page.locator('.notyf__toast');
+  assert.equal(await toasts.count(), 2);
+  assert.equal(await page.locator('.notyf__toast--success .notyf__message').innerText(), 'Registro salvo.');
+  assert.equal(await page.locator('.notyf__toast--error .notyf__message').innerText(), 'Não foi possível salvar.');
+  assert.equal(await page.locator('.notyf__toast--success .material-icons').innerText(), 'check_circle');
+  assert.equal(await page.locator('.notyf__toast--error .material-icons').innerText(), 'error');
+  assert.equal(await page.locator('.notyf-announcer').getAttribute('aria-live'), 'polite');
 });

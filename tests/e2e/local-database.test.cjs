@@ -100,7 +100,7 @@ test('restores a local SQLite backup through the UI including budgets and preser
   await page.locator('#recent-list').getByText('Antes da cópia',{exact:true}).waitFor();
   await page.locator('#local-backups').click();
   await page.locator('#create-backup').click();
-  await page.waitForFunction(()=>document.querySelector('#toast').textContent==='Cópia local criada.');
+  await page.waitForFunction(()=>document.querySelector('.notyf__message')?.textContent==='Cópia local criada.');
   const copies=await (await fetch(`${appUrl}/api/backups`)).json();
   const name=copies.backups[0].name;
   const changed={...original,expenses:[{...original.expenses[0],description:'Depois da cópia',amount:200}],budgets:[{category:'Moradia',amount:300}]};
@@ -110,7 +110,7 @@ test('restores a local SQLite backup through the UI including budgets and preser
   await page.locator('#local-backups').click();
   await page.locator(`[data-restore="${name}"]`).click();
   await page.locator('#confirm-delete').click();
-  await page.waitForFunction(()=>document.querySelector('#toast').textContent==='Cópia restaurada.');
+  await page.waitForFunction(()=>document.querySelector('.notyf__message')?.textContent==='Cópia restaurada.');
   await page.locator('#backups-dialog [data-close]').first().click();
   await page.locator('#recent-list').getByText('Antes da cópia',{exact:true}).waitFor();
   assert.match(await page.locator('#budget-list').innerText(),/100,00/);

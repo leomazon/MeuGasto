@@ -106,7 +106,7 @@ test('settles each fixed card month independently and preserves payments when re
   await page.locator('#expense-dialog').getByRole('checkbox',{name:'Registro fixo mensal',exact:true}).uncheck();
   await page.locator('#expense-dialog').getByRole('button',{name:'Salvar alterações',exact:true}).click();
   assert.equal(await page.locator('#expense-dialog').isVisible(),true,'cannot end a series before a paid future occurrence');
-  assert.match(await page.locator('#toast').innerText(),/liquidações posteriores/);
+  assert.match(await page.locator('.notyf__toast--error .notyf__message').innerText(),/liquidações posteriores/);
   await page.locator('#expense-dialog').getByRole('button',{name:'Cancelar',exact:true}).click();
   await page.getByRole('button',{name:'Próximo mês',exact:true}).click();
   await page.getByRole('button',{name:'Editar Assinatura fixa',exact:true}).click();

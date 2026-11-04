@@ -64,7 +64,6 @@ let transactionPageSize = 10;
 let transactionFilterTimer = null;
 let lastTransactionMarkup = null;
 const TRANSACTION_FILTER_PAUSE = 1000;
-let toastTimer;
 let settlementTarget = null;
 let pendingDelete = null;
 let settlementResetOnSave = null;
@@ -357,12 +356,37 @@ function chargesForMonth(month, cardId = null) {
 }
 function cardUsed(cardId) { return Core.cardUsed(expenses, settlements, cardId); }
 function setMonth(value) { $('month-picker').value = value; transactionPage = 1; render(); }
+const toastCenter = new Notyf({
+  duration: 3600,
+  position: { x: 'right', y: 'bottom' },
+  ripple: false,
+  dismissible: false,
+  types: [
+    {
+      type: 'success',
+      className: 'notyf__toast--success meugasto-notice meugasto-notice-success',
+      background: '#fff',
+      icon: { className: 'material-icons', tagName: 'span', text: 'check_circle', color: '#317c62' },
+    },
+    {
+      type: 'error',
+      className: 'notyf__toast--error meugasto-notice meugasto-notice-error',
+      background: '#fff',
+      icon: { className: 'material-icons', tagName: 'span', text: 'error', color: '#b44450' },
+    },
+    {
+      type: 'info',
+      className: 'meugasto-notice meugasto-notice-info',
+      background: '#fff',
+      icon: { className: 'material-icons', tagName: 'span', text: 'info', color: '#6541c8' },
+    },
+  ],
+});
 function showToast(message, tone = 'info') {
-  $('toast').textContent = message;
-  $('toast').dataset.tone = tone;
-  $('toast').classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => $('toast').classList.remove('show'), 2800);
+  const messageText = String(message);
+  if (tone === 'success') toastCenter.success({ message: messageText, duration: 3600 });
+  else if (tone === 'error') toastCenter.error({ message: messageText, duration: 5200 });
+  else toastCenter.open({ type: 'info', message: messageText, duration: 4200 });
 }
 const FIELD_ERROR_MESSAGES = {
   description: 'Informe a descrição deste registro.',
