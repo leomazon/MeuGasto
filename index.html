@@ -26,6 +26,7 @@
         <div class="sidebar-bottom">
           <div class="privacy-note"><span aria-hidden="true">◉</span><p>Seus dados ficam neste PC.</p></div>
           <div class="backup-actions">
+            <button class="side-action" id="local-backups">▣ <span>Backups locais</span></button>
             <button class="side-action" id="export-button">↓ <span>Baixar backup</span></button>
             <button class="side-action" id="import-button">↑ <span>Importar backup</span></button>
             <input id="import-file" type="file" accept="application/json,.json" hidden />
@@ -34,6 +35,7 @@
         </div>
       </aside>
 
+      <button type="button" id="sidebar-shade" class="sidebar-shade" aria-label="Fechar navegação"></button>
       <main class="main-content">
         <header class="topbar">
           <h1 class="topbar-page-title" id="page-top-title">Visão geral</h1>
@@ -60,9 +62,14 @@
 
         <section class="overview-view" id="overview-view">
           <section class="balance-panel" aria-labelledby="balance-title">
-            <div class="section-title-row"><div><h2 id="balance-title">Saldo do mês</h2><p class="balance-note">Receitas menos despesas do mês, incluindo registros fixos previstos. Sem saldo anterior.</p></div><button class="text-button" id="manage-income">Ver lançamentos ↗</button></div>
-            <div class="balance-metrics"><div><span>Receitas do mês</span><strong id="income-total" class="income-value">R$ 0,00</strong></div><div><span>Despesas do mês</span><strong id="balance-expenses">R$ 0,00</strong></div><div class="net-balance"><span>Saldo final</span><strong id="month-balance">R$ 0,00</strong></div></div>
+            <div class="section-title-row"><div><h2 id="balance-title">Saldo previsto</h2><p class="balance-note">Receitas menos despesas do mês, incluindo registros fixos previstos. Sem saldo anterior.</p></div><button class="text-button" id="manage-income">Ver lançamentos ↗</button></div>
+            <div class="balance-metrics"><div><span>Receitas do mês</span><strong id="income-total" class="income-value">R$ 0,00</strong></div><div><span>Despesas do mês</span><strong id="balance-expenses">R$ 0,00</strong></div><div class="net-balance"><span>Saldo previsto</span><strong id="month-balance">R$ 0,00</strong></div></div>
             <p class="balance-note">As despesas incluem Pix, dinheiro e as parcelas de cartão deste mês, mesmo quando já liquidadas.</p>
+          </section>
+          <section class="balance-panel actual-panel" aria-labelledby="actual-title">
+            <div class="section-title-row"><div><h2 id="actual-title">Realizado no mês</h2><p class="balance-note">Entradas e saídas confirmadas, pela data do recebimento ou pagamento. Sem saldo anterior.</p></div></div>
+            <div class="balance-metrics"><div><span>Recebido</span><strong id="actual-income" class="income-value">R$ 0,00</strong></div><div><span>Pago</span><strong id="actual-expenses">R$ 0,00</strong></div><div class="net-balance"><span>Saldo realizado</span><strong id="actual-balance">R$ 0,00</strong></div></div>
+            <p class="balance-note">Compras no cartão entram quando a fatura é paga. Pagar com outro cartão transfere a dívida e não conta como saída de dinheiro.</p>
           </section>
           <div class="summary-row">
             <article class="total-panel">
@@ -97,6 +104,16 @@
               <div id="income-category-list" class="category-list"></div>
             </section>
           </div>
+          <section class="insight-panel" aria-labelledby="trend-title">
+            <div class="section-title-row"><div><h2 id="trend-title">Evolução mensal</h2><p class="balance-note">Compare os compromissos previstos e o saldo realizado.</p></div><label class="trend-period">Período<select id="trend-period"><option value="6">6 meses</option><option value="12">12 meses</option></select></label></div>
+            <div class="trend-legend"><span><i class="trend-income-key"></i>Receitas previstas</span><span><i class="trend-expense-key"></i>Despesas previstas</span></div>
+            <div class="table-scroll"><table class="trend-table"><thead><tr><th scope="col">Mês</th><th scope="col">Receitas / despesas previstas</th><th scope="col">Saldo previsto</th><th scope="col">Saldo realizado</th></tr></thead><tbody id="trend-body"></tbody></table></div>
+            <p id="month-comparison" class="balance-note"></p>
+          </section>
+          <section class="insight-panel" aria-labelledby="budget-title">
+            <div class="section-title-row"><div><h2 id="budget-title">Orçamento por categoria</h2><p class="balance-note">Limites mensais recorrentes, comparados com as despesas previstas do mês.</p></div><button class="add-button" id="new-budget">Definir orçamento</button></div>
+            <div id="budget-list" class="budget-list"></div>
+          </section>
           <div class="lower-grid activity-grid">
             <section class="recent-panel">
               <div class="section-title-row"><div><h2>Últimos gastos</h2><p class="eyebrow">RECÉM-ADICIONADOS</p></div><button class="text-button" id="all-transactions">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
@@ -152,6 +169,7 @@
       <form id="expense-form">
         <div class="dialog-heading"><div><h2 id="dialog-title">Novo registro</h2></div><button class="close-button" type="button" id="close-dialog" aria-label="Fechar">×</button></div>
         <input type="hidden" id="expense-id" />
+        <label class="field full-field" id="edit-scope-wrap" hidden>Aplicar alterações a<select id="edit-scope"><option value="series">Toda a série</option><option value="month">Somente este mês</option></select></label>
         <fieldset class="record-type-switch"><legend>Tipo de registro</legend><div><label><input type="radio" name="record-type" value="expense" checked /><span>Despesa</span></label><label><input type="radio" name="record-type" value="income" /><span>Receita</span></label></div></fieldset>
         <label class="field full-field">Descrição<input id="description" required maxlength="90" placeholder="Ex.: mercado, conta de luz" /></label>
         <div class="field-row">
@@ -170,6 +188,7 @@
           <label class="field"><span id="record-date-label">Data do primeiro pagamento</span><input id="first-date" type="date" required /></label>
           <label class="field"><span>Observação <span class="optional">opcional</span></span><input id="notes" maxlength="120" placeholder="Uma nota curta" /></label>
         </div>
+        <label class="field full-field" id="record-status-wrap"><span id="record-status-label">Situação</span><select id="record-status"><option value="realized">Pago</option><option value="planned">Em aberto</option></select></label>
         <label class="recurring-control"><input type="checkbox" id="recurring-record" /><span>Registro fixo mensal</span></label>
         <p class="recurring-hint" id="recurring-hint">Repete o valor integral todo mês a partir da data inicial. Os valores de meses futuros são previstos.</p>
         <p class="installment-hint" id="installment-hint" hidden></p>
@@ -193,7 +212,7 @@
       <form id="settlement-form">
         <div class="dialog-heading"><div><p class="eyebrow">PAGAMENTO DE FATURA</p><h2>Liquidar cobrança</h2></div><button class="close-button" type="button" id="close-settlement-dialog" aria-label="Fechar">×</button></div>
         <p class="settlement-summary" id="settlement-summary"></p>
-        <label class="field full-field">Forma de pagamento<select id="settlement-method"><option value="Pix">Pix</option><option value="Cartão">Outro cartão</option></select></label>
+        <label class="field full-field">Forma de pagamento<select id="settlement-method"><option value="Pix">Pix</option><option value="Dinheiro">Dinheiro</option><option value="Cartão">Outro cartão</option></select></label>
         <label class="field full-field" id="funding-card-wrap" hidden>Cartão usado para pagar<select id="funding-card"></select></label>
         <p class="installment-hint" id="funding-card-hint" hidden>O valor pago será registrado como uma nova compra nesse cartão, mantendo o limite utilizado correto.</p>
         <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-settlement">Cancelar</button><button class="add-button" type="submit">Confirmar pagamento</button></div>
@@ -205,8 +224,27 @@
       <p class="delete-message" id="delete-dialog-message"></p>
       <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-delete" autofocus>Manter</button><button type="button" class="danger-button" id="confirm-delete">Excluir</button></div>
     </dialog>
+    <dialog id="realization-dialog" class="expense-dialog" aria-labelledby="realization-title">
+      <form id="realization-form"><div class="dialog-heading"><h2 id="realization-title">Confirmar pagamento</h2><button class="close-button" type="button" data-close="realization-dialog" aria-label="Fechar">×</button></div>
+      <p id="realization-summary" class="settlement-summary"></p>
+      <label class="field full-field"><span id="realization-date-label">Data do pagamento</span><input id="realization-date" type="date" required /></label>
+      <div class="dialog-actions"><button class="cancel-button" type="button" data-close="realization-dialog">Cancelar</button><button class="add-button" type="submit">Confirmar</button></div></form>
+    </dialog>
+    <dialog id="budget-dialog" class="expense-dialog" aria-labelledby="budget-dialog-title">
+      <form id="budget-form"><div class="dialog-heading"><h2 id="budget-dialog-title">Orçamento mensal</h2><button class="close-button" type="button" data-close="budget-dialog" aria-label="Fechar">×</button></div>
+      <label class="field full-field">Categoria<select id="budget-category" required></select></label>
+      <label class="field full-field">Limite mensal<input id="budget-amount" type="text" inputmode="decimal" placeholder="R$ 0,00" required /></label>
+      <div class="dialog-actions"><button class="cancel-button" type="button" data-close="budget-dialog">Cancelar</button><button class="add-button" type="submit">Salvar orçamento</button></div></form>
+    </dialog>
+    <dialog id="backups-dialog" class="expense-dialog backups-dialog" aria-labelledby="backups-title">
+      <div class="dialog-heading"><h2 id="backups-title">Backups locais</h2><button class="close-button" type="button" data-close="backups-dialog" aria-label="Fechar">×</button></div>
+      <p class="balance-note">O MeuGasto cria uma cópia ao salvar, no máximo a cada 30 minutos. As 30 cópias mais recentes ficam neste PC. Antes de restaurar, uma cópia do estado atual é criada.</p>
+      <p id="backups-feedback" role="status"></p><div id="backup-list" class="backup-list"></div>
+      <div class="dialog-actions"><button class="cancel-button" type="button" data-close="backups-dialog">Fechar</button><button class="add-button" type="button" id="create-backup">Gerar cópia agora</button></div>
+    </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script src="finance-core.js"></script>
+    <script src="advanced.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

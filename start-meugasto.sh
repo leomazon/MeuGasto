@@ -6,8 +6,8 @@ PORT=8000
 URL="http://127.0.0.1:${PORT}"
 LOG_FILE="/tmp/meugasto-server.log"
 
-if ! curl -fsS "$URL/api/state" 2>/dev/null | grep -q 'initialized'; then
-  LEGACY_PIDS=$(pgrep -f "^/usr/bin/python3 -m http.server ${PORT} --bind 127.0.0.1 --directory ${APP_DIR}$" || true)
+if ! curl -fsS "$URL/api/state" 2>/dev/null | grep -q '"apiVersion": 2'; then
+  LEGACY_PIDS=$(pgrep -f "^/usr/bin/python3 -m http.server ${PORT} --bind 127.0.0.1 --directory ${APP_DIR}$|^/usr/bin/python3 ${APP_DIR}/server.py --bind 127.0.0.1 --port ${PORT}$" || true)
   if [ -n "$LEGACY_PIDS" ]; then
     kill $LEGACY_PIDS 2>/dev/null || true
     sleep 0.25
@@ -16,7 +16,7 @@ if ! curl -fsS "$URL/api/state" 2>/dev/null | grep -q 'initialized'; then
   ready=0
   attempt=0
   while [ "$attempt" -lt 24 ]; do
-    if curl -fsS "$URL/api/state" 2>/dev/null | grep -q 'initialized'; then
+    if curl -fsS "$URL/api/state" 2>/dev/null | grep -q '"apiVersion": 2'; then
       ready=1
       break
     fi

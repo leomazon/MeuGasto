@@ -246,3 +246,47 @@ test('combines payment and receipt method filters with type, category and amount
   assert.equal(Core.filterTransactionCharges(records,{type:'expense',payment:'Transferência'}).length,0);
   assert.equal(Core.filterTransactionCharges(records,{payment:''}).length,4);
 });
+
+
+test('monthly overrides change only one recurring occurrence and its remaining card limit',()=>{
+ const entry={id:'fixed',type:'expense',recurring:true,amount:100,installments:1,firstDate:'2026-01-31',payment:'Cartão',cardId:'c',category:'Contas',overrides:{'2026-02':{amount:150,date:'2026-02-25',notes:'Ajuste'}}};
+ assert.equal(Core.monthlyRecords([entry],[],'2026-01')[0].amount,100);
+ const feb=Core.monthlyRecords([entry],[],'2026-02')[0];assert.equal(feb.amount,150);assert.equal(feb.date.getDate(),25);
+ assert.equal(Core.monthlyRecords([entry],[],'2026-03')[0].amount,100);
+ assert.equal(Core.chargeRemaining(entry,1,[{expenseId:'fixed',installmentIndex:1,amount:50}]),100);
+ assert.equal(Core.cardUsed([entry],[],'c',new Date(2026,1,28)),250);
+});
+test('separates projected and actual cashflow by receipt or payment date without counting credit transfers twice',()=>{
+ const entries=[
+ {id:'income',type:'income',status:'planned',amount:1000,firstDate:'2026-11-01',installments:1},
+ {id:'rent',type:'expense',status:'planned',amount:300,payment:'Pix',firstDate:'2026-11-01',installments:1},
+ {id:'cash',type:'expense',amount:20,payment:'Dinheiro',firstDate:'2026-11-02',installments:1},
+ {id:'card',type:'expense',amount:200,payment:'Cartão',firstDate:'2026-11-03',installments:1},
+ {id:'debt',type:'debt-transfer',amount:200,payment:'Cartão',firstDate:'2026-11-03',installments:1},
+ ];
+ const payments=[{expenseId:'income',installmentIndex:0,amount:1000,date:'2026-11-04'}, {expenseId:'rent',installmentIndex:0,amount:300,date:'2026-12-01'}, {expenseId:'card',installmentIndex:0,amount:200,date:'2026-11-04',method:'Cartão'}, {expenseId:'debt',installmentIndex:0,amount:200,date:'2026-12-03',method:'Pix'}];
+ assert.deepEqual(Core.monthlyCashFlow(entries,payments,'2026-11'),{income:1000,expenses:20,balance:980});
+ assert.deepEqual(Core.monthlyCashFlow(entries,payments,'2026-12'),{income:0,expenses:500,balance:-500});
+ assert.equal(Core.monthlyBalance(entries,payments,'2026-11').balance,480);
+});
+test('legacy one-off records remain realized and recurring future records remain planned',()=>{
+ const entries=[{id:'legacy',type:'income',amount:50,installments:1,firstDate:'2026-11-01'}, {id:'fixed',type:'income',recurring:true,status:'realized',amount:100,installments:1,firstDate:'2026-11-01'}];
+ assert.equal(Core.monthlyCashFlow(entries,[],'2026-11').income,150);
+ assert.equal(Core.monthlyCashFlow(entries,[],'2026-12').income,0);
+ entries[0].realizationStates={'0':'planned'};
+ assert.equal(Core.monthlyCashFlow(entries,[],'2026-11').income,100);
+});
+test('budgets include monthly commitments and trends cross year boundaries',()=>{
+ const entries=[{id:'bill',type:'expense',recurring:true,payment:'Pix',amount:120,installments:1,firstDate:'2025-12-01',category:'Contas'}];
+ assert.deepEqual(Core.budgetProgress(entries,[],[{category:'Contas',amount:100},{category:'Lazer',amount:50}],'2026-01'),[{category:'Contas',limit:100,spent:120,remaining:-20,percent:120},{category:'Lazer',limit:50,spent:0,remaining:50,percent:0}]);
+ const trends=Core.monthlyTrends(entries,[],'2026-02',3);
+ assert.deepEqual(trends.map(t=>t.month),['2025-12','2026-01','2026-02']);assert.equal(trends[2].projected.expenses,120);
+});
+
+test('monthly card overrides affect the selected card only and remove cash occurrences from credit usage', () => {
+  const entry={id:'fixed-switch',amount:100,installments:1,firstDate:'2026-01-10',recurring:true,type:'expense',payment:'Pix',overrides:{'2026-02':{amount:150,payment:'Cartão',cardId:'b'},'2026-03':{amount:180,payment:'Cartão',cardId:'a'}}};
+  assert.equal(Core.monthCharges([entry],[],'b','2026-02')[0]?.amount,150);
+  assert.equal(Core.monthCharges([entry],[],'a','2026-02').length,0);
+  assert.equal(Core.cardUsed([entry],[],'b',new Date(2026,2,15)),150);
+  assert.equal(Core.cardUsed([entry],[],'a',new Date(2026,2,15)),180);
+});

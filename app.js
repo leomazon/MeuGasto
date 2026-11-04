@@ -50,6 +50,7 @@ function formatCurrencyInput(input) {
 let cards = loadCards();
 let expenses = loadExpenses();
 let settlements = loadSettlements();
+let budgets = loadBudgets();
 let view = 'inicio';
 let transactionPage = 1;
 let transactionPageSize = 10;
@@ -90,15 +91,17 @@ function saveBrowserCache() {
   localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cards));
   localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
   localStorage.setItem(PAYMENT_STORAGE_KEY, JSON.stringify(settlements));
+  localStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(budgets));
 }
 function clearBrowserCache() {
   localStorage.removeItem(CARD_STORAGE_KEY);
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(PAYMENT_STORAGE_KEY);
+  localStorage.removeItem(BUDGET_STORAGE_KEY);
 }
 function persistLocalDatabase() {
   if (!localDatabaseEnabled) return Promise.resolve();
-  const state = JSON.stringify({ expenses, cards, settlements });
+  const state = JSON.stringify({ expenses, cards, settlements, budgets });
   localDatabaseQueue = localDatabaseQueue.catch(() => {}).then(async () => {
     const response = await fetch('/api/state', {
       method: 'PUT',
@@ -120,7 +123,7 @@ function saveSettlements() { if (localDatabaseEnabled) persistLocalDatabase(); e
 async function restoreLocalDatabase() {
   try {
     const response = await fetch('/api/state');
-    if (!response.ok) return;
+    if (!response.ok) return false;
     const { initialized, state } = await response.json();
     localDatabaseEnabled = true;
     if (initialized) {
@@ -128,6 +131,7 @@ async function restoreLocalDatabase() {
         .map((item) => ({ ...item, dueDay: Number.isInteger(Number(item.dueDay)) && Number(item.dueDay) >= 1 && Number(item.dueDay) <= 31 ? Number(item.dueDay) : null }));
       expenses = state.expenses.filter(isValidExpense);
       settlements = state.settlements.filter((item) => item && typeof item.id === 'string' && typeof item.expenseId === 'string' && Number.isInteger(Number(item.installmentIndex)) && Number(item.amount) > 0);
+      budgets = Array.isArray(state.budgets) ? state.budgets.filter(validBudget) : [];
       clearBrowserCache();
       migrateLegacyCardLinks();
       render();
@@ -135,8 +139,10 @@ async function restoreLocalDatabase() {
       await persistLocalDatabase();
       if (localDatabaseEnabled) clearBrowserCache();
     }
+    return true;
   } catch {
     localDatabaseEnabled = false;
+    return false;
   }
 }
 function migrateLegacyCardLinks() {
@@ -243,7 +249,7 @@ function escapeHtml(value) {
 function expenseLabel(charge) {
   const { expense, index } = charge;
   if (expense.recurring === true) return expense.type === 'income' ? 'Receita mensal' : expense.payment === 'Cartão' ? `Mensal · ${escapeHtml(cardForExpense(expense)?.name || 'Cartão')}` : expense.payment;
-  if (expense.type === 'income') return 'Receita recebida';
+  if (expense.type === 'income') return expense.payment;
   const card = expense.payment === 'Cartão' ? cardForExpense(expense) : null;
   const cardLabel = card ? ` · ${escapeHtml(card.name)}` : '';
   return Number(expense.installments) > 1 ? `${index + 1}/${expense.installments} parcela${cardLabel}` : (expense.payment === 'Cartão' ? `${expense.cardMode || 'À vista'}${cardLabel}` : expense.payment);
@@ -252,13 +258,14 @@ function renderExpenseRow(charge, actions = false, categoryShare = null) {
   const income = charge.expense.type === 'income';
   const info = category(charge.expense.category, income ? 'income' : 'expense');
   const paymentCard = charge.expense.payment === 'Cartão' ? cardForExpense(charge.expense) : null;
-  const isPaid = !income && charge.remaining <= 0;
+  const cashStatus = realizationMarkup(charge, actions);
+  const isPaid = charge.expense.payment === 'Cartão' ? charge.remaining <= 0 : cashStatus.paid;
   const isOverdue = !isPaid && paymentCard?.dueDay && Core.isChargeOverdue(charge.date, paymentCard.dueDay, localDateKey());
   const fixedStatus = charge.expense.recurring === true ? '<span class="fixed-tag">Fixo mensal</span>' : '';
-  const paymentStatus = income ? '' : isPaid ? '<span class="paid-tag">Liquidado</span>' : isOverdue ? '<span class="overdue-tag">Vencido</span>' : '';
+  const paymentStatus = charge.expense.payment !== 'Cartão' ? cashStatus.badge : isPaid ? '<span class="paid-tag">Liquidado</span>' : isOverdue ? '<span class="overdue-tag">Vencido</span>' : '';
   const categoryShareMarkup = categoryShare === null ? '' : `<div class="category-share" role="img" aria-label="${escapeHtml(charge.expense.description)} corresponde a ${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria ${escapeHtml(charge.expense.category || 'Outros')}"><span class="category-share-track" aria-hidden="true"><i style="width:${categoryShare}%;background:${info.color}"></i></span><span class="category-share-label">${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria</span></div>`;
   const settleButton = actions && !income && charge.expense.payment === 'Cartão' && charge.remaining > 0
-    ? `<button class="row-settle-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Liquidar ${escapeHtml(charge.expense.description)}, ${charge.expense.recurring === true ? monthLabel(monthKey(charge.date)) : `parcela ${charge.index + 1}`}">Liquidar</button>` : '';
+    ? `<button class="row-settle-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Liquidar ${escapeHtml(charge.expense.description)}, ${charge.expense.recurring === true ? monthLabel(monthKey(charge.date)) : `parcela ${charge.index + 1}`}">Liquidar</button>` : charge.expense.payment !== 'Cartão' ? cashStatus.button : '';
   return `<div class="expense-row">
     <span class="expense-emoji" aria-hidden="true">${info.icon}</span>
     <div class="expense-name"><strong>${escapeHtml(charge.expense.description)}</strong><span>${escapeHtml(charge.expense.category)} · ${escapeHtml(expenseLabel(charge))}${charge.expense.notes ? ` · ${escapeHtml(charge.expense.notes)}` : ''} ${fixedStatus} ${paymentStatus}</span>${categoryShareMarkup}</div>
@@ -298,10 +305,11 @@ function renderOverview() {
   $('income-category-context').textContent = `Percentuais sobre ${currency.format(breakdown.income.total)} em receitas neste mês.`;
   const recentLimit = Math.max(5, breakdown.expense.categories.length);
   const recentCharges = [...charges].sort((a, b) => b.date - a.date
-    || expenses.indexOf(b.expense) - expenses.indexOf(a.expense)
+    || expenses.findIndex(entry=>entry.id===b.expense.id) - expenses.findIndex(entry=>entry.id===a.expense.id)
     || b.index - a.index);
   $('recent-list').innerHTML = recentCharges.length ? recentCharges.slice(0, recentLimit).map((charge) => renderExpenseRow(charge)).join('') : '<p class="empty-note">Comece adicionando seu primeiro gasto.</p>';
   renderDashboardCards();
+  renderInsights();
 }
 function renderCategoryChart(listId, summary, type) {
   const income = type === 'income';
@@ -450,15 +458,24 @@ function deleteIncome(id) {
   if (!entry) return;
   openDeleteConfirmation({ title: 'Excluir registro?', message: `“${entry.description}” ${entry.recurring === true ? 'e todas as suas ocorrências mensais serão removidas' : 'será removida'} e o saldo será recalculado. Essa ação não pode ser desfeita.`, confirmLabel: 'Excluir registro', onConfirm: () => {
     expenses = expenses.filter((item) => item.id !== id);
-    saveExpenses(); render(); showToast('Registro excluído.');
+    settlements = settlements.filter(item=>item.expenseId!==id);
+    saveExpenses(); saveSettlements(); render(); showToast('Registro excluído.');
   } });
 }
 function populateCardSelect(select, excludeId = '') {
   const eligible = cards.filter((card) => card.id !== excludeId);
   select.innerHTML = eligible.length ? eligible.map((card) => `<option value="${escapeHtml(card.id)}">${escapeHtml(card.name)} · ${escapeHtml(card.bank)}</option>`).join('') : '<option value="">Cadastre um cartão primeiro</option>';
 }
-function openExpense(expense = null) {
+function openExpense(expense = null, scope = 'series') {
+  const root = expense;
+  const monthOnly = root?.recurring === true && scope === 'month';
+  const index = root ? occurrenceIndex(root) : 0;
+  if (monthOnly) expense = Core.occurrenceEntry(root,index);
   $('expense-form').reset();
+  $('edit-scope-wrap').hidden = root?.recurring !== true;
+  $('edit-scope').value = scope;
+  $('recurring-record').disabled = monthOnly;
+  document.querySelectorAll('input[name="record-type"]').forEach(input=>{input.disabled=monthOnly;});
   $('expense-id').value = expense?.id || '';
   $('description').value = expense?.description || '';
   $('amount').value = expense ? currency.format(Number(expense.amount)) : '';
@@ -470,12 +487,14 @@ function openExpense(expense = null) {
   $('installments').value = String(expense?.installments || 2);
   populateCardSelect($('card-select'));
   $('card-select').value = expense?.cardId || cardForExpense(expense || {})?.id || cards[0]?.id || '';
-  $('first-date').value = expense?.firstDate || localDateKey();
+  $('first-date').value = monthOnly ? localDateKey(Core.occurrenceDate(root,index)) : expense?.firstDate || localDateKey();
   $('notes').value = expense?.notes || '';
   $('dialog-title').textContent = expense ? 'Editar registro' : 'Novo registro';
   $('save-expense').textContent = expense ? 'Salvar alterações' : 'Salvar registro';
   updatePaymentFields();
-  $('expense-dialog').showModal();
+  $('record-status').value = expense ? ((monthOnly ? Core.realizedAmount(root,index,settlements)>0 : (expense.recurring === true ? expense.status === 'realized' : expense.status !== 'planned')) ? 'realized' : 'planned') : 'realized';
+  updateRecordStatus();
+  if (!$('expense-dialog').open) $('expense-dialog').showModal();
   $('description').focus();
 }
 function updatePaymentFields() {
@@ -497,6 +516,8 @@ function updatePaymentFields() {
   $('card-select').required = isCard;
   $('card-select').disabled = isCard && cards.length === 0;
   $('installment-hint').hidden = !isInstallment;
+  updateRecordStatus();
+  if ($('edit-scope').value === 'month' && existing?.recurring) $('recurring-hint').textContent = `Somente ${monthLabel(selectedMonth())} será alterado. Os demais meses e seus pagamentos serão preservados.`;
   if (!isInstallment) return;
   const amount = parseCurrencyInput($('amount').value);
   const parts = Number($('installments').value) || 2;
@@ -522,12 +543,14 @@ function submitExpense(event) {
   const installments = payment === 'Cartão' && cardMode === 'Parcelado' ? Number($('installments').value) : 1;
   const amount = Math.round(parseCurrencyInput($('amount').value) * 100) / 100;
   if (!(amount > 0)) { showToast('Informe um valor maior que zero.'); return; }
+  if (previous?.recurring === true && $('edit-scope').value === 'month') { submitMonthlyOverride(previous, amount, chosenCard); return; }
   const expense = {
+    ...previous,
     id: $('expense-id').value || createId('expense'), description: $('description').value.trim(), amount,
     category: $('category').value, payment, cardId, card: chosenCard?.name || '', cardMode, installments,
-    firstDate: $('first-date').value, notes: $('notes').value.trim(), type, recurring, ...(recurringUntil ? {recurringUntil} : {}),
+    firstDate: $('first-date').value, notes: $('notes').value.trim(), type, recurring, status: payment==='Cartão' ? 'planned' : previous?.recurring === true ? previous.status || 'planned' : $('record-status').value, recurringUntil,
   };
-  if (!expense.description || (type === 'income' && expense.firstDate > localDateKey())) { showToast('Confira a descrição e a data de recebimento.'); return; }
+  if (!expense.description || (expense.status === 'realized' && expense.firstDate > localDateKey())) { showToast('Confira a descrição e a data de recebimento.'); return; }
   if (recurringUntil && expense.firstDate.slice(0,7) > recurringUntil) { showToast('A data inicial precisa ser anterior ao encerramento da repetição.'); return; }
   if (previous?.recurring === true && recurringUntil && settlements.some(payment => payment.expenseId === previous.id && monthKey(Core.installmentDate(previous.firstDate, Number(payment.installmentIndex))) > recurringUntil)) { showToast('Há liquidações posteriores. Encerre a repetição no último mês já liquidado ou depois dele.'); return; }
   const existing = expenses.findIndex((item) => item.id === expense.id);
@@ -541,6 +564,7 @@ function submitExpense(event) {
   }
   if (resetsSettlements) {
     settlements = settlements.filter((item) => item.expenseId !== expense.id);
+    expense.status = 'planned';
     saveSettlements();
     settlementResetOnSave = null;
   }
@@ -596,7 +620,7 @@ function requestExpenseEdit(expense) {
   openDeleteConfirmation({
     eyebrow: 'CONFIRME A EDIÇÃO',
     title: expense.recurring === true ? 'Editar registro fixo?' : 'Editar compra liquidada?',
-    message: expense.recurring === true ? `As alterações valem para toda a série. Mudar valor, data, forma de pagamento ou tipo removerá os pagamentos vinculados. Encerrar a repetição ou alterar descrição e categoria preserva os pagamentos. Cancelar mantém todos os dados.` : `A edição de “${expense.description}” removerá ${linkedPayments.length} pagamento${linkedPayments.length === 1 ? '' : 's'} vinculado${linkedPayments.length === 1 ? '' : 's'} e a compra voltará a ficar em aberto. Se você fechar o formulário sem salvar, os pagamentos serão mantidos.`,
+    message: expense.recurring === true ? `No formulário, escolha somente este mês ou toda a série. Mudanças financeiras removem os pagamentos do período escolhido. Os demais meses são preservados ao editar somente este mês. Cancelar mantém todos os dados.` : `A edição de “${expense.description}” removerá ${linkedPayments.length} pagamento${linkedPayments.length === 1 ? '' : 's'} vinculado${linkedPayments.length === 1 ? '' : 's'} e a compra voltará a ficar em aberto. Se você fechar o formulário sem salvar, os pagamentos serão mantidos.`,
     confirmLabel: expense.recurring === true ? 'Editar registro' : 'Editar compra',
     confirmClass: 'add-button',
     onConfirm: () => { settlementResetOnSave = expense.id; openExpense(expense); },
@@ -660,8 +684,10 @@ function startSettlement(charges) {
 }
 function startSettlementForCharge(expenseId, installmentIndex) {
   const expense = expenses.find((item) => item.id === expenseId);
-  if (!expense || expense.payment !== 'Cartão') return;
-  const charge = chargesForMonth(selectedMonth(), expense.cardId).filter((item) => item.expense.id === expenseId && item.index === Number(installmentIndex));
+  if (!expense) return;
+  const effective = Core.occurrenceEntry(expense,Number(installmentIndex));
+  if (effective.payment !== 'Cartão') return;
+  const charge = chargesForMonth(selectedMonth(), effective.cardId).filter((item) => item.expense.id === expenseId && item.index === Number(installmentIndex));
   startSettlement(charge);
 }
 function updateSettlementMethod() {
@@ -680,7 +706,8 @@ function confirmSettlement(event) {
   const sourceCard = cardById(sourceCardId);
   if (method === 'Cartão' && (!sourceCard || sourceCard.id === targetCard?.id)) { showToast('Escolha outro cartão cadastrado para pagar esta fatura.'); return; }
   const payable = settlementTarget.charges.map((item) => {
-    const expense = expenses.find((entry) => entry.id === item.expenseId);
+    const root = expenses.find((entry) => entry.id === item.expenseId);
+    const expense = root && Core.occurrenceEntry(root,item.installmentIndex);
     const remaining = expense ? chargeRemaining(expense, item.installmentIndex) : 0;
     return expense ? { ...item, expense, index: item.installmentIndex, amount: remaining, remaining } : null;
   }).filter((item) => item && item.amount > 0);
@@ -708,7 +735,7 @@ function confirmSettlement(event) {
   showToast(`Pagamento de ${currency.format(total)} registrado via ${method}.`);
 }
 function exportBackup() {
-  const blob = new Blob([JSON.stringify({ app: 'MeuGasto', version: 2, exportedAt: new Date().toISOString(), expenses, cards, settlements }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'MeuGasto', version: 3, exportedAt: new Date().toISOString(), expenses, cards, settlements, budgets }, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = `meugasto-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -724,7 +751,9 @@ async function importBackup(file) {
     const incomingSettlements = Array.isArray(parsed.settlements) ? parsed.settlements : [];
     if (!Array.isArray(incoming) || !incoming.every(isValidExpense) || !incomingCards.every((card) => card && typeof card.id === 'string' && Number.isFinite(Number(card.limit)))) throw new Error('invalid');
     if ((expenses.length || cards.length) && !window.confirm('Importar este backup vai substituir registros, cartões e pagamentos salvos neste PC. Continuar?')) return;
-    expenses = incoming; cards = incomingCards; settlements = incomingSettlements;
+    if (parsed.budgets !== undefined && (!Array.isArray(parsed.budgets) || !parsed.budgets.every(validBudget))) throw new Error('invalid');
+    expenses = incoming; cards = incomingCards; settlements = incomingSettlements; budgets = parsed.budgets || [];
+    saveBudgets();
     migrateLegacyCardLinks();
     saveExpenses(); saveCards(); saveSettlements(); render();
     showToast('Backup importado.');
@@ -732,12 +761,8 @@ async function importBackup(file) {
   finally { $('import-file').value = ''; }
 }
 function initialize() {
-  $('sidebar-toggle').addEventListener('click', () => {
-    const collapsed = document.querySelector('.app-shell').classList.toggle('sidebar-collapsed');
-    $('sidebar-toggle').setAttribute('aria-expanded', String(!collapsed));
-    $('sidebar-toggle').setAttribute('aria-label', collapsed ? 'Abrir menu lateral' : 'Fechar menu lateral');
-    $('sidebar-toggle').title = collapsed ? 'Abrir menu lateral' : 'Fechar menu lateral';
-  });
+  setupEnhancements();
+  $('sidebar-toggle').addEventListener('click', () => setSidebarCollapsed(!document.querySelector('.app-shell').classList.contains('sidebar-collapsed')));
   $('month-picker').value = monthKey(new Date());
   $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
   updateCategoryFilter(); updatePaymentFilter();

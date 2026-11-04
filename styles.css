@@ -293,3 +293,58 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 /* A stable skeleton covers the current rows during the typing pause. */
 .transactions-results{position:relative}.transactions-results.is-filtering #transactions-list{visibility:hidden;pointer-events:none}.transactions-skeleton{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;background:#fff}.skeleton-row{flex:1;min-height:0;display:grid;grid-template-columns:38px minmax(0,1fr) 100px;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line)}.skeleton-row:last-child{border-bottom:0}.skeleton-block{display:block;border-radius:6px;background:linear-gradient(100deg,#eeeaf4 25%,#faf9fe 45%,#eeeaf4 65%);background-size:220% 100%;animation:skeleton-sweep 1.35s ease-in-out infinite}.skeleton-icon{height:38px;border-radius:10px}.skeleton-description{display:grid;gap:10px;min-width:0}.skeleton-title{height:15px;width:55%;max-width:260px}.skeleton-detail{height:11px;width:80%;max-width:350px}.skeleton-amount{height:17px;width:90px;justify-self:end}@keyframes skeleton-sweep{from{background-position:100% 0}to{background-position:-100% 0}}
 @media(max-width:760px){.skeleton-row{grid-template-columns:34px minmax(0,1fr) 80px;gap:10px}.skeleton-icon{height:34px}.skeleton-amount{width:75px}.skeleton-title{width:75%}.skeleton-detail{width:95%}}
+
+/* Planning and cash flow follow the same aligned financial columns. */
+.actual-panel{border-left:4px solid #317c62}
+.insight-panel{margin-top:20px;padding:24px 25px;border:1px solid var(--line);border-radius:16px;background:#fff}
+.insight-panel h2{font-size:22px}
+.trend-period{display:grid;gap:6px;color:var(--muted);font-size:13px;white-space:nowrap}
+.trend-period select{min-height:40px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
+.trend-legend{display:flex;flex-wrap:wrap;gap:20px;margin:22px 0 12px;color:var(--muted);font-size:13px}
+.trend-legend span{display:flex;align-items:center;gap:7px}
+.trend-legend i{width:10px;height:10px;border-radius:3px}
+.trend-income-key{background:#317c62}.trend-expense-key{background:#8665da}
+.table-scroll{overflow-x:auto}
+.trend-table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.trend-table th,.trend-table td{padding:14px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.trend-table th:first-child{text-align:left;padding-left:0;font-weight:600}
+.trend-table thead th{color:var(--muted);font-size:12px;font-weight:600}
+.trend-table th:nth-child(2){text-align:left}
+.trend-table td:nth-child(2){width:36%;min-width:200px}
+.trend-table .current-trend{background:#faf8ff}
+.trend-pair{display:grid;gap:9px}
+.trend-bar{position:relative;display:block;padding-bottom:7px;text-align:left;font-size:12px}
+.trend-bar:after{position:absolute;content:'';left:0;bottom:0;width:var(--bar-width);height:4px;border-radius:3px;background:#317c62}
+.expense-trend:after{background:#8665da}
+.budget-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}
+.budget-list>.empty-note{grid-column:1/-1}
+.budget-item{padding:18px;border:1px solid var(--line);border-radius:12px;min-width:0}
+.budget-meta{display:grid;grid-template-columns:1fr auto;gap:7px 12px;align-items:center}
+.budget-meta>span{grid-column:1;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.budget-meta>div{grid-column:2;grid-row:1/3;display:flex;gap:5px}
+.budget-track{height:7px;overflow:hidden;border-radius:8px;background:#efedf3;margin-top:15px}
+.budget-track i{display:block;height:100%;border-radius:8px;background:#6541c8}
+.budget-item p{margin:9px 0 0;font-size:13px;color:var(--muted)}
+.budget-near .budget-track i{background:#b5812d}.budget-over .budget-track i{background:#b44752}.budget-over p{color:#b44752}
+.budget-over{border-color:#eecdd2}
+.transactions-list .expense-name .planned-tag,.recent-list .expense-name .planned-tag{display:inline-block;width:fit-content;margin-top:3px;padding:3px 8px;border-radius:20px;background:#f1edff;color:#6541c8;font-size:12px;font-weight:700;line-height:1.2;white-space:nowrap}
+.row-actions .reopen-button{background:#f6f4fa;color:#6d637f}
+.transactions-list .expense-row{grid-template-columns:38px minmax(140px,1fr) 100px 90px 115px 185px}
+.transactions-list .row-actions{width:185px;min-width:185px;justify-content:flex-end}
+.backup-list{display:grid;gap:0;max-height:42vh;overflow-y:auto;margin-top:16px}
+.backup-item{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px 0;border-top:1px solid var(--line)}
+.backup-item strong{font-size:14px}.backup-item small{display:block;margin-top:5px;color:var(--muted);font-size:12px}
+#backups-feedback{font-size:14px;color:var(--muted);line-height:1.5}
+.record-type-switch input:disabled+span{cursor:default}
+@media(max-width:1200px){.transactions-list .expense-row{grid-template-columns:38px minmax(140px,1fr) 90px 75px 100px 185px}}
+@media(max-width:1000px){.transactions-list .expense-row{grid-template-columns:38px minmax(100px,1fr) 100px 185px}.transactions-list .row-date,.transactions-list .row-payment{display:none}}
+@media(max-width:760px){.insight-panel{padding:20px}.budget-list{grid-template-columns:1fr}.insight-panel .section-title-row{align-items:flex-start;flex-wrap:wrap}.transactions-list .expense-row{grid-template-columns:34px minmax(0,1fr) auto;gap:12px}.transactions-list .row-actions{grid-column:2/-1;justify-self:end;width:auto;min-width:0}.trend-table{font-size:13px}.trend-table th,.trend-table td{padding:12px 8px}}
+.sidebar-shade{display:none}
+@media(max-width:760px){
+  .sidebar{display:flex;width:264px;z-index:6}
+  .sidebar-toggle{display:grid;left:215px;top:18px;z-index:7}
+  .app-shell:not(.sidebar-collapsed) .sidebar-shade{display:block;position:fixed;inset:0;z-index:5;border:0;background:#26164d55}
+  .page-title-active .topbar{height:auto;min-height:115px;flex-wrap:wrap;justify-content:flex-start;padding:19px 0;gap:12px}
+  .page-title-active .topbar-page-title{width:calc(100% - 40px);margin-left:40px;font-size:23px}
+  .page-title-active .month-control{margin-left:40px;margin-right:auto}
+}

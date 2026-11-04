@@ -91,3 +91,52 @@ test('migrates existing browser expenses to SQLite and restores them after brows
   assert.equal((await page.locator('#month-balance').innerText()).replace(/\s/g, ' '), 'R$ 1.000,00');
 
 });
+
+test('restores a local SQLite backup through the UI including budgets and preserves a safety copy', async () => {
+  const today=new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'});
+  const original={expenses:[{id:'restore-one',description:'Antes da cópia',amount:70,category:'Moradia',payment:'Pix',installments:1,firstDate:today,type:'expense',status:'planned'}],cards:[],settlements:[],budgets:[{category:'Moradia',amount:100}]};
+  assert.equal((await fetch(`${appUrl}/api/state`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(original)})).status,200);
+  await page.reload();
+  await page.locator('#recent-list').getByText('Antes da cópia',{exact:true}).waitFor();
+  await page.locator('#local-backups').click();
+  await page.locator('#create-backup').click();
+  await page.waitForFunction(()=>document.querySelector('#toast').textContent==='Cópia local criada.');
+  const copies=await (await fetch(`${appUrl}/api/backups`)).json();
+  const name=copies.backups[0].name;
+  const changed={...original,expenses:[{...original.expenses[0],description:'Depois da cópia',amount:200}],budgets:[{category:'Moradia',amount:300}]};
+  await fetch(`${appUrl}/api/state`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(changed)});
+  await page.reload();
+  await page.locator('#recent-list').getByText('Depois da cópia',{exact:true}).waitFor();
+  await page.locator('#local-backups').click();
+  await page.locator(`[data-restore="${name}"]`).click();
+  await page.locator('#confirm-delete').click();
+  await page.waitForFunction(()=>document.querySelector('#toast').textContent==='Cópia restaurada.');
+  await page.locator('#backups-dialog [data-close]').first().click();
+  await page.locator('#recent-list').getByText('Antes da cópia',{exact:true}).waitFor();
+  assert.match(await page.locator('#budget-list').innerText(),/100,00/);
+  assert.deepEqual((await (await fetch(`${appUrl}/api/state`)).json()).state,original);
+  assert.equal((await (await fetch(`${appUrl}/api/backups`)).json()).backups.length,copies.backups.length+1);
+  backend.kill('SIGTERM');
+  await new Promise(resolve=>backend.once('exit',resolve));
+  const port=String(await freePort());
+  appUrl=`http://127.0.0.1:${port}`;
+  backend=spawn('python3',[path.join(appRoot,'server.py'),'--bind','127.0.0.1','--port',port,'--data-dir',dataDir],{stdio:'ignore'});
+  let ready=false;
+  for (let attempt=0;attempt<60;attempt+=1) {
+    try { if ((await fetch(`${appUrl}/api/state`)).ok) { ready=true; break; } } catch {}
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  assert.ok(ready,'Server should restart against the same SQLite database');
+  await page.goto(appUrl);
+  await page.locator('#recent-list').getByText('Antes da cópia',{exact:true}).waitFor();
+  assert.deepEqual((await (await fetch(`${appUrl}/api/state`)).json()).state,original);
+});
+
+test('rejects malformed backup restore requests without changing saved data', async () => {
+  const before=(await (await fetch(`${appUrl}/api/state`)).json()).state;
+  for (const body of ['[]','null','{"name":"../meugasto.sqlite3"}','{}']) {
+    const response=await fetch(`${appUrl}/api/backups/restore`,{method:'POST',headers:{'Content-Type':'application/json'},body});
+    assert.equal(response.status,400);
+  }
+  assert.deepEqual((await (await fetch(`${appUrl}/api/state`)).json()).state,before);
+});

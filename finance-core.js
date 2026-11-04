@@ -34,8 +34,33 @@
     const currentDate = dateKey(today);
     return Boolean(dueDate && /^\d{4}-\d{2}-\d{2}$/.test(currentDate) && currentDate > dueDate);
   }
+  function occurrenceEntry(entry, index) {
+    const month = dateKey(installmentDate(entry.firstDate, index)).slice(0,7);
+    const override = entry.recurring === true ? entry.overrides?.[month] : null;
+    return override ? { ...entry, ...override, id: entry.id, firstDate: entry.firstDate, recurring: true, overrides: entry.overrides } : entry;
+  }
+  function occurrenceDate(entry, index) {
+    const date = installmentDate(entry.firstDate, index);
+    const override = entry.recurring === true ? entry.overrides?.[dateKey(date).slice(0,7)] : null;
+    return override?.date && /^\d{4}-\d{2}-\d{2}$/.test(override.date) && override.date.slice(0,7) === dateKey(date).slice(0,7)
+      ? new Date(`${override.date}T00:00:00`) : date;
+  }
+  function implicitRealized(entry, index) {
+    const effective = occurrenceEntry(entry,index);
+    if (effective.payment === 'Cartão') return false;
+    if (entry.realizationStates?.[String(index)] === 'planned') return false;
+    const month = dateKey(installmentDate(entry.firstDate,index)).slice(0,7);
+    if (entry.overrides?.[month]?.status) return entry.overrides[month].status === 'realized';
+    return entry.recurring === true ? index === 0 && entry.status === 'realized' : entry.status !== 'planned';
+  }
+  function realizedAmount(entry,index,payments) {
+    const recorded = payments.filter(p=>p.expenseId === entry.id && Number(p.installmentIndex)===index);
+    if (recorded.length) return recorded.reduce((sum,p)=>sum+cents(p.amount),0)/100;
+    const effective=occurrenceEntry(entry,index);
+    return implicitRealized(entry,index) ? (entry.recurring === true ? Number(effective.amount) : installmentAmount(entry.amount,entry.installments,index)) : 0;
+  }
   function chargeRemaining(expense, index, payments) {
-    return Math.max(0, cents(expense.recurring === true ? expense.amount : installmentAmount(expense.amount, expense.installments, index)) - paymentTotal(expense.id, index, payments)) / 100;
+    return Math.max(0, cents(expense.recurring === true ? occurrenceEntry(expense,index).amount : installmentAmount(expense.amount, expense.installments, index)) - paymentTotal(expense.id, index, payments)) / 100;
   }
   function monthOffset(firstDate, month) {
     const [year, startMonth] = firstDate.split('-').map(Number);
@@ -48,14 +73,15 @@
     if (expense.recurring === true && expense.recurringUntil && month > expense.recurringUntil) return [];
     const indices = expense.recurring === true ? [offset] : Array.from({ length: Number(expense.installments) }, (_, index) => index);
     return indices.map(index => ({
-      expense, index, date: installmentDate(expense.firstDate, index),
-      amount: expense.recurring === true ? Number(expense.amount) : installmentAmount(expense.amount, expense.installments, index),
+      expense: occurrenceEntry(expense,index), index, date: occurrenceDate(expense,index),
+      amount: expense.recurring === true ? Number(occurrenceEntry(expense,index).amount) : installmentAmount(expense.amount, expense.installments, index),
       remaining: expense.type === 'income' ? 0 : chargeRemaining(expense, index, payments),
     })).filter(charge => dateKey(charge.date).slice(0, 7) === month);
   }
   function monthCharges(expenses, payments, cardId, month) {
-    return expenses.filter(expense => expense.type !== 'income' && expense.payment === 'Cartão' && (cardId === null || expense.cardId === cardId))
-      .flatMap(expense => entryCharges(expense, payments, month)).sort((a,b) => b.date-a.date);
+    return expenses.filter(expense => expense.type !== 'income')
+      .flatMap(expense => entryCharges(expense, payments, month))
+      .filter(charge => charge.expense.payment === 'Cartão' && (cardId === null || charge.expense.cardId === cardId)).sort((a,b) => b.date-a.date);
   }
   function transactionCharges(expenses, payments, month) {
     return expenses.filter(expense => expense.type !== 'debt-transfer' && expense.type !== 'income')
@@ -81,6 +107,39 @@
       .reduce((sum, record) => sum + cents(record.amount), 0);
     const expenseCents = cents(monthlyOverview(entries, payments, month).total);
     return { income: incomeCents / 100, expenses: expenseCents / 100, balance: (incomeCents - expenseCents) / 100 };
+  }
+  function monthlyCashFlow(entries,payments,month) {
+    let income=0, expenses=0;
+    for (const payment of payments) {
+      const entry=entries.find(e=>e.id===payment.expenseId);
+      if (!entry || payment.method === 'Cartão') continue;
+      const paidDate=payment.date || dateKey(occurrenceDate(entry,Number(payment.installmentIndex)));
+      if (paidDate.slice(0,7)!==month) continue;
+      if (entry.type==='income') income+=cents(payment.amount); else expenses+=cents(payment.amount);
+    }
+    for (const record of monthlyRecords(entries,payments,month)) {
+      const entry=entries.find(e=>e.id===record.expense.id);
+      if (payments.some(p=>p.expenseId===entry.id && Number(p.installmentIndex)===record.index)) continue;
+      if (implicitRealized(entry,record.index)) {
+        if (entry.type==='income') income+=cents(record.amount); else expenses+=cents(record.amount);
+      }
+    }
+    return {income:income/100,expenses:expenses/100,balance:(income-expenses)/100};
+  }
+  function budgetProgress(entries,payments,budgets,month) {
+    const spent=new Map(categoryBreakdown(transactionCharges(entries,payments,month)).map(c=>[c.category,c.amount]));
+    return budgets.map(item=>{
+      const limit=cents(item.amount), used=cents(spent.get(item.category)||0);
+      return {category:item.category,limit:limit/100,spent:used/100,remaining:(limit-used)/100,percent:limit?Math.round(used*1000/limit)/10:0};
+    });
+  }
+  function monthlyTrends(entries,payments,endMonth,count=6) {
+    const [year,month]=endMonth.split('-').map(Number);
+    count = Math.min(12,Math.max(1,Math.floor(Number(count)||6)));
+    return Array.from({length:count},(_,i)=>{
+      const date=new Date(year,month-1-(count-1-i),1), key=dateKey(date).slice(0,7);
+      return {month:key,projected:monthlyBalance(entries,payments,key),actual:monthlyCashFlow(entries,payments,key)};
+    });
   }
   function categoryBreakdown(charges) {
     const totals = new Map();
@@ -161,11 +220,14 @@
   }
   function cardUsed(expenses, payments, cardId, asOf = new Date()) {
     const currentMonth = dateKey(asOf).slice(0,7);
-    const usedCents = expenses.filter(expense => expense.type !== 'income' && expense.payment === 'Cartão' && expense.cardId === cardId)
+    const usedCents = expenses.filter(expense => expense.type !== 'income')
       .reduce((total, expense) => {
         const lastMonth = expense.recurringUntil && expense.recurringUntil < currentMonth ? expense.recurringUntil : currentMonth;
         const count = expense.recurring === true ? Math.max(0, monthOffset(expense.firstDate, lastMonth) + 1) : Number(expense.installments);
-        return total + Array.from({length:count}, (_,index) => cents(chargeRemaining(expense,index,payments))).reduce((sum,value) => sum+value,0);
+        return total + Array.from({length:count}, (_,index) => {
+          const effective = occurrenceEntry(expense,index);
+          return effective.payment === 'Cartão' && effective.cardId === cardId ? cents(chargeRemaining(expense,index,payments)) : 0;
+        }).reduce((sum,value) => sum+value,0);
       },0);
     return usedCents / 100;
   }
@@ -183,6 +245,12 @@
     cardDueDate,
     isChargeOverdue,
     chargeRemaining,
+    occurrenceEntry,
+    occurrenceDate,
+    realizedAmount,
+    monthlyCashFlow,
+    budgetProgress,
+    monthlyTrends,
     cardUsed,
     monthCharges,
     transactionCharges,
