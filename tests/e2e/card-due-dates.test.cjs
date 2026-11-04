@@ -46,13 +46,33 @@ test('requires a monthly due day when creating and editing a card', async () => 
   await page.getByRole('button', { name: 'Cartões', exact: true }).click();
   await page.locator('#new-card').click();
   await page.getByLabel('Nome do cartão').fill('Cartão Prazo');
-  await page.getByLabel('Banco ou emissor').fill('Banco Teste');
+  await page.locator('#card-bank-trigger').click();
+  const bankOptions = page.locator('#bank-options [role="option"]');
+  assert.equal(await bankOptions.count(), 5);
+  const bankBrands = [
+    ['Banco do Brasil', 'bb', '#003882', '#ffdc00'], ['Nubank', 'nubank', '#f4e8fb', '#820ad1'],
+    ['Bradesco', 'bradesco', '#fff0f3', '#cc092f'], ['Itaú', 'itau', '#ff9e00', '#003399'],
+    ['Santander', 'santander', '#fff0f0', '#ec0000'],
+  ];
+  for (const [bankName, bankKey, surface, brandColor] of bankBrands) {
+    const option = bankOptions.filter({ hasText: bankName });
+    assert.equal(await option.count(), 1);
+    assert.equal(await option.locator('.bank-badge-option-icon').getAttribute('data-bank-key'), bankKey);
+    const iconStyle = await option.locator('.bank-badge-option-icon').getAttribute('style');
+    assert.ok(iconStyle.includes(`--bank-surface:${surface}`));
+    assert.ok(iconStyle.includes(`--bank-color:${brandColor}`));
+  }
+  await bankOptions.filter({ hasText: 'Banco do Brasil' }).click();
+  assert.equal(await page.locator('#card-bank-selected-icon').innerText(), 'BB');
   await page.getByLabel('Limite total').fill('1200');
   await page.getByLabel('Dia de vencimento mensal').fill('15');
   await page.locator('#save-card').click();
 
   let cards = await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-cards-v1') || '[]'));
   assert.equal(cards[0].dueDay, 15);
+  assert.equal(cards[0].bank, 'Banco do Brasil');
+  assert.equal(await page.locator('#cards-list .credit-card-top .bank-badge').getAttribute('data-bank-key'), 'bb');
+  assert.equal(await page.locator('#cards-list .bill-heading .bank-badge').getAttribute('data-bank-key'), 'bb');
   assert.match(await page.locator('.credit-card-title').innerText(), /vence dia 15/);
 
   await page.getByRole('button', { name: 'Editar Cartão Prazo' }).click();

@@ -18,6 +18,13 @@ const INCOME_CATEGORY_DATA = [
   { name: 'Aluguéis', icon: 'home_work', color: '#317c62', iconColor: '#46977c' },
   { name: 'Outras receitas', icon: 'north_east', color: '#317c62', iconColor: '#4a91b8' },
 ];
+const BANK_DATA = [
+  { key: 'bb', name: 'Banco do Brasil', aliases: ['bb'], symbol: 'BB', color: '#ffdc00', surface: '#003882' },
+  { key: 'nubank', name: 'Nubank', aliases: ['nu'], symbol: 'nu', color: '#820ad1', surface: '#f4e8fb' },
+  { key: 'bradesco', name: 'Bradesco', aliases: ['bradesco'], symbol: 'B', color: '#cc092f', surface: '#fff0f3' },
+  { key: 'itau', name: 'Itaú', aliases: ['itau'], symbol: 'Itaú', color: '#003399', surface: '#ff9e00' },
+  { key: 'santander', name: 'Santander', aliases: ['santander'], symbol: 'S', color: '#ec0000', surface: '#fff0f0' },
+];
 const STORAGE_KEY = 'meu-financeiro-v1'; // Keep the existing key so current expenses stay available.
 const CARD_STORAGE_KEY = 'meugasto-cards-v1';
 const PAYMENT_STORAGE_KEY = 'meugasto-card-payments-v1';
@@ -365,6 +372,70 @@ function categoryIcon(info, className) {
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 }
+function bankInfo(value) {
+  const name = String(value || '').trim();
+  const normalized = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+  const known = BANK_DATA.find((item) => [item.name, ...item.aliases].some((alias) => alias.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR') === normalized));
+  if (known) return known;
+  const symbol = name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join('').toLocaleUpperCase('pt-BR') || '?';
+  return { key: 'other', name: name || 'Banco ou emissor', symbol, color: '#6f6680', surface: '#f0edf4' };
+}
+function bankBadgeMarkup(bank, className = '') {
+  const info = bankInfo(bank);
+  return `<span class="bank-badge ${className}" data-bank-key="${escapeHtml(info.key)}" style="--bank-color:${info.color};--bank-surface:${info.surface}" title="${escapeHtml(info.name)}" role="img" aria-label="${escapeHtml(info.name)}">${escapeHtml(info.symbol)}</span>`;
+}
+function syncBankPicker() {
+  const select = $('card-bank');
+  if (!select) return;
+  const selected = select.value;
+  $('bank-selected-name').textContent = selected || 'Selecione um banco';
+  $('card-bank-selected-icon').outerHTML = selected ? bankBadgeMarkup(selected, 'bank-badge-selected').replace('<span ', '<span id="card-bank-selected-icon" aria-hidden="true" ') : '<span class="bank-badge bank-badge-selected" id="card-bank-selected-icon" aria-hidden="true"></span>';
+  $('bank-options').innerHTML = [...select.options].filter((option) => option.value).map((option) => `<div class="bank-picker-option" role="option" tabindex="-1" data-bank-option="${escapeHtml(option.value)}" aria-selected="${String(option.value === selected)}">${bankBadgeMarkup(option.value, 'bank-badge-option-icon').replace(' role="img"', ' aria-hidden="true"').replace(/ aria-label="[^"]*"/, '')}<span>${escapeHtml(bankInfo(option.value).name)}</span></div>`).join('');
+}
+function setCardBankOptions(selectedBank = '') {
+  const select = $('card-bank');
+  select.innerHTML = '<option value="">Selecione um banco</option>' + BANK_DATA.map((bank) => `<option value="${escapeHtml(bank.name)}">${escapeHtml(bank.name)}</option>`).join('');
+  const info = bankInfo(selectedBank);
+  const known = BANK_DATA.some((bank) => bank.key === info.key);
+  if (selectedBank && !known) select.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(selectedBank)}">${escapeHtml(selectedBank)}</option>`);
+  select.value = selectedBank ? info.name : '';
+  syncBankPicker();
+}
+function setupBankPicker() {
+  const select = $('card-bank'), picker = $('bank-picker'), trigger = $('card-bank-trigger'), options = $('bank-options');
+  const setOpen = (open, focusSelected = false) => {
+    options.hidden = !open;
+    trigger.setAttribute('aria-expanded', String(open));
+    if (open && focusSelected) (options.querySelector('[aria-selected="true"]') || options.querySelector('[role="option"]'))?.focus();
+  };
+  select.addEventListener('change', syncBankPicker);
+  trigger.addEventListener('click', () => setOpen(options.hidden));
+  trigger.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setOpen(true, true); }
+  });
+  options.addEventListener('click', (event) => {
+    const option = event.target.closest('[data-bank-option]');
+    if (!option) return;
+    select.value = option.dataset.bankOption;
+    select.dispatchEvent(new Event('input', { bubbles: true }));
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    setOpen(false); trigger.focus();
+  });
+  options.addEventListener('keydown', (event) => {
+    const items = [...options.querySelectorAll('[role="option"]')], index = items.indexOf(document.activeElement);
+    let next = index;
+    if (event.key === 'ArrowDown') next = Math.min(items.length - 1, index + 1);
+    else if (event.key === 'ArrowUp') next = Math.max(0, index - 1);
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = items.length - 1;
+    else if (event.key === 'Escape') { event.preventDefault(); setOpen(false); trigger.focus(); return; }
+    else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.activeElement.click(); return; }
+    else return;
+    event.preventDefault(); items[next]?.focus();
+  });
+  document.addEventListener('pointerdown', (event) => { if (!picker.contains(event.target)) setOpen(false); });
+  syncBankPicker();
+}
 function expenseLabel(charge) {
   const { expense, index } = charge;
   if (expense.recurring === true) return expense.type === 'income' ? 'Receita mensal' : expense.payment === 'Cartão' ? `Mensal · ${escapeHtml(cardForExpense(expense)?.name || 'Cartão')}` : expense.payment;
@@ -455,7 +526,7 @@ function renderDashboardCards() {
     const limit = Number(card.limit) || 0;
     const percent = limit ? Math.min(100, Math.max(0, used / limit * 100)) : 0;
     const available = limit - used;
-    return `<article class="dashboard-card">${materialIcon('credit_card', 'card-chip')}<div class="dashboard-card-info"><strong>${escapeHtml(card.name)}</strong><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><strong class="dashboard-card-available">${currency.format(available)}<small> disponível</small></strong><div class="card-progress"><i style="width:${percent}%"></i></div></article>`;
+    return `<article class="dashboard-card">${bankBadgeMarkup(card.bank, 'dashboard-bank-badge')}<div class="dashboard-card-info"><strong>${escapeHtml(card.name)}</strong><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><strong class="dashboard-card-available">${currency.format(available)}<small> disponível</small></strong><div class="card-progress"><i style="width:${percent}%"></i></div></article>`;
   }).join('');
 }
 function validateTransactionRange() {
@@ -540,11 +611,11 @@ function renderCardItem(card) {
   const unpaid = monthlyCharges.filter((charge) => charge.remaining > 0);
   const rows = monthlyCharges.length ? monthlyCharges.map((charge) => `<div class="bill-line"><div class="bill-description"><strong>${escapeHtml(charge.expense.description)}</strong><span>${charge.expense.recurring === true ? 'Fixo mensal' : `${charge.index + 1}/${charge.expense.installments}`} · ${dateLabel(charge.date)} · ${currency.format(charge.amount)}</span></div><strong>${charge.remaining <= 0 ? '<span class="paid-tag">Liquidado</span>' : currency.format(charge.remaining)}</strong>${charge.remaining > 0 ? `<button class="pay-charge-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}">Liquidar</button>` : ''}</div>`).join('') : '<p class="empty-note compact-empty">Nenhuma cobrança neste mês.</p>';
   return `<article class="credit-card-card">
-    <div class="credit-card-top">${materialIcon('credit_card', 'card-chip')}<div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">${materialIcon('close')}</button></div></div>
+    <div class="credit-card-top">${bankBadgeMarkup(card.bank, 'credit-bank-badge')}<div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">${materialIcon('close')}</button></div></div>
     <div class="limit-line"><span>Limite utilizado</span><strong>${currency.format(used)} <small>de ${currency.format(limit)}</small></strong></div>
     <div class="card-progress large-progress"><i style="width:${percentage}%"></i></div>
     <div class="limit-foot"><span>Disponível</span><strong class="${available < 0 ? 'over-limit' : ''}">${currency.format(available)}</strong></div>
-    <div class="bill-heading"><div><span>Fatura de ${escapeHtml(monthLabel(selectedMonth()))}</span><strong>${currency.format(due)}</strong></div><button class="add-button pay-bill-button" data-pay-bill="${escapeHtml(card.id)}" ${due <= 0 ? 'disabled' : ''}>Liquidar fatura</button></div>
+    <div class="bill-heading"><div><span class="bill-period"><span>Fatura de ${escapeHtml(monthLabel(selectedMonth()))}</span>${bankBadgeMarkup(card.bank, 'invoice-bank-badge')}</span><strong>${currency.format(due)}</strong></div><button class="add-button pay-bill-button" data-pay-bill="${escapeHtml(card.id)}" ${due <= 0 ? 'disabled' : ''}>Liquidar fatura</button></div>
     <div class="bill-lines">${rows}</div>
     ${unpaid.length ? `<p class="card-footnote">Cada liquidação libera do limite o valor pago. O restante em aberto continua comprometido.</p>` : ''}
   </article>`;
@@ -750,7 +821,7 @@ function openCardDialog(card = null) {
   $('card-form').reset();
   $('card-id').value = card?.id || '';
   $('card-name').value = card?.name || '';
-  $('card-bank').value = card?.bank || '';
+  setCardBankOptions(card?.bank || '');
   $('card-limit').value = card ? currency.format(Number(card.limit)) : '';
   $('card-due-day').value = card?.dueDay || '';
   $('card-dialog-title').textContent = card ? 'Editar cartão' : 'Adicionar cartão';
@@ -761,10 +832,11 @@ function openCardDialog(card = null) {
 function submitCard(event) {
   event.preventDefault();
   const name = $('card-name').value.trim();
-  const bank = $('card-bank').value.trim();
+  const selectedBank = $('card-bank').value;
+  const bank = bankInfo(selectedBank).name;
   const limit = Math.round(parseCurrencyInput($('card-limit').value) * 100) / 100;
   const dueDay = Number($('card-due-day').value);
-  if (!name || !bank || !(limit > 0) || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) { showToast('Preencha nome, banco, limite e um dia de vencimento entre 1 e 31.'); return; }
+  if (!name || !selectedBank || !(limit > 0) || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) { showToast('Preencha nome, banco, limite e um dia de vencimento entre 1 e 31.'); return; }
   const id = $('card-id').value || createId('card');
   if (cards.some((card) => card.id !== id && card.name.toLocaleLowerCase('pt-BR') === name.toLocaleLowerCase('pt-BR'))) { showToast('Já existe um cartão com esse nome.'); return; }
   const updated = { id, name, bank, limit, dueDay };
@@ -887,6 +959,7 @@ function initialize() {
   $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
   setupCategoryPicker();
   setupPaymentPicker();
+  setupBankPicker();
   updateCategoryFilter(); updatePaymentFilter();
   $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
   populateCardSelect($('card-select'));
