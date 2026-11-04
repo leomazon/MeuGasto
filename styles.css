@@ -407,3 +407,5 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .date-picker-today{padding:6px 10px;border:0;border-radius:7px;background:transparent;color:#6541c8;font-size:12px;font-weight:700}
 .date-picker-today:hover{background:#f1edff}
 @media(max-width:480px){.date-picker-popover{width:min(306px,calc(100vw - 36px));padding:13px}.date-picker-day{height:37px}}
+
+.field select.budget-category-fixed:disabled{cursor:not-allowed;background-color:#f2f0f6;color:#756e80;border-color:#e4e0eb;opacity:1}
