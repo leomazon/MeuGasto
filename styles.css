@@ -348,3 +348,21 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
   .page-title-active .topbar-page-title{width:calc(100% - 40px);margin-left:40px;font-size:23px}
   .page-title-active .month-control{margin-left:40px;margin-right:auto}
 }
+
+
+/* Give the dashboard a concise landing page and a focused home for deeper analysis. */
+.analytics-view{padding-top:20px}
+.analytics-view .category-comparison{margin-top:0}
+.overview-view .actual-panel{margin-top:14px}
+.overview-view .summary-row{margin-top:14px}
+.analysis-link-row{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:17px 0 14px;padding:13px 17px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.analysis-link-row p{margin:0;color:var(--muted);font-size:13px}
+.analysis-link-row .text-button{font-size:13px}
+.overview-recent{min-height:0;margin-top:0}
+.overview-recent .recent-list{margin-top:8px}
+.cards-view .cards-heading{margin:18px 0 20px}
+.cards-view .cards-intro{margin:7px 0 0;color:var(--muted);font-size:14px}
+.cards-view .dashboard-cards{margin-bottom:26px}
+.card-bills-label{margin:0 0 10px}
+#overview-view:not([hidden]),#transactions-view:not([hidden]),#cards-view:not([hidden]),#analytics-view:not([hidden]){animation:view-arrive .32s cubic-bezier(.2,.7,.25,1) both}
+@media(max-width:760px){.analytics-view{padding-top:12px}.analysis-link-row{align-items:flex-start;flex-direction:column;gap:8px}.overview-recent{margin-top:12px}.cards-view .cards-heading{align-items:flex-start}}

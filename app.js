@@ -439,13 +439,14 @@ function render() {
   const selectedMonthTitle = selectedMonthLabel.charAt(0).toLocaleUpperCase('pt-BR') + selectedMonthLabel.slice(1);
   $('month-long-label').textContent = selectedMonthTitle;
   $('month-long-label').hidden = false;
-  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : 'Lançamentos';
+  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : view === 'analises' ? 'Análises' : 'Lançamentos';
   document.querySelector('.app-shell').classList.toggle('transactions-active', view === 'lancamentos');
   document.querySelector('.app-shell').classList.add('page-title-active');
   $('date-greeting').textContent = `SEU RESUMO DE ${monthLabel(selectedMonth())}`;
   $('page-heading').hidden = true;
   $('overview-view').hidden = view !== 'inicio';
   $('transactions-view').hidden = view !== 'lancamentos';
+  $('analytics-view').hidden = view !== 'analises';
   $('cards-view').hidden = view !== 'cartoes';
   document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
   renderOverview();
@@ -773,7 +774,7 @@ function initialize() {
   $('manage-income').addEventListener('click', () => { view = 'lancamentos'; $('clear-filters').click(); render(); });
   document.querySelectorAll('input[name="record-type"]').forEach(input => input.addEventListener('change', () => updateRecordType()));
   $('new-card').addEventListener('click', () => openCardDialog());
-  $('manage-cards').addEventListener('click', () => { view = 'cartoes'; render(); });
+  $('open-analytics').addEventListener('click', () => { view = 'analises'; render(); });
   $('all-categories').addEventListener('click', () => showCategoryTransactions('expense'));
   $('all-income-categories').addEventListener('click', () => showCategoryTransactions('income'));
   $('all-transactions').addEventListener('click', () => { view = 'lancamentos'; render(); });

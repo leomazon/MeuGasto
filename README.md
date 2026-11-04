@@ -17,7 +17,7 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 - **Saldo realizado**: recebimentos menos pagamentos confirmados, pela data em que ocorreram. Os dois saldos são movimentos do mês e não incluem saldo anterior.
 - Situação de receitas e despesas (previsto/em aberto ou recebido/pago), com confirmação de data e reabertura mediante confirmação. Pix, dinheiro e transferência entram no realizado quando confirmados; cartões entram ao pagar a fatura, sem contar transferências de dívida entre cartões como saída de dinheiro.
 - Registros avulsos antigos em Pix/dinheiro e receitas antigas são tratados como realizados para manter a compatibilidade. Registros fixos antigos seguem previstos até a confirmação mensal.
-- Dashboard mensal com gráficos separados de receitas e despesas por categoria, com percentuais sobre os respectivos totais.
+- Aba Análises com gráficos separados de receitas e despesas por categoria, evolução mensal e orçamentos por categoria. A Visão geral reúne saldos, formas de pagamento e registros recentes.
 - Barras em Lançamentos mostram a participação de cada receita ou despesa na própria categoria do mês, sem mudar a base ao aplicar filtros.
 - Cadastro de cartões, limites e crédito disponível no dashboard.
 - Faturas mensais com liquidação integral ou cobrança por cobrança, via Pix ou outro cartão.

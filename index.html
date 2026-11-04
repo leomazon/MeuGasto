@@ -21,6 +21,7 @@
         <nav class="main-nav">
           <button class="nav-item active" data-view="inicio"><span aria-hidden="true">◫</span> Visão geral</button>
           <button class="nav-item" data-view="lancamentos"><span aria-hidden="true">≡</span> Lançamentos</button>
+          <button class="nav-item" data-view="analises"><span aria-hidden="true">▥</span> Análises</button>
           <button class="nav-item" data-view="cartoes"><span aria-hidden="true">▰</span> Cartões</button>
         </nav>
         <div class="sidebar-bottom">
@@ -92,6 +93,15 @@
             </article>
           </div>
 
+          <div class="analysis-link-row"><p>Consulte categorias, evolução mensal e orçamentos na área de análises.</p><button class="text-button" id="open-analytics">Ver análises <span aria-hidden="true">↗</span></button></div>
+          <section class="recent-panel overview-recent">
+              <div class="section-title-row"><div><h2>Últimos gastos</h2><p class="eyebrow">RECÉM-ADICIONADOS</p></div><button class="text-button" id="all-transactions">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
+              <div id="recent-list" class="recent-list"></div>
+          </section>
+          <p class="local-footnote"><span aria-hidden="true">▣</span> Seus dados ficam salvos neste PC. Baixe um backup para guardar uma cópia ou transferi-los.</p>
+        </section>
+
+        <section class="analytics-view" id="analytics-view" hidden>
           <div class="lower-grid category-comparison">
             <section class="category-panel">
               <div class="section-title-row"><div><h2>Despesas por categoria</h2><p class="eyebrow">DESPESAS</p></div><button class="text-button" id="all-categories">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
@@ -114,17 +124,7 @@
             <div class="section-title-row"><div><h2 id="budget-title">Orçamento por categoria</h2><p class="balance-note">Limites mensais recorrentes, comparados com as despesas previstas do mês.</p></div><button class="add-button" id="new-budget">Definir orçamento</button></div>
             <div id="budget-list" class="budget-list"></div>
           </section>
-          <div class="lower-grid activity-grid">
-            <section class="recent-panel">
-              <div class="section-title-row"><div><h2>Últimos gastos</h2><p class="eyebrow">RECÉM-ADICIONADOS</p></div><button class="text-button" id="all-transactions">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
-              <div id="recent-list" class="recent-list"></div>
-            </section>
-            <section class="dashboard-card-section">
-              <div class="section-title-row"><div><h2>Seus cartões</h2><p class="eyebrow">CRÉDITO DISPONÍVEL</p></div><button class="text-button" id="manage-cards">Gerenciar cartões <span aria-hidden="true">↗</span></button></div>
-              <div id="dashboard-cards" class="dashboard-cards"></div>
-            </section>
-          </div>
-          <p class="local-footnote"><span aria-hidden="true">▣</span> Seus dados ficam salvos neste PC. Baixe um backup para guardar uma cópia ou transferi-los.</p>
+          <p class="local-footnote"><span aria-hidden="true">▣</span> Categorias e orçamentos consideram os lançamentos previstos do mês selecionado.</p>
         </section>
 
         <section class="transactions-view" id="transactions-view" hidden>
@@ -158,7 +158,9 @@
         </section>
 
         <section class="cards-view" id="cards-view" hidden>
-          <div class="section-title-row cards-heading"><div><p class="eyebrow">LIMITES E FATURAS</p><h2>Seus cartões</h2><p class="cards-intro">Acompanhe o limite comprometido e liquide as cobranças do mês.</p></div><button class="add-button" id="new-card"><span aria-hidden="true">＋</span> Adicionar cartão</button></div>
+          <div class="section-title-row cards-heading"><div><p class="eyebrow">CRÉDITO DISPONÍVEL</p><h2>Seus cartões</h2><p class="cards-intro">Acompanhe limites, cobranças e pagamentos por cartão.</p></div><button class="add-button" id="new-card"><span aria-hidden="true">＋</span> Adicionar cartão</button></div>
+          <div id="dashboard-cards" class="dashboard-cards"></div>
+          <p class="eyebrow card-bills-label">FATURAS DO MÊS</p>
           <div id="cards-list" class="cards-list"></div>
           <p class="local-footnote"><span aria-hidden="true">▣</span> Os cartões, limites e pagamentos ficam salvos neste PC.</p>
         </section>
