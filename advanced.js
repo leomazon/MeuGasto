@@ -95,6 +95,29 @@ function submitMonthlyOverride(previous, amount, chosenCard) {
   previous.realizationStates={...previous.realizationStates,[index]:override.status==='planned' ? 'planned' : 'confirmed'};
   saveExpenses(); saveSettlements(); $('expense-dialog').close(); render(); showToast('Somente este mês foi atualizado.');
 }
+function trendChartMarkup(series) {
+  const largestValue=Math.max(0,...series.flatMap(item=>[item.projected.income,item.projected.expenses]));
+  const magnitude=largestValue>0 ? 10**Math.floor(Math.log10(largestValue)) : 1;
+  const axisMaximum=largestValue>0 ? Math.ceil(largestValue/magnitude)*magnitude : 1;
+  const width=Math.max(640,142+series.length*66), height=340;
+  const left=94, right=18, top=20, bottom=48;
+  const plotWidth=width-left-right, plotHeight=height-top-bottom;
+  const groupWidth=plotWidth/series.length, barWidth=Math.min(25,groupWidth*.3), gap=Math.min(7,groupWidth*.08);
+  const axisCurrency=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+  const grid=Array.from({length:5},(_,index)=>{
+    const value=axisMaximum*(4-index)/4, y=top+plotHeight*index/4;
+    return `<g class="trend-grid-line"><line x1="${left}" y1="${y}" x2="${width-right}" y2="${y}"/><text x="${left-12}" y="${y+4}" text-anchor="end">${axisCurrency.format(value)}</text></g>`;
+  }).join('');
+  const bands=series.map((item,index)=>item.month===selectedMonth() ? `<rect class="trend-current-band" x="${left+index*groupWidth+2}" y="${top}" width="${Math.max(0,groupWidth-4)}" height="${plotHeight+30}" rx="8"/>` : '').join('');
+  const bars=series.map((item,index)=>{
+    const center=left+groupWidth*(index+.5), incomeHeight=item.projected.income/axisMaximum*plotHeight, expenseHeight=item.projected.expenses/axisMaximum*plotHeight;
+    const date=dateFromKey(`${item.month}-01`), monthShort=new Intl.DateTimeFormat('pt-BR',{month:'short'}).format(date).replace('.','');
+    const label=`${monthShort}/${String(date.getFullYear()).slice(-2)}`;
+    const details=`${monthLabel(item.month)}. Receitas previstas: ${currency.format(item.projected.income)}. Despesas previstas: ${currency.format(item.projected.expenses)}. Saldo previsto: ${currency.format(item.projected.balance)}. Saldo realizado: ${currency.format(item.actual.balance)}.`;
+    return `<g class="trend-month${item.month===selectedMonth() ? ' is-current' : ''}"><title>${escapeHtml(details)}</title><rect class="trend-bar-income" x="${center-gap/2-barWidth}" y="${top+plotHeight-incomeHeight}" width="${barWidth}" height="${incomeHeight}" rx="3"><title>Receitas previstas: ${currency.format(item.projected.income)}</title></rect><rect class="trend-bar-expense" x="${center+gap/2}" y="${top+plotHeight-expenseHeight}" width="${barWidth}" height="${expenseHeight}" rx="3"><title>Despesas previstas: ${currency.format(item.projected.expenses)}</title></rect><text class="trend-month-label" x="${center}" y="${top+plotHeight+23}" text-anchor="middle">${escapeHtml(label)}</text></g>`;
+  }).join('');
+  return `<svg class="trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Gráfico de colunas agrupadas com receitas previstas em verde e despesas previstas em vermelho, por mês"><title>Evolução mensal de receitas e despesas previstas</title>${bands}${grid}<line class="trend-axis" x1="${left}" y1="${top+plotHeight}" x2="${width-right}" y2="${top+plotHeight}"/>${bars}</svg>`;
+}
 function renderInsights() {
   const actual = Core.monthlyCashFlow(expenses,settlements,selectedMonth());
   $('actual-income').textContent=currency.format(actual.income);
@@ -102,12 +125,7 @@ function renderInsights() {
   $('actual-balance').textContent=currency.format(actual.balance);
   $('actual-balance').className=actual.balance<0 ? 'negative-balance' : 'income-value';
   const series = Core.monthlyTrends(expenses,settlements,selectedMonth(),Number($('trend-period').value));
-  const ceiling = Math.max(1,...series.flatMap(item=>[item.projected.income,item.projected.expenses]));
-  $('trend-body').innerHTML=series.map(item=>{
-    const incomeWidth=Math.min(100,item.projected.income/ceiling*100);
-    const expenseWidth=Math.min(100,item.projected.expenses/ceiling*100);
-    return `<tr${item.month===selectedMonth() ? ' class="current-trend"' : ''}><th scope="row">${escapeHtml(monthLabel(item.month))}</th><td><div class="trend-pair"><div class="trend-series income-trend"><span class="trend-series-value">Receitas <strong>${currency.format(item.projected.income)}</strong></span><div class="trend-track" role="meter" aria-label="Receitas previstas em ${escapeHtml(monthLabel(item.month))}" aria-valuemin="0" aria-valuemax="${ceiling}" aria-valuenow="${item.projected.income}"><i style="width:${incomeWidth}%"></i></div></div><div class="trend-series expense-trend"><span class="trend-series-value">Despesas <strong>${currency.format(item.projected.expenses)}</strong></span><div class="trend-track" role="meter" aria-label="Despesas previstas em ${escapeHtml(monthLabel(item.month))}" aria-valuemin="0" aria-valuemax="${ceiling}" aria-valuenow="${item.projected.expenses}"><i style="width:${expenseWidth}%"></i></div></div></div></td><td class="${item.projected.balance<0 ? 'negative-balance' : ''}">${currency.format(item.projected.balance)}</td><td class="${item.actual.balance<0 ? 'negative-balance' : ''}">${currency.format(item.actual.balance)}</td></tr>`;
-  }).join('');
+  $('trend-chart').innerHTML=trendChartMarkup(series);
   const current=series.at(-1), previous=series.at(-2);
   const diff=previous ? Math.round((current.projected.expenses-previous.projected.expenses)*100)/100 : 0;
   $('month-comparison').textContent = previous ? `Despesas previstas: ${diff===0 ? 'mesmo valor do mês anterior' : `${currency.format(Math.abs(diff))} ${diff>0 ? 'a mais' : 'a menos'} que no mês anterior`}.` : '';

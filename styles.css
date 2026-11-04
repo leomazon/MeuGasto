@@ -304,22 +304,15 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .trend-legend span{display:flex;align-items:center;gap:7px}
 .trend-legend i{width:10px;height:10px;border-radius:3px}
 .trend-income-key{background:#317c62}.trend-expense-key{background:#c2414d}
-.table-scroll{overflow-x:auto}
-.trend-table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
-.trend-table th,.trend-table td{padding:14px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
-.trend-table th:first-child{text-align:left;padding-left:0;font-weight:600}
-.trend-table thead th{color:var(--muted);font-size:12px;font-weight:600}
-.trend-table th:nth-child(2){text-align:left}
-.trend-table td:nth-child(2){width:42%;min-width:240px}
-.trend-table .current-trend{background:#faf8ff}
-.trend-pair{display:grid;gap:11px;min-width:180px}
-.trend-series{display:grid;gap:5px}
-.trend-series-value{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px}
-.trend-series-value strong{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
-.trend-track{height:8px;overflow:hidden;border-radius:99px;background:#efedf3}
-.trend-track i{display:block;height:100%;min-width:0;border-radius:inherit;transition:width .55s cubic-bezier(.2,.8,.2,1)}
-.income-trend .trend-track i{background:#317c62}
-.expense-trend .trend-track i{background:#c2414d}
+.trend-chart-container{overflow-x:auto;margin:4px -4px 0}
+.trend-chart{display:block;width:100%;min-width:640px;height:auto;overflow:visible;font-family:'DM Sans',Arial,sans-serif;font-variant-numeric:tabular-nums}
+.trend-grid-line line{stroke:#e7e4ec;stroke-width:1}
+.trend-grid-line text{fill:var(--muted);font-size:12px}
+.trend-axis{stroke:#bcb6c7;stroke-width:1.2}
+.trend-current-band{fill:#f8f5ff}
+.trend-bar-income{fill:#317c62;transition:y .25s,height .25s}
+.trend-bar-expense{fill:#c2414d;transition:y .25s,height .25s}
+.trend-month-label{fill:#625d6b;font-size:12px;font-weight:600}
 .budget-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}
 .budget-list>.empty-note{grid-column:1/-1}
 .budget-item{padding:18px;border:1px solid var(--line);border-radius:12px;min-width:0}
@@ -342,7 +335,7 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .record-type-switch input:disabled+span{cursor:default}
 @media(max-width:1200px){.transactions-list .expense-row{grid-template-columns:38px minmax(140px,1fr) 90px 75px 100px 185px}}
 @media(max-width:1000px){.transactions-list .expense-row{grid-template-columns:38px minmax(100px,1fr) 100px 185px}.transactions-list .row-date,.transactions-list .row-payment{display:none}}
-@media(max-width:760px){.insight-panel{padding:20px}.budget-list{grid-template-columns:1fr}.insight-panel .section-title-row{align-items:flex-start;flex-wrap:wrap}.transactions-list .expense-row{grid-template-columns:34px minmax(0,1fr) auto;gap:12px}.transactions-list .row-actions{grid-column:2/-1;justify-self:end;width:auto;min-width:0}.trend-table{font-size:13px}.trend-table th,.trend-table td{padding:12px 8px}.trend-table td:nth-child(2){min-width:210px}.trend-pair{gap:9px}.trend-track{height:7px}}
+@media(max-width:760px){.insight-panel{padding:20px}.budget-list{grid-template-columns:1fr}.insight-panel .section-title-row{align-items:flex-start;flex-wrap:wrap}.transactions-list .expense-row{grid-template-columns:34px minmax(0,1fr) auto;gap:12px}.transactions-list .row-actions{grid-column:2/-1;justify-self:end;width:auto;min-width:0}.trend-chart-container{margin:4px -8px 0}.trend-chart{min-width:680px}}
 .sidebar-shade{display:none}
 @media(max-width:760px){
   .sidebar{display:flex;width:264px;z-index:6}

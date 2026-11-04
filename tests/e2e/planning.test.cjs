@@ -123,9 +123,11 @@ test('saves category budgets, shows overruns and compares consecutive months', a
   await page.locator('#save-expense').click();
   await page.getByRole('button',{name:'Visão geral',exact:true}).click();
   assert.match(await page.locator('#budget-list').innerText(),/50,00 acima/);
-  assert.equal(await page.locator('#trend-body tr').count(),6);
+  assert.equal(await page.locator('#trend-chart .trend-month').count(),6);
+  assert.equal(await page.locator('#trend-chart .trend-bar-income').count(),6);
+  assert.equal(await page.locator('#trend-chart .trend-bar-expense').count(),6);
   await page.locator('#trend-period').selectOption('12');
-  assert.equal(await page.locator('#trend-body tr').count(),12);
+  assert.equal(await page.locator('#trend-chart .trend-month').count(),12);
   await page.reload();
   assert.match(await page.locator('#budget-list').innerText(),/50,00 acima/);
   await page.getByRole('button',{name:'Excluir orçamento de Moradia',exact:true}).click();
