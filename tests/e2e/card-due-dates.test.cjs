@@ -50,7 +50,7 @@ test('requires a monthly due day when creating and editing a card', async () => 
   const bankOptions = page.locator('#bank-options [role="option"]');
   assert.equal(await bankOptions.count(), 5);
   const bankBrands = [
-    ['Banco do Brasil', 'bb', '#003882', '#ffdc00', '00000000.svg'], ['Nubank', 'nubank', '#f4e8fb', '#820ad1', '18236120.svg'],
+    ['Banco do Brasil', 'bb', '#FCFC30', '#ffdc00', '00000000.svg'], ['Nubank', 'nubank', '#f4e8fb', '#820ad1', '18236120.svg'],
     ['Bradesco', 'bradesco', '#fff0f3', '#cc092f', '60746948.svg'], ['Itaú', 'itau', '#ff9e00', '#003399', '60701190.svg'],
     ['Santander', 'santander', '#fff0f0', '#ec0000', '90400888.svg'],
   ];

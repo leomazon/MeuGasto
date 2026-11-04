@@ -19,7 +19,7 @@ const INCOME_CATEGORY_DATA = [
   { name: 'Outras receitas', icon: 'north_east', color: '#317c62', iconColor: '#4a91b8' },
 ];
 const BANK_DATA = [
-  { key: 'bb', name: 'Banco do Brasil', aliases: ['bb'], symbol: 'BB', icon: 'assets/banks/00000000.svg', color: '#ffdc00', surface: '#003882' },
+  { key: 'bb', name: 'Banco do Brasil', aliases: ['bb'], symbol: 'BB', icon: 'assets/banks/00000000.svg', color: '#ffdc00', surface: '#FCFC30' },
   { key: 'nubank', name: 'Nubank', aliases: ['nu'], symbol: 'nu', icon: 'assets/banks/18236120.svg', color: '#820ad1', surface: '#f4e8fb' },
   { key: 'bradesco', name: 'Bradesco', aliases: ['bradesco'], symbol: 'B', icon: 'assets/banks/60746948.svg', color: '#cc092f', surface: '#fff0f3' },
   { key: 'itau', name: 'Itaú', aliases: ['itau'], symbol: 'Itaú', icon: 'assets/banks/60701190.svg', color: '#003399', surface: '#ff9e00' },
