@@ -113,7 +113,10 @@ function renderInsights() {
 function openBudget(name='') {
   $('budget-form').reset();
   const names=[...new Set([...recordCategories('expense').map(item=>item.name),...budgets.map(item=>item.category)])];
-  $('budget-category').innerHTML=names.map(item=>`<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('');
+  $('budget-category').innerHTML=names.map(name=>{
+    const item=category(name,'expense');
+    return `<option value="${escapeHtml(name)}">${item.icon} ${escapeHtml(name)}</option>`;
+  }).join('');
   $('budget-category').disabled=Boolean(name);
   if (name) { $('budget-category').value=name; $('budget-amount').value=currency.format(budgets.find(item=>item.category===name).amount); }
   $('budget-dialog').showModal();
