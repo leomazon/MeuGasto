@@ -39,26 +39,49 @@ after(async () => {
 
 test('keeps category option labels clean and hides the native calendar control', async () => {
   await page.goto(appUrl);
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
   await page.locator('#new-expense').click();
 
   assert.deepEqual(await page.locator('#category option').allTextContents(), [
     'Moradia', 'Alimentação', 'Transporte', 'Saúde', 'Lazer',
     'Educação', 'Compras', 'Assinaturas', 'Contas', 'Outros',
   ]);
-  assert.equal(await page.locator('.date-picker-control .date-picker-trigger').count(), 1);
+  assert.equal(await page.locator('#first-date').evaluate(input =>
+    input.closest('.date-picker-control').querySelectorAll('.date-picker-trigger').length), 1);
   const dateControl = await page.locator('#first-date').evaluate(input => {
     const icon = input.closest('.date-picker-control').querySelector('.date-picker-trigger');
     const inputRect = input.getBoundingClientRect();
     const iconRect = icon.getBoundingClientRect();
     return {
-      nativeIconDisplay: getComputedStyle(input, '::-webkit-calendar-picker-indicator').display,
-      nativeIconOpacity: getComputedStyle(input, '::-webkit-calendar-picker-indicator').opacity,
+      nativeInputPointerEvents: getComputedStyle(input).pointerEvents,
       verticalCenterOffset: Math.abs((inputRect.top + inputRect.height / 2) - (iconRect.top + iconRect.height / 2)),
     };
   });
-  assert.equal(dateControl.nativeIconDisplay, 'none');
-  assert.equal(dateControl.nativeIconOpacity, '0');
+  assert.equal(dateControl.nativeInputPointerEvents, 'none');
   assert.ok(dateControl.verticalCenterOffset <= 1);
+});
+
+test('shows Material icons in expense and income category choices', async () => {
+  await page.goto(appUrl);
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
+  await page.locator('#new-expense').click();
+
+  await page.locator('#category-trigger').click();
+  const expenseOptions=page.locator('#category-options [role="option"]');
+  assert.equal(await expenseOptions.count(),10);
+  assert.equal(await expenseOptions.first().locator('.material-icons').innerText(),'home');
+  await expenseOptions.filter({hasText:'Alimentação'}).click();
+  assert.equal(await page.locator('#category').inputValue(),'Alimentação');
+  assert.equal(await page.locator('#category-selected-name').innerText(),'Alimentação');
+
+  await page.locator('input[name="record-type"][value="income"]').check();
+  await page.locator('#category-trigger').click();
+  const incomeOptions=page.locator('#category-options [role="option"]');
+  assert.equal(await incomeOptions.count(),7);
+  assert.equal(await incomeOptions.first().locator('.material-icons').innerText(),'handyman');
+  await incomeOptions.filter({hasText:'Vendas'}).click();
+  assert.equal(await page.locator('#category').inputValue(),'Vendas');
+  assert.equal(await page.locator('#category-selected-icon').innerText(),'shopping_bag');
 });
 
 
@@ -80,6 +103,7 @@ test('shows separate monthly category charts and income shares that survive filt
   assert.deepEqual(await incomeRows.locator('.category-share').allTextContents(),['60%','40%']);
   assert.deepEqual(await page.locator('#category-list .category-share').allTextContents(),['100%']);
   const incomeColor=await incomeRows.filter({hasText:'Prestação de serviço'}).locator('.category-track i').evaluate(e=>getComputedStyle(e).backgroundColor);
+  await page.getByRole('button',{name:'Análises',exact:true}).click();
   await page.locator('#all-income-categories').click();
   assert.equal(await page.locator('#type-filter').inputValue(),'income');
   const mainRow=page.locator('#transactions-list .expense-row').filter({hasText:'Serviço principal'});

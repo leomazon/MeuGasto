@@ -269,12 +269,14 @@ function setupDatePicker(inputId) {
   input.parentNode.insertBefore(wrapper,input);
   wrapper.append(input);
   input.classList.add('date-picker-input');
+  input.tabIndex=-1;
   const trigger=document.createElement('button');
   trigger.className='date-picker-trigger';trigger.type='button';trigger.setAttribute('aria-label','Abrir calendário');trigger.setAttribute('aria-haspopup','dialog');trigger.setAttribute('aria-expanded','false');
   trigger.innerHTML='<span class="material-icons" aria-hidden="true">calendar_month</span>';
   const popover=document.createElement('div');popover.className='date-picker-popover';popover.setAttribute('popover','manual');popover.setAttribute('role','dialog');popover.setAttribute('aria-label','Escolher data');
   popover.innerHTML='<div class="date-picker-header"><button type="button" class="date-picker-nav" data-month-step="-1" aria-label="Mês anterior">‹</button><strong class="date-picker-month"></strong><button type="button" class="date-picker-nav" data-month-step="1" aria-label="Próximo mês">›</button></div><div class="date-picker-weekdays" aria-hidden="true"><span>Do</span><span>Se</span><span>Te</span><span>Qu</span><span>Qu</span><span>Se</span><span>Sa</span></div><div class="date-picker-days" role="grid"></div><div class="date-picker-footer"><button type="button" class="date-picker-today">Hoje</button></div>';
   wrapper.append(trigger,popover);
+  wrapper.addEventListener('click',event=>{if(event.target===wrapper)trigger.click();});
   let shownMonth=null;
   const isOpen=()=>popover.matches(':popover-open') || !popover.hidden;
   const close=()=>{

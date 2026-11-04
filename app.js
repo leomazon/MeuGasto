@@ -205,6 +205,7 @@ function updateRecordType(selectedCategory = '') {
   const previousPayment = $('payment').value;
   $('category').innerHTML = recordCategories(income ? 'income' : 'expense').map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
   if (selectedCategory) $('category').value = selectedCategory;
+  syncCategoryPicker();
   const methods = recordPaymentMethods(income ? 'income' : 'expense');
   $('payment').innerHTML = methods.map(method => `<option value="${method}">${method}</option>`).join('');
   $('payment').value = methods.includes(previousPayment) ? previousPayment : methods[0];
@@ -213,6 +214,56 @@ function updateRecordType(selectedCategory = '') {
   $('record-date-label').textContent = income ? 'Data de recebimento' : 'Data do primeiro pagamento';
   if (income) $('first-date').max = localDateKey(); else $('first-date').removeAttribute('max');
   updatePaymentFields();
+}
+function syncCategoryPicker() {
+  const select=$('category'), trigger=$('category-trigger');
+  if (!select || !trigger) return;
+  const income=recordType()==='income';
+  const selected=category(select.value,income);
+  const color=selected.iconColor || selected.color;
+  $('category-selected-icon').textContent=selected.icon;
+  $('category-selected-icon').style.color=color;
+  $('category-selected-icon').style.backgroundColor=`${color}1a`;
+  $('category-selected-name').textContent=select.value;
+  $('category-options').innerHTML=[...select.options].map(option=>{
+    const info=category(option.value,income), iconColor=info.iconColor || info.color;
+    return `<div class="category-picker-option" role="option" tabindex="-1" data-category-option="${escapeHtml(option.value)}" aria-selected="${String(option.value===select.value)}"><span class="material-icons category-picker-option-icon" style="color:${iconColor};background-color:${iconColor}1a" aria-hidden="true">${escapeHtml(info.icon)}</span><span>${escapeHtml(option.value)}</span></div>`;
+  }).join('');
+}
+function setupCategoryPicker() {
+  const select=$('category'), picker=$('category-picker'), trigger=$('category-trigger'), options=$('category-options');
+  const setOpen=(open,focusSelected=false)=>{
+    options.hidden=!open;
+    trigger.setAttribute('aria-expanded',String(open));
+    if (open && focusSelected) (options.querySelector('[aria-selected="true"]') || options.querySelector('[role="option"]'))?.focus();
+  };
+  select.addEventListener('change',syncCategoryPicker);
+  trigger.addEventListener('click',()=>setOpen(options.hidden));
+  trigger.addEventListener('keydown',event=>{
+    if (event.key==='ArrowDown' || event.key==='ArrowUp') {event.preventDefault();setOpen(true,true);}
+  });
+  options.addEventListener('click',event=>{
+    const option=event.target.closest('[data-category-option]');
+    if (!option) return;
+    select.value=option.dataset.categoryOption;
+    select.dispatchEvent(new Event('input',{bubbles:true}));
+    select.dispatchEvent(new Event('change',{bubbles:true}));
+    setOpen(false);trigger.focus();
+  });
+  options.addEventListener('keydown',event=>{
+    const items=[...options.querySelectorAll('[role="option"]')], index=items.indexOf(document.activeElement);
+    let next=index;
+    if (event.key==='ArrowDown') next=Math.min(items.length-1,index+1);
+    else if (event.key==='ArrowUp') next=Math.max(0,index-1);
+    else if (event.key==='Home') next=0;
+    else if (event.key==='End') next=items.length-1;
+    else if (event.key==='Escape') {event.preventDefault();setOpen(false);trigger.focus();return;}
+    else if (event.key==='Enter' || event.key===' ') {event.preventDefault();document.activeElement.click();return;}
+    else return;
+    event.preventDefault();items[next]?.focus();
+  });
+  document.addEventListener('pointerdown',event=>{if (!picker.contains(event.target)) setOpen(false);});
+  syncCategoryPicker();
 }
 function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
 function dateFromKey(value) { const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day); }
@@ -773,6 +824,7 @@ function initialize() {
   $('sidebar-toggle').addEventListener('click', () => setSidebarCollapsed(!document.querySelector('.app-shell').classList.contains('sidebar-collapsed')));
   $('month-picker').value = monthKey(new Date());
   $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
+  setupCategoryPicker();
   updateCategoryFilter(); updatePaymentFilter();
   $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
   populateCardSelect($('card-select'));
@@ -781,7 +833,6 @@ function initialize() {
   $('manage-income').addEventListener('click', () => { view = 'lancamentos'; $('clear-filters').click(); render(); });
   document.querySelectorAll('input[name="record-type"]').forEach(input => input.addEventListener('change', () => updateRecordType()));
   $('new-card').addEventListener('click', () => openCardDialog());
-  $('open-analytics').addEventListener('click', () => { view = 'analises'; render(); });
   $('all-categories').addEventListener('click', () => showCategoryTransactions('expense'));
   $('all-income-categories').addEventListener('click', () => showCategoryTransactions('income'));
   $('all-transactions').addEventListener('click', () => { view = 'lancamentos'; render(); });

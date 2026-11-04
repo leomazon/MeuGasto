@@ -91,7 +91,6 @@
             </article>
           </div>
 
-          <div class="analysis-link-row"><p>Consulte categorias, evolução mensal e orçamentos na área de análises.</p><button class="text-button" id="open-analytics">Ver análises <span aria-hidden="true">↗</span></button></div>
           <section class="recent-panel overview-recent">
               <div class="section-title-row"><div><h2>Últimos gastos</h2><p class="eyebrow">RECÉM-ADICIONADOS</p></div><button class="text-button" id="all-transactions">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
               <div id="recent-list" class="recent-list"></div>
@@ -174,7 +173,7 @@
         <label class="field full-field">Descrição<input id="description" required maxlength="90" placeholder="Ex.: mercado, conta de luz" /></label>
         <div class="field-row">
           <label class="field">Valor total<input id="amount" class="currency-input" required type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" /></label>
-          <label class="field">Categoria<select id="category" required></select></label>
+          <div class="field"><span id="category-label">Categoria</span><div class="category-picker" id="category-picker"><select id="category" required tabindex="-1" aria-hidden="true" aria-labelledby="category-label"></select><button class="category-picker-trigger" id="category-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="category-label category-selected-name" aria-controls="category-options"><span class="material-icons category-picker-selected-icon" id="category-selected-icon" aria-hidden="true"></span><span id="category-selected-name"></span><span class="material-icons category-picker-chevron" aria-hidden="true">expand_more</span></button><div class="category-picker-options" id="category-options" role="listbox" aria-labelledby="category-label" hidden></div></div></div>
         </div>
         <div class="field-row">
           <label class="field"><span id="payment-label">Forma de pagamento</span><select id="payment" required><option value="Pix">Pix</option><option value="Dinheiro">Dinheiro</option><option value="Cartão">Cartão</option></select></label>
