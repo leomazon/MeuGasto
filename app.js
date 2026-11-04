@@ -181,7 +181,7 @@ function recordCategories(type) {
 function updateCategoryFilter() {
   const selected = $('category-filter').value;
   const type = $('type-filter').value;
-  const group = (kind, label) => `<optgroup label="${label}">${recordCategories(kind).map(item => `<option class="material-icon-option" value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('')}</optgroup>`;
+  const group = (kind, label) => `<optgroup label="${label}">${recordCategories(kind).map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('')}</optgroup>`;
   $('category-filter').innerHTML = '<option value="">Todas as categorias</option>' + (type !== 'income' ? group('expense', 'Despesas') : '') + (type !== 'expense' ? group('income', 'Receitas') : '');
   $('category-filter').value = [...$('category-filter').options].some(option => option.value === selected) ? selected : '';
 }
@@ -203,7 +203,7 @@ function updatePaymentFilter() {
 function updateRecordType(selectedCategory = '') {
   const income = recordType() === 'income';
   const previousPayment = $('payment').value;
-  $('category').innerHTML = recordCategories(income ? 'income' : 'expense').map(item => `<option class="material-icon-option" value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
+  $('category').innerHTML = recordCategories(income ? 'income' : 'expense').map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
   if (selectedCategory) $('category').value = selectedCategory;
   const methods = recordPaymentMethods(income ? 'income' : 'expense');
   $('payment').innerHTML = methods.map(method => `<option value="${method}">${method}</option>`).join('');
@@ -768,7 +768,7 @@ function initialize() {
   setupEnhancements();
   $('sidebar-toggle').addEventListener('click', () => setSidebarCollapsed(!document.querySelector('.app-shell').classList.contains('sidebar-collapsed')));
   $('month-picker').value = monthKey(new Date());
-  $('category').innerHTML = CATEGORY_DATA.map((item) => `<option class="material-icon-option" value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
+  $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
   updateCategoryFilter(); updatePaymentFilter();
   $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
   populateCardSelect($('card-select'));

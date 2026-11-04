@@ -118,8 +118,7 @@ function openBudget(name='') {
   $('budget-form').reset();
   const names=[...new Set([...recordCategories('expense').map(item=>item.name),...budgets.map(item=>item.category)])];
   $('budget-category').innerHTML=names.map(name=>{
-    const item=category(name,'expense');
-    return `<option class="material-icon-option" value="${escapeHtml(name)}">${item.icon} ${escapeHtml(name)}</option>`;
+    return `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
   }).join('');
   $('budget-category').disabled=Boolean(name);
   $('budget-category').classList.toggle('budget-category-fixed',Boolean(name));

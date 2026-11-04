@@ -384,13 +384,15 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 
 /* A small in-app calendar keeps date selection consistent across browsers. */
 .date-picker-control{position:relative;min-width:0}
-.field .date-picker-control input{width:100%;padding-right:46px}
-.date-picker-trigger{position:absolute;z-index:1;right:5px;top:4px;display:grid;place-items:center;width:34px;height:32px;padding:0;border:0;border-radius:8px;background:#f5f2fb;color:#6a5c83}
-.date-picker-trigger:hover,.date-picker-trigger[aria-expanded="true"]{background:#ece6ff;color:#6541c8}
+.field .date-picker-control input{width:100%;padding-right:84px}
+.date-picker-trigger{position:absolute;z-index:2;right:5px;top:4px;display:flex;align-items:center;justify-content:flex-end;width:78px;height:32px;padding:0;border:0;border-radius:8px;background:#fff;color:#6a5c83}
+.date-picker-trigger .material-icons{display:grid;place-items:center;width:34px;height:32px;border-radius:8px;background:#f5f2fb}
+.date-picker-trigger:hover .material-icons,.date-picker-trigger[aria-expanded="true"] .material-icons{background:#ece6ff;color:#6541c8}
 .date-picker-trigger svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.date-picker-input{appearance:none;-webkit-appearance:none}
-.date-picker-input::-webkit-calendar-picker-indicator{display:none}
-.date-picker-input::-webkit-inner-spin-button{display:none}
+.date-picker-control .date-picker-input[type="date"]{appearance:none;-webkit-appearance:none;color-scheme:light;background-image:none}
+.date-picker-control .date-picker-input[type="date"]::-webkit-calendar-picker-indicator{display:none!important;visibility:hidden!important;opacity:0!important;width:0!important;height:0!important;margin:0!important;padding:0!important;-webkit-appearance:none}
+.date-picker-control .date-picker-input[type="date"]::-webkit-inner-spin-button,.date-picker-control .date-picker-input[type="date"]::-webkit-clear-button{display:none!important;-webkit-appearance:none}
+.date-picker-control .date-picker-input[type="date"]::-moz-calendar-picker-indicator{display:none}
 .date-picker-popover{position:fixed;inset:auto;z-index:20;margin:0;width:min(306px,calc(100vw - 40px));padding:16px;border:1px solid #e8e1f2;border-radius:15px;background:#fff;box-shadow:0 16px 38px rgba(33,20,68,.2)}
 .date-picker-popover[hidden]{display:none}
 .date-picker-popover:not(:popover-open){display:none}
@@ -418,7 +420,6 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .material-icons{font-family:'Material Icons';font-weight:normal;font-style:normal;font-size:24px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;font-feature-settings:'liga';-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;-moz-osx-font-smoothing:grayscale}
 .category-emoji.material-icons,.expense-emoji.material-icons,.pay-icon.material-icons,.card-chip.material-icons,.empty-card-icon.material-icons,.mini-icon.material-icons{display:grid;place-items:center;line-height:1;text-align:center}
 .nav-item .material-icons{width:20px;flex:0 0 20px;font-size:21px;text-align:center}
-.material-icon-option{font-family:'Material Icons',sans-serif}
 .category-emoji.material-icons{color:var(--purple);font-size:20px}
 .expense-emoji.material-icons{color:var(--purple);font-size:22px}
 .card-chip.material-icons{font-size:19px}

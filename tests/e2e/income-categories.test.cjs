@@ -37,6 +37,20 @@ after(async () => {
 });
 
 
+test('keeps category option labels clean and hides the native calendar control', async () => {
+  await page.goto(appUrl);
+  await page.locator('#new-expense').click();
+
+  assert.deepEqual(await page.locator('#category option').allTextContents(), [
+    'Moradia', 'Alimentação', 'Transporte', 'Saúde', 'Lazer',
+    'Educação', 'Compras', 'Assinaturas', 'Contas', 'Outros',
+  ]);
+  assert.equal(await page.locator('.date-picker-control .date-picker-trigger').count(), 1);
+  assert.equal(await page.locator('#first-date').evaluate(input =>
+    getComputedStyle(input, '::-webkit-calendar-picker-indicator').display), 'none');
+});
+
+
 test('shows separate monthly category charts and income shares that survive filtering', async () => {
   await page.goto(appUrl);
   await page.evaluate(()=>{
