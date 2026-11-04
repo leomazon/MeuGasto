@@ -369,7 +369,6 @@ function render() {
   $('month-long-label').textContent = selectedMonthTitle;
   $('month-long-label').hidden = false;
   $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : 'Lançamentos';
-  $('new-expense-top').hidden = view !== 'cartoes';
   document.querySelector('.app-shell').classList.toggle('transactions-active', view === 'lancamentos');
   document.querySelector('.app-shell').classList.add('page-title-active');
   $('date-greeting').textContent = `SEU RESUMO DE ${monthLabel(selectedMonth())}`;
@@ -657,7 +656,6 @@ function initialize() {
   $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
   populateCardSelect($('card-select'));
   document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; render(); }));
-  $('new-expense-top').addEventListener('click', () => openExpense());
   $('new-expense').addEventListener('click', () => openExpense());
   $('manage-income').addEventListener('click', () => { view = 'lancamentos'; $('clear-filters').click(); render(); });
   document.querySelectorAll('input[name="record-type"]').forEach(input => input.addEventListener('change', () => updateRecordType()));
