@@ -50,20 +50,25 @@ test('requires a monthly due day when creating and editing a card', async () => 
   const bankOptions = page.locator('#bank-options [role="option"]');
   assert.equal(await bankOptions.count(), 5);
   const bankBrands = [
-    ['Banco do Brasil', 'bb', '#003882', '#ffdc00'], ['Nubank', 'nubank', '#f4e8fb', '#820ad1'],
-    ['Bradesco', 'bradesco', '#fff0f3', '#cc092f'], ['Itaú', 'itau', '#ff9e00', '#003399'],
-    ['Santander', 'santander', '#fff0f0', '#ec0000'],
+    ['Banco do Brasil', 'bb', '#003882', '#ffdc00', '00000000.svg'], ['Nubank', 'nubank', '#f4e8fb', '#820ad1', '18236120.svg'],
+    ['Bradesco', 'bradesco', '#fff0f3', '#cc092f', '60746948.svg'], ['Itaú', 'itau', '#ff9e00', '#003399', '60701190.svg'],
+    ['Santander', 'santander', '#fff0f0', '#ec0000', '90400888.svg'],
   ];
-  for (const [bankName, bankKey, surface, brandColor] of bankBrands) {
+  for (const [bankName, bankKey, surface, brandColor, asset] of bankBrands) {
     const option = bankOptions.filter({ hasText: bankName });
     assert.equal(await option.count(), 1);
     assert.equal(await option.locator('.bank-badge-option-icon').getAttribute('data-bank-key'), bankKey);
     const iconStyle = await option.locator('.bank-badge-option-icon').getAttribute('style');
     assert.ok(iconStyle.includes(`--bank-surface:${surface}`));
     assert.ok(iconStyle.includes(`--bank-color:${brandColor}`));
+    assert.equal(await option.locator('.bank-badge-option-icon img').getAttribute('src'), `assets/banks/${asset}`);
   }
+  await page.waitForFunction(() => {
+    const logos = [...document.querySelectorAll('#bank-options .bank-badge-option-icon img')];
+    return logos.length === 5 && logos.every((logo) => logo.complete && logo.naturalWidth > 0);
+  });
   await bankOptions.filter({ hasText: 'Banco do Brasil' }).click();
-  assert.equal(await page.locator('#card-bank-selected-icon').innerText(), 'BB');
+  assert.equal(await page.locator('#card-bank-selected-icon img').getAttribute('src'), 'assets/banks/00000000.svg');
   await page.getByLabel('Limite total').fill('1200');
   await page.getByLabel('Dia de vencimento mensal').fill('15');
   await page.locator('#save-card').click();
@@ -71,8 +76,8 @@ test('requires a monthly due day when creating and editing a card', async () => 
   let cards = await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-cards-v1') || '[]'));
   assert.equal(cards[0].dueDay, 15);
   assert.equal(cards[0].bank, 'Banco do Brasil');
-  assert.equal(await page.locator('#cards-list .credit-card-top .bank-badge').getAttribute('data-bank-key'), 'bb');
-  assert.equal(await page.locator('#cards-list .bill-heading .bank-badge').getAttribute('data-bank-key'), 'bb');
+  assert.equal(await page.locator('#cards-list .credit-card-top .bank-badge img').getAttribute('src'), 'assets/banks/00000000.svg');
+  assert.equal(await page.locator('#cards-list .bill-heading .bank-badge img').getAttribute('src'), 'assets/banks/00000000.svg');
   assert.match(await page.locator('.credit-card-title').innerText(), /vence dia 15/);
 
   await page.getByRole('button', { name: 'Editar Cartão Prazo' }).click();
@@ -81,6 +86,36 @@ test('requires a monthly due day when creating and editing a card', async () => 
   await page.locator('#save-card').click();
   cards = await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-cards-v1') || '[]'));
   assert.equal(cards[0].dueDay, 22);
+});
+
+test('shows each card bank logo in the new-record card selector', async () => {
+  await page.goto(appUrl);
+  await page.evaluate(() => {
+    localStorage.clear();
+    localStorage.setItem('meugasto-cards-v1', JSON.stringify([
+      { id: 'bb-card', name: 'Ourocard', bank: 'Banco do Brasil', limit: 3000, dueDay: 12 },
+      { id: 'nubank-card', name: 'Roxinho', bank: 'Nubank', limit: 2000, dueDay: 15 },
+    ]));
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
+  await page.locator('#new-expense').click();
+  await page.locator('#payment-trigger').click();
+  await page.locator('#payment-options [data-payment-option="Cartão"]').click();
+  await page.locator('#card-select-trigger').click();
+
+  const cardOptions = page.locator('#card-options [role="option"]');
+  assert.equal(await cardOptions.count(), 2);
+  assert.equal(await cardOptions.filter({ hasText: 'Ourocard' }).locator('.card-picker-option-icon img').getAttribute('src'), 'assets/banks/00000000.svg');
+  assert.equal(await cardOptions.filter({ hasText: 'Roxinho' }).locator('.card-picker-option-icon img').getAttribute('src'), 'assets/banks/18236120.svg');
+  await cardOptions.filter({ hasText: 'Ourocard' }).click();
+  assert.equal(await page.locator('#card-selected-icon img').getAttribute('src'), 'assets/banks/00000000.svg');
+
+  await page.getByLabel('Descrição').fill('Compra no Ourocard');
+  await page.getByLabel('Valor total').fill('1250');
+  await page.locator('#save-expense').click();
+  const expenses = await page.evaluate(() => JSON.parse(localStorage.getItem('meu-financeiro-v1') || '[]'));
+  assert.equal(expenses[0].cardId, 'bb-card');
 });
 
 test('marks unpaid card charges overdue and keeps settled charges as paid', async () => {

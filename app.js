@@ -19,11 +19,11 @@ const INCOME_CATEGORY_DATA = [
   { name: 'Outras receitas', icon: 'north_east', color: '#317c62', iconColor: '#4a91b8' },
 ];
 const BANK_DATA = [
-  { key: 'bb', name: 'Banco do Brasil', aliases: ['bb'], symbol: 'BB', color: '#ffdc00', surface: '#003882' },
-  { key: 'nubank', name: 'Nubank', aliases: ['nu'], symbol: 'nu', color: '#820ad1', surface: '#f4e8fb' },
-  { key: 'bradesco', name: 'Bradesco', aliases: ['bradesco'], symbol: 'B', color: '#cc092f', surface: '#fff0f3' },
-  { key: 'itau', name: 'Itaú', aliases: ['itau'], symbol: 'Itaú', color: '#003399', surface: '#ff9e00' },
-  { key: 'santander', name: 'Santander', aliases: ['santander'], symbol: 'S', color: '#ec0000', surface: '#fff0f0' },
+  { key: 'bb', name: 'Banco do Brasil', aliases: ['bb'], symbol: 'BB', icon: 'assets/banks/00000000.svg', color: '#ffdc00', surface: '#003882' },
+  { key: 'nubank', name: 'Nubank', aliases: ['nu'], symbol: 'nu', icon: 'assets/banks/18236120.svg', color: '#820ad1', surface: '#f4e8fb' },
+  { key: 'bradesco', name: 'Bradesco', aliases: ['bradesco'], symbol: 'B', icon: 'assets/banks/60746948.svg', color: '#cc092f', surface: '#fff0f3' },
+  { key: 'itau', name: 'Itaú', aliases: ['itau'], symbol: 'Itaú', icon: 'assets/banks/60701190.svg', color: '#003399', surface: '#ff9e00' },
+  { key: 'santander', name: 'Santander', aliases: ['santander'], symbol: 'S', icon: 'assets/banks/90400888.svg', color: '#ec0000', surface: '#fff0f0' },
 ];
 const STORAGE_KEY = 'meu-financeiro-v1'; // Keep the existing key so current expenses stay available.
 const CARD_STORAGE_KEY = 'meugasto-cards-v1';
@@ -382,7 +382,8 @@ function bankInfo(value) {
 }
 function bankBadgeMarkup(bank, className = '') {
   const info = bankInfo(bank);
-  return `<span class="bank-badge ${className}" data-bank-key="${escapeHtml(info.key)}" style="--bank-color:${info.color};--bank-surface:${info.surface}" title="${escapeHtml(info.name)}" role="img" aria-label="${escapeHtml(info.name)}">${escapeHtml(info.symbol)}</span>`;
+  const logo = info.icon ? `<img src="${escapeHtml(info.icon)}" alt="" draggable="false" />` : escapeHtml(info.symbol);
+  return `<span class="bank-badge ${className}" data-bank-key="${escapeHtml(info.key)}" style="--bank-color:${info.color};--bank-surface:${info.surface}" title="${escapeHtml(info.name)}" role="img" aria-label="${escapeHtml(info.name)}">${logo}</span>`;
 }
 function syncBankPicker() {
   const select = $('card-bank');
@@ -391,6 +392,53 @@ function syncBankPicker() {
   $('bank-selected-name').textContent = selected || 'Selecione um banco';
   $('card-bank-selected-icon').outerHTML = selected ? bankBadgeMarkup(selected, 'bank-badge-selected').replace('<span ', '<span id="card-bank-selected-icon" aria-hidden="true" ') : '<span class="bank-badge bank-badge-selected" id="card-bank-selected-icon" aria-hidden="true"></span>';
   $('bank-options').innerHTML = [...select.options].filter((option) => option.value).map((option) => `<div class="bank-picker-option" role="option" tabindex="-1" data-bank-option="${escapeHtml(option.value)}" aria-selected="${String(option.value === selected)}">${bankBadgeMarkup(option.value, 'bank-badge-option-icon').replace(' role="img"', ' aria-hidden="true"').replace(/ aria-label="[^"]*"/, '')}<span>${escapeHtml(bankInfo(option.value).name)}</span></div>`).join('');
+}
+function syncCardPicker() {
+  const select = $('card-select');
+  if (!select) return;
+  const selectedCard = cardById(select.value);
+  $('card-selected-name').textContent = selectedCard ? selectedCard.name : 'Cadastre um cartão primeiro';
+  $('card-selected-bank').textContent = selectedCard ? bankInfo(selectedCard.bank).name : '';
+  $('card-selected-icon').outerHTML = selectedCard ? bankBadgeMarkup(selectedCard.bank, 'card-picker-selected-icon').replace('<span ', '<span id="card-selected-icon" aria-hidden="true" ') : '<span class="bank-badge card-picker-selected-icon" id="card-selected-icon" aria-hidden="true"></span>';
+  $('card-options').innerHTML = [...select.options].filter((option) => option.value).map((option) => {
+    const card = cardById(option.value);
+    return `<div class="card-picker-option" role="option" tabindex="-1" data-card-option="${escapeHtml(option.value)}" aria-selected="${String(option.value === select.value)}">${bankBadgeMarkup(card?.bank, 'card-picker-option-icon').replace(' role="img"', ' aria-hidden="true"').replace(/ aria-label="[^"]*"/, '')}<span class="card-picker-option-copy"><strong>${escapeHtml(card?.name || option.textContent)}</strong><small>${escapeHtml(bankInfo(card?.bank).name)}</small></span></div>`;
+  }).join('');
+}
+function setupCardPicker() {
+  const select = $('card-select'), picker = $('card-picker'), trigger = $('card-select-trigger'), options = $('card-options');
+  const setOpen = (open, focusSelected = false) => {
+    options.hidden = !open;
+    trigger.setAttribute('aria-expanded', String(open));
+    if (open && focusSelected) (options.querySelector('[aria-selected="true"]') || options.querySelector('[role="option"]'))?.focus();
+  };
+  select.addEventListener('change', syncCardPicker);
+  trigger.addEventListener('click', () => setOpen(options.hidden));
+  trigger.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setOpen(true, true); }
+  });
+  options.addEventListener('click', (event) => {
+    const option = event.target.closest('[data-card-option]');
+    if (!option) return;
+    select.value = option.dataset.cardOption;
+    select.dispatchEvent(new Event('input', { bubbles: true }));
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    setOpen(false); trigger.focus();
+  });
+  options.addEventListener('keydown', (event) => {
+    const items = [...options.querySelectorAll('[role="option"]')], index = items.indexOf(document.activeElement);
+    let next = index;
+    if (event.key === 'ArrowDown') next = Math.min(items.length - 1, index + 1);
+    else if (event.key === 'ArrowUp') next = Math.max(0, index - 1);
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = items.length - 1;
+    else if (event.key === 'Escape') { event.preventDefault(); setOpen(false); trigger.focus(); return; }
+    else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.activeElement.click(); return; }
+    else return;
+    event.preventDefault(); items[next]?.focus();
+  });
+  document.addEventListener('pointerdown', (event) => { if (!picker.contains(event.target)) setOpen(false); });
+  syncCardPicker();
 }
 function setCardBankOptions(selectedBank = '') {
   const select = $('card-bank');
@@ -656,6 +704,7 @@ function deleteIncome(id) {
 function populateCardSelect(select, excludeId = '') {
   const eligible = cards.filter((card) => card.id !== excludeId);
   select.innerHTML = eligible.length ? eligible.map((card) => `<option value="${escapeHtml(card.id)}">${escapeHtml(card.name)} · ${escapeHtml(card.bank)}</option>`).join('') : '<option value="">Cadastre um cartão primeiro</option>';
+  syncCardPicker();
 }
 function openExpense(expense = null, scope = 'series') {
   const root = expense;
@@ -706,6 +755,8 @@ function updatePaymentFields() {
   $('installments-wrap').hidden = !isInstallment;
   $('card-select').required = isCard;
   $('card-select').disabled = isCard && cards.length === 0;
+  $('card-select-trigger').disabled = isCard && cards.length === 0;
+  syncCardPicker();
   $('installment-hint').hidden = !isInstallment;
   updateRecordStatus();
   if ($('edit-scope').value === 'month' && existing?.recurring) $('recurring-hint').textContent = `Somente ${monthLabel(selectedMonth())} será alterado. Os demais meses e seus pagamentos serão preservados.`;
@@ -960,6 +1011,7 @@ function initialize() {
   setupCategoryPicker();
   setupPaymentPicker();
   setupBankPicker();
+  setupCardPicker();
   updateCategoryFilter(); updatePaymentFilter();
   $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
   populateCardSelect($('card-select'));

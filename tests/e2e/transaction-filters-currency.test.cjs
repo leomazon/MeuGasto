@@ -80,10 +80,11 @@ test('formats purchase amounts and card limits as Brazilian reais while typing',
   assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('meu-financeiro-v1'))))[0].amount, 1234.56);
 
   await page.getByRole('button', { name: 'Cartões', exact: true }).click();
-  await page.getByRole('button', { name: 'Adicionar cartão', exact: true }).click();
+  await page.locator('#new-card').click();
   const cardDialog = page.locator('#card-dialog');
   await cardDialog.locator('#card-name').fill('Cartão formatado');
-  await cardDialog.locator('#card-bank').fill('Banco');
+  await cardDialog.locator('#card-bank-trigger').click();
+  await cardDialog.locator('#bank-options [data-bank-option="Banco do Brasil"]').click();
   await cardDialog.locator('#card-limit').pressSequentially('200000');
   assert.equal((await cardDialog.locator('#card-limit').inputValue()).replace(/\s/g, ' '), 'R$ 2.000,00');
   await cardDialog.locator('#card-due-day').fill('10');

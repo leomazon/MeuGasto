@@ -180,7 +180,7 @@
           <label class="field" id="card-mode-wrap">Tipo de compra<select id="card-mode"><option value="À vista">À vista</option><option value="Parcelado">Parcelado</option></select></label>
         </div>
         <div class="field-row conditional-row" id="card-details-row" hidden>
-          <label class="field" id="card-select-wrap">Cartão<select id="card-select"></select></label>
+          <div class="field" id="card-select-wrap"><span id="card-select-label">Cartão</span><div class="card-picker" id="card-picker"><select id="card-select" tabindex="-1" aria-hidden="true" aria-labelledby="card-select-label"><option value="">Cadastre um cartão primeiro</option></select><button class="card-picker-trigger" id="card-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="card-select-label card-selected-name card-selected-bank" aria-controls="card-options"><span class="bank-badge card-picker-selected-icon" id="card-selected-icon" aria-hidden="true"></span><span class="card-picker-selected-copy"><strong id="card-selected-name">Cadastre um cartão primeiro</strong><small id="card-selected-bank"></small></span><span class="material-icons card-picker-chevron" aria-hidden="true">expand_more</span></button><div class="card-picker-options" id="card-options" role="listbox" aria-labelledby="card-select-label" hidden></div></div></div>
           <label class="field" id="installments-wrap">Número de parcelas<select id="installments"></select></label>
         </div>
         <div class="field-row">
