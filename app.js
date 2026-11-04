@@ -326,7 +326,6 @@ function monthlyIncome() {
 }
 function renderIncome() {
   const entries = monthlyIncome();
-  $('income-month-total').textContent = `${monthLabel(selectedMonth())} · ${currency.format(entries.reduce((total, entry) => total + Number(entry.amount), 0))} recebidos`;
   $('income-list').innerHTML = entries.length ? entries.map((entry) => `<div class="income-row"><span class="expense-emoji income-icon" aria-hidden="true">↙</span><div class="expense-name"><strong>${escapeHtml(entry.description)}</strong><span>${dateLabel(dateFromKey(entry.firstDate))}${entry.notes ? ` · ${escapeHtml(entry.notes)}` : ''}</span></div><strong class="expense-value income-value">${currency.format(entry.amount)}</strong><div class="row-actions"><button class="icon-button" data-edit-income="${escapeHtml(entry.id)}" aria-label="Editar receita ${escapeHtml(entry.description)}">✎</button><button class="icon-button delete" data-delete-income="${escapeHtml(entry.id)}" aria-label="Excluir receita ${escapeHtml(entry.description)}">×</button></div></div>`).join('') : '<p class="empty-note">Nenhuma receita recebida neste mês. Adicione seu salário ou outras entradas.</p>';
 }
 function openIncome(entry = null) {
