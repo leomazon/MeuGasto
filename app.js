@@ -1,23 +1,23 @@
 const CATEGORY_DATA = [
-  { name: 'Moradia', icon: '🏠', color: '#8665da' },
-  { name: 'Alimentação', icon: '🍋', color: '#dc9b37' },
-  { name: 'Transporte', icon: '🚲', color: '#4a91b8' },
-  { name: 'Saúde', icon: '🌿', color: '#46977c' },
-  { name: 'Lazer', icon: '🎟️', color: '#d56c90' },
-  { name: 'Educação', icon: '📚', color: '#8871cb' },
-  { name: 'Compras', icon: '🛍️', color: '#cf805d' },
-  { name: 'Assinaturas', icon: '🎧', color: '#577ab4' },
-  { name: 'Contas', icon: '💡', color: '#c89b38' },
-  { name: 'Outros', icon: '✳️', color: '#8b8298' },
+  { name: 'Moradia', icon: 'home', color: '#8665da' },
+  { name: 'Alimentação', icon: 'restaurant', color: '#dc9b37' },
+  { name: 'Transporte', icon: 'directions_bike', color: '#4a91b8' },
+  { name: 'Saúde', icon: 'health_and_safety', color: '#46977c' },
+  { name: 'Lazer', icon: 'local_activity', color: '#d56c90' },
+  { name: 'Educação', icon: 'school', color: '#8871cb' },
+  { name: 'Compras', icon: 'shopping_bag', color: '#cf805d' },
+  { name: 'Assinaturas', icon: 'headphones', color: '#577ab4' },
+  { name: 'Contas', icon: 'lightbulb', color: '#c89b38' },
+  { name: 'Outros', icon: 'category', color: '#8b8298' },
 ];
 const INCOME_CATEGORY_DATA = [
-  { name: 'Prestação de serviço', icon: '🛠️', color: '#317c62' },
-  { name: 'Trabalho físico', icon: '🧰', color: '#317c62' },
-  { name: 'Salário', icon: '💼', color: '#317c62' },
-  { name: 'Vendas', icon: '🛍️', color: '#317c62' },
-  { name: 'Rendimentos', icon: '📈', color: '#317c62' },
-  { name: 'Aluguéis', icon: '🏘️', color: '#317c62' },
-  { name: 'Outras receitas', icon: '↙', color: '#317c62' },
+  { name: 'Prestação de serviço', icon: 'handyman', color: '#317c62' },
+  { name: 'Trabalho físico', icon: 'construction', color: '#317c62' },
+  { name: 'Salário', icon: 'work', color: '#317c62' },
+  { name: 'Vendas', icon: 'shopping_bag', color: '#317c62' },
+  { name: 'Rendimentos', icon: 'trending_up', color: '#317c62' },
+  { name: 'Aluguéis', icon: 'home_work', color: '#317c62' },
+  { name: 'Outras receitas', icon: 'south_west', color: '#317c62' },
 ];
 const STORAGE_KEY = 'meu-financeiro-v1'; // Keep the existing key so current expenses stay available.
 const CARD_STORAGE_KEY = 'meugasto-cards-v1';
@@ -181,7 +181,7 @@ function recordCategories(type) {
 function updateCategoryFilter() {
   const selected = $('category-filter').value;
   const type = $('type-filter').value;
-  const group = (kind, label) => `<optgroup label="${label}">${recordCategories(kind).map(item => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('')}</optgroup>`;
+  const group = (kind, label) => `<optgroup label="${label}">${recordCategories(kind).map(item => `<option class="material-icon-option" value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('')}</optgroup>`;
   $('category-filter').innerHTML = '<option value="">Todas as categorias</option>' + (type !== 'income' ? group('expense', 'Despesas') : '') + (type !== 'expense' ? group('income', 'Receitas') : '');
   $('category-filter').value = [...$('category-filter').options].some(option => option.value === selected) ? selected : '';
 }
@@ -203,7 +203,7 @@ function updatePaymentFilter() {
 function updateRecordType(selectedCategory = '') {
   const income = recordType() === 'income';
   const previousPayment = $('payment').value;
-  $('category').innerHTML = recordCategories(income ? 'income' : 'expense').map(item => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
+  $('category').innerHTML = recordCategories(income ? 'income' : 'expense').map(item => `<option class="material-icon-option" value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
   if (selectedCategory) $('category').value = selectedCategory;
   const methods = recordPaymentMethods(income ? 'income' : 'expense');
   $('payment').innerHTML = methods.map(method => `<option value="${method}">${method}</option>`).join('');
@@ -243,6 +243,9 @@ function showToast(message) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => $('toast').classList.remove('show'), 2800);
 }
+function materialIcon(name, className = '') {
+  return `<span class="material-icons ${className}" aria-hidden="true">${escapeHtml(name)}</span>`;
+}
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 }
@@ -267,9 +270,9 @@ function renderExpenseRow(charge, actions = false, categoryShare = null) {
   const settleButton = actions && !income && charge.expense.payment === 'Cartão' && charge.remaining > 0
     ? `<button class="row-settle-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Liquidar ${escapeHtml(charge.expense.description)}, ${charge.expense.recurring === true ? monthLabel(monthKey(charge.date)) : `parcela ${charge.index + 1}`}">Liquidar</button>` : charge.expense.payment !== 'Cartão' ? cashStatus.button : '';
   return `<div class="expense-row">
-    <span class="expense-emoji" aria-hidden="true">${info.icon}</span>
+    ${materialIcon(info.icon, 'expense-emoji')}
     <div class="expense-name"><strong>${escapeHtml(charge.expense.description)}</strong><span>${escapeHtml(charge.expense.category)} · ${escapeHtml(expenseLabel(charge))}${charge.expense.notes ? ` · ${escapeHtml(charge.expense.notes)}` : ''} ${fixedStatus} ${paymentStatus}</span>${categoryShareMarkup}</div>
-    ${actions ? `<span class="row-date">${dateLabel(charge.date)}</span><span class="row-payment"><span class="record-kind ${income ? 'income-kind' : 'expense-kind'}">${income ? 'Receita' : 'Despesa'}</span><small>${escapeHtml(charge.expense.payment)}</small></span><strong class="expense-value ${income ? 'income-value' : ''}">${currency.format(charge.remaining > 0 ? charge.remaining : charge.amount)}</strong><div class="row-actions">${settleButton}<button class="icon-button" aria-label="Editar ${escapeHtml(charge.expense.description)}" data-edit="${escapeHtml(charge.expense.id)}">✎</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(charge.expense.description)}" data-delete="${escapeHtml(charge.expense.id)}">×</button></div>` : `<strong class="expense-value">${currency.format(charge.amount)}</strong>`}
+    ${actions ? `<span class="row-date">${dateLabel(charge.date)}</span><span class="row-payment"><span class="record-kind ${income ? 'income-kind' : 'expense-kind'}">${income ? 'Receita' : 'Despesa'}</span><small>${escapeHtml(charge.expense.payment)}</small></span><strong class="expense-value ${income ? 'income-value' : ''}">${currency.format(charge.remaining > 0 ? charge.remaining : charge.amount)}</strong><div class="row-actions">${settleButton}<button class="icon-button" aria-label="Editar ${escapeHtml(charge.expense.description)}" data-edit="${escapeHtml(charge.expense.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(charge.expense.description)}" data-delete="${escapeHtml(charge.expense.id)}">${materialIcon('close')}</button></div>` : `<strong class="expense-value">${currency.format(charge.amount)}</strong>`}
   </div>`;
 }
 function renderOverview() {
@@ -317,7 +320,7 @@ function renderCategoryChart(listId, summary, type) {
     const info = category(item.category, type);
     const percent = item.percent.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
     const baseLabel = income ? 'das receitas' : 'das despesas';
-    return `<div class="category-item" role="img" aria-label="${escapeHtml(item.category)}, ${currency.format(item.amount)}, ${percent}% ${baseLabel} do mês"><div class="category-chart-meta"><span class="category-emoji" aria-hidden="true">${info.icon}</span><span class="category-name">${escapeHtml(item.category)}</span><strong class="category-amount">${currency.format(item.amount)}</strong><span class="category-share">${percent}%</span></div><div class="category-track"><i style="width:${summary.total ? item.amount / summary.total * 100 : 0}%;background:${info.color}"></i></div></div>`;
+    return `<div class="category-item" role="img" aria-label="${escapeHtml(item.category)}, ${currency.format(item.amount)}, ${percent}% ${baseLabel} do mês"><div class="category-chart-meta">${materialIcon(info.icon, 'category-emoji')}<span class="category-name">${escapeHtml(item.category)}</span><strong class="category-amount">${currency.format(item.amount)}</strong><span class="category-share">${percent}%</span></div><div class="category-track"><i style="width:${summary.total ? item.amount / summary.total * 100 : 0}%;background:${info.color}"></i></div></div>`;
   }).join('') : `<p class="empty-note">${income ? 'Nenhuma receita neste mês.' : 'Nenhuma despesa registrada neste mês.'}</p>`;
 }
 function showCategoryTransactions(type) {
@@ -336,7 +339,7 @@ function renderDashboardCards() {
     const limit = Number(card.limit) || 0;
     const percent = limit ? Math.min(100, Math.max(0, used / limit * 100)) : 0;
     const available = limit - used;
-    return `<article class="dashboard-card"><span class="card-chip" aria-hidden="true">▰</span><div class="dashboard-card-info"><strong>${escapeHtml(card.name)}</strong><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><strong class="dashboard-card-available">${currency.format(available)}<small> disponível</small></strong><div class="card-progress"><i style="width:${percent}%"></i></div></article>`;
+    return `<article class="dashboard-card">${materialIcon('credit_card', 'card-chip')}<div class="dashboard-card-info"><strong>${escapeHtml(card.name)}</strong><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><strong class="dashboard-card-available">${currency.format(available)}<small> disponível</small></strong><div class="card-progress"><i style="width:${percent}%"></i></div></article>`;
   }).join('');
 }
 function validateTransactionRange() {
@@ -421,7 +424,7 @@ function renderCardItem(card) {
   const unpaid = monthlyCharges.filter((charge) => charge.remaining > 0);
   const rows = monthlyCharges.length ? monthlyCharges.map((charge) => `<div class="bill-line"><div class="bill-description"><strong>${escapeHtml(charge.expense.description)}</strong><span>${charge.expense.recurring === true ? 'Fixo mensal' : `${charge.index + 1}/${charge.expense.installments}`} · ${dateLabel(charge.date)} · ${currency.format(charge.amount)}</span></div><strong>${charge.remaining <= 0 ? '<span class="paid-tag">Liquidado</span>' : currency.format(charge.remaining)}</strong>${charge.remaining > 0 ? `<button class="pay-charge-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}">Liquidar</button>` : ''}</div>`).join('') : '<p class="empty-note compact-empty">Nenhuma cobrança neste mês.</p>';
   return `<article class="credit-card-card">
-    <div class="credit-card-top"><span class="card-chip" aria-hidden="true">▰</span><div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">✎</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">×</button></div></div>
+    <div class="credit-card-top">${materialIcon('credit_card', 'card-chip')}<div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">${materialIcon('close')}</button></div></div>
     <div class="limit-line"><span>Limite utilizado</span><strong>${currency.format(used)} <small>de ${currency.format(limit)}</small></strong></div>
     <div class="card-progress large-progress"><i style="width:${percentage}%"></i></div>
     <div class="limit-foot"><span>Disponível</span><strong class="${available < 0 ? 'over-limit' : ''}">${currency.format(available)}</strong></div>
@@ -431,7 +434,7 @@ function renderCardItem(card) {
   </article>`;
 }
 function renderCards() {
-  $('cards-list').innerHTML = cards.length ? cards.map(renderCardItem).join('') : '<div class="cards-empty"><span class="empty-card-icon" aria-hidden="true">▰</span><h3>Cadastre seu primeiro cartão</h3><p>Informe o limite e vincule novas compras para acompanhar uso e faturas.</p><button class="add-button" data-create-card>＋ Adicionar cartão</button></div>';
+  $('cards-list').innerHTML = cards.length ? cards.map(renderCardItem).join('') : `<div class="cards-empty">${materialIcon('credit_card', 'empty-card-icon')}<h3>Cadastre seu primeiro cartão</h3><p>Informe o limite e vincule novas compras para acompanhar uso e faturas.</p><button class="add-button" data-create-card>${materialIcon('add')} Adicionar cartão</button></div>`;
 }
 function render() {
   $('month-picker').setAttribute('aria-label', `Mês de referência: ${monthLabel(selectedMonth())}`);
@@ -765,7 +768,7 @@ function initialize() {
   setupEnhancements();
   $('sidebar-toggle').addEventListener('click', () => setSidebarCollapsed(!document.querySelector('.app-shell').classList.contains('sidebar-collapsed')));
   $('month-picker').value = monthKey(new Date());
-  $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
+  $('category').innerHTML = CATEGORY_DATA.map((item) => `<option class="material-icon-option" value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
   updateCategoryFilter(); updatePaymentFilter();
   $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
   populateCardSelect($('card-select'));

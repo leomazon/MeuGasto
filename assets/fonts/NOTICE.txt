@@ -1,0 +1,7 @@
+Material Icons font
+Copyright Google LLC
+Licensed under the Apache License, Version 2.0.
+https://developers.google.com/fonts/docs/material_icons
+https://www.apache.org/licenses/LICENSE-2.0
+
+The font is self-hosted so MeuGasto can render these icons without requesting an external font service at runtime.

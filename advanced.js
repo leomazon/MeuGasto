@@ -108,14 +108,14 @@ function renderInsights() {
   const diff=previous ? Math.round((current.projected.expenses-previous.projected.expenses)*100)/100 : 0;
   $('month-comparison').textContent = previous ? `Despesas previstas: ${diff===0 ? 'mesmo valor do mês anterior' : `${currency.format(Math.abs(diff))} ${diff>0 ? 'a mais' : 'a menos'} que no mês anterior`}.` : '';
   const progress = Core.budgetProgress(expenses,settlements,budgets,selectedMonth());
-  $('budget-list').innerHTML=progress.length ? progress.map(item=>`<article class="budget-item ${item.percent>100 ? 'budget-over' : item.percent>=80 ? 'budget-near' : ''}"><div class="budget-meta"><strong>${escapeHtml(item.category)}</strong><span>${currency.format(item.spent)} de ${currency.format(item.limit)}</span><div><button class="icon-button" data-budget-edit="${escapeHtml(item.category)}" aria-label="Editar orçamento de ${escapeHtml(item.category)}">✎</button><button class="icon-button" data-budget-delete="${escapeHtml(item.category)}" aria-label="Excluir orçamento de ${escapeHtml(item.category)}">×</button></div></div><div class="budget-track"><i style="width:${Math.min(100,item.percent)}%"></i></div><p>${item.percent.toLocaleString('pt-BR')}% utilizado · ${item.remaining<0 ? `${currency.format(-item.remaining)} acima do limite` : `${currency.format(item.remaining)} disponíveis`}</p></article>`).join('') : '<p class="empty-note">Defina um orçamento para acompanhar os limites de cada categoria.</p>';
+  $('budget-list').innerHTML=progress.length ? progress.map(item=>`<article class="budget-item ${item.percent>100 ? 'budget-over' : item.percent>=80 ? 'budget-near' : ''}"><div class="budget-meta"><strong>${escapeHtml(item.category)}</strong><span>${currency.format(item.spent)} de ${currency.format(item.limit)}</span><div><button class="icon-button" data-budget-edit="${escapeHtml(item.category)}" aria-label="Editar orçamento de ${escapeHtml(item.category)}">${materialIcon('edit')}</button><button class="icon-button" data-budget-delete="${escapeHtml(item.category)}" aria-label="Excluir orçamento de ${escapeHtml(item.category)}">${materialIcon('close')}</button></div></div><div class="budget-track"><i style="width:${Math.min(100,item.percent)}%"></i></div><p>${item.percent.toLocaleString('pt-BR')}% utilizado · ${item.remaining<0 ? `${currency.format(-item.remaining)} acima do limite` : `${currency.format(item.remaining)} disponíveis`}</p></article>`).join('') : '<p class="empty-note">Defina um orçamento para acompanhar os limites de cada categoria.</p>';
 }
 function openBudget(name='') {
   $('budget-form').reset();
   const names=[...new Set([...recordCategories('expense').map(item=>item.name),...budgets.map(item=>item.category)])];
   $('budget-category').innerHTML=names.map(name=>{
     const item=category(name,'expense');
-    return `<option value="${escapeHtml(name)}">${item.icon} ${escapeHtml(name)}</option>`;
+    return `<option class="material-icon-option" value="${escapeHtml(name)}">${item.icon} ${escapeHtml(name)}</option>`;
   }).join('');
   $('budget-category').disabled=Boolean(name);
   $('budget-category').classList.toggle('budget-category-fixed',Boolean(name));
@@ -243,7 +243,7 @@ function setupDatePicker(inputId) {
   input.classList.add('date-picker-input');
   const trigger=document.createElement('button');
   trigger.className='date-picker-trigger';trigger.type='button';trigger.setAttribute('aria-label','Abrir calendário');trigger.setAttribute('aria-haspopup','dialog');trigger.setAttribute('aria-expanded','false');
-  trigger.innerHTML='<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M7.5 3.5v3m9-3v3M3.5 9.5h17"/></svg>';
+  trigger.innerHTML='<span class="material-icons" aria-hidden="true">calendar_month</span>';
   const popover=document.createElement('div');popover.className='date-picker-popover';popover.setAttribute('popover','manual');popover.setAttribute('role','dialog');popover.setAttribute('aria-label','Escolher data');
   popover.innerHTML='<div class="date-picker-header"><button type="button" class="date-picker-nav" data-month-step="-1" aria-label="Mês anterior">‹</button><strong class="date-picker-month"></strong><button type="button" class="date-picker-nav" data-month-step="1" aria-label="Próximo mês">›</button></div><div class="date-picker-weekdays" aria-hidden="true"><span>Do</span><span>Se</span><span>Te</span><span>Qu</span><span>Qu</span><span>Se</span><span>Sa</span></div><div class="date-picker-days" role="grid"></div><div class="date-picker-footer"><button type="button" class="date-picker-today">Hoje</button></div>';
   wrapper.append(trigger,popover);

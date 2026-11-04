@@ -34,6 +34,7 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 - Registros fixos mensais de receitas e despesas, repetidos a partir da data inicial. Ao editar, escolha **Somente este mês** para ajustar valor, categoria, descrição, data, forma de pagamento ou recebimento sem mudar os demais meses, ou **Toda a série** para alterar o registro base. Desmarcar a opção ao editar encerra a repetição após o mês selecionado e preserva o histórico.
 - Para registros fixos no cartão, cada mês tem sua própria liquidação; apenas os meses já iniciados comprometem o limite. O valor informado é mensal, sem parcelamento.
 - Campos de dinheiro formatados automaticamente em reais.
+- Ícones Material Icons hospedados localmente, sem consulta a fontes externas.
 - Layout adaptado para celular e computador.
 
 ## Onde ficam os dados
