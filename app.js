@@ -25,6 +25,7 @@ const BANK_DATA = [
   { key: 'itau', name: 'Itaú', aliases: ['itau'], symbol: 'Itaú', icon: 'assets/banks/60701190.svg', color: '#003399', surface: '#ff9e00' },
   { key: 'santander', name: 'Santander', aliases: ['santander'], symbol: 'S', icon: 'assets/banks/90400888.svg', color: '#ec0000', surface: '#fff0f0' },
 ];
+const OTHER_BANK_VALUE = '__other__';
 const STORAGE_KEY = 'meu-financeiro-v1'; // Keep the existing key so current expenses stay available.
 const CARD_STORAGE_KEY = 'meugasto-cards-v1';
 const PAYMENT_STORAGE_KEY = 'meugasto-card-payments-v1';
@@ -374,22 +375,23 @@ function escapeHtml(value) {
 }
 function bankInfo(value) {
   const name = String(value || '').trim();
+  if (name === OTHER_BANK_VALUE) return { key: 'other', name: 'Outro', generic: true, color: '#6541c8', surface: '#efeaff' };
   const normalized = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
   const known = BANK_DATA.find((item) => [item.name, ...item.aliases].some((alias) => alias.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR') === normalized));
   if (known) return known;
   const symbol = name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join('').toLocaleUpperCase('pt-BR') || '?';
-  return { key: 'other', name: name || 'Banco ou emissor', symbol, color: '#6f6680', surface: '#f0edf4' };
+  return { key: 'other', name: name || 'Banco ou emissor', symbol, generic: true, color: '#6541c8', surface: '#efeaff' };
 }
 function bankBadgeMarkup(bank, className = '') {
   const info = bankInfo(bank);
-  const logo = info.icon ? `<img src="${escapeHtml(info.icon)}" alt="" draggable="false" />` : escapeHtml(info.symbol);
+  const logo = info.icon ? `<img src="${escapeHtml(info.icon)}" alt="" draggable="false" />` : info.generic ? materialIcon('credit_card') : escapeHtml(info.symbol);
   return `<span class="bank-badge ${className}" data-bank-key="${escapeHtml(info.key)}" style="--bank-color:${info.color};--bank-surface:${info.surface}" title="${escapeHtml(info.name)}" role="img" aria-label="${escapeHtml(info.name)}">${logo}</span>`;
 }
 function syncBankPicker() {
   const select = $('card-bank');
   if (!select) return;
   const selected = select.value;
-  $('bank-selected-name').textContent = selected || 'Selecione um banco';
+  $('bank-selected-name').textContent = selected ? bankInfo(selected).name : 'Selecione um banco';
   $('card-bank-selected-icon').outerHTML = selected ? bankBadgeMarkup(selected, 'bank-badge-selected').replace('<span ', '<span id="card-bank-selected-icon" aria-hidden="true" ') : '<span class="bank-badge bank-badge-selected" id="card-bank-selected-icon" aria-hidden="true"></span>';
   $('bank-options').innerHTML = [...select.options].filter((option) => option.value).map((option) => `<div class="bank-picker-option" role="option" tabindex="-1" data-bank-option="${escapeHtml(option.value)}" aria-selected="${String(option.value === selected)}">${bankBadgeMarkup(option.value, 'bank-badge-option-icon').replace(' role="img"', ' aria-hidden="true"').replace(/ aria-label="[^"]*"/, '')}<span>${escapeHtml(bankInfo(option.value).name)}</span></div>`).join('');
 }
@@ -442,12 +444,18 @@ function setupCardPicker() {
 }
 function setCardBankOptions(selectedBank = '') {
   const select = $('card-bank');
-  select.innerHTML = '<option value="">Selecione um banco</option>' + BANK_DATA.map((bank) => `<option value="${escapeHtml(bank.name)}">${escapeHtml(bank.name)}</option>`).join('');
-  const info = bankInfo(selectedBank);
-  const known = BANK_DATA.some((bank) => bank.key === info.key);
-  if (selectedBank && !known) select.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(selectedBank)}">${escapeHtml(selectedBank)}</option>`);
-  select.value = selectedBank ? info.name : '';
+  select.innerHTML = '<option value="">Selecione um banco</option>' + BANK_DATA.map((bank) => `<option value="${escapeHtml(bank.name)}">${escapeHtml(bank.name)}</option>`).join('') + `<option value="${OTHER_BANK_VALUE}">Outro</option>`;
+  const normalizedBank = String(selectedBank || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+  const knownBank = BANK_DATA.find((bank) => [bank.name, ...bank.aliases].some((alias) => alias.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR') === normalizedBank));
+  select.value = selectedBank ? (knownBank?.name || OTHER_BANK_VALUE) : '';
+  $('card-bank-other').value = selectedBank && !knownBank ? selectedBank : '';
   syncBankPicker();
+  updateOtherBankField();
+}
+function updateOtherBankField() {
+  const isOther = $('card-bank').value === OTHER_BANK_VALUE;
+  $('other-bank-wrap').hidden = !isOther;
+  $('card-bank-other').required = isOther;
 }
 function setupBankPicker() {
   const select = $('card-bank'), picker = $('bank-picker'), trigger = $('card-bank-trigger'), options = $('bank-options');
@@ -456,7 +464,7 @@ function setupBankPicker() {
     trigger.setAttribute('aria-expanded', String(open));
     if (open && focusSelected) (options.querySelector('[aria-selected="true"]') || options.querySelector('[role="option"]'))?.focus();
   };
-  select.addEventListener('change', syncBankPicker);
+  select.addEventListener('change', () => { syncBankPicker(); updateOtherBankField(); });
   trigger.addEventListener('click', () => setOpen(options.hidden));
   trigger.addEventListener('keydown', (event) => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setOpen(true, true); }
@@ -483,6 +491,7 @@ function setupBankPicker() {
   });
   document.addEventListener('pointerdown', (event) => { if (!picker.contains(event.target)) setOpen(false); });
   syncBankPicker();
+  updateOtherBankField();
 }
 function expenseLabel(charge) {
   const { expense, index } = charge;
@@ -884,10 +893,10 @@ function submitCard(event) {
   event.preventDefault();
   const name = $('card-name').value.trim();
   const selectedBank = $('card-bank').value;
-  const bank = bankInfo(selectedBank).name;
+  const bank = selectedBank === OTHER_BANK_VALUE ? $('card-bank-other').value.trim() : bankInfo(selectedBank).name;
   const limit = Math.round(parseCurrencyInput($('card-limit').value) * 100) / 100;
   const dueDay = Number($('card-due-day').value);
-  if (!name || !selectedBank || !(limit > 0) || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) { showToast('Preencha nome, banco, limite e um dia de vencimento entre 1 e 31.'); return; }
+  if (!name || !selectedBank || (selectedBank === OTHER_BANK_VALUE && !bank) || !(limit > 0) || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) { showToast('Preencha nome, banco, limite e um dia de vencimento entre 1 e 31.'); return; }
   const id = $('card-id').value || createId('card');
   if (cards.some((card) => card.id !== id && card.name.toLocaleLowerCase('pt-BR') === name.toLocaleLowerCase('pt-BR'))) { showToast('Já existe um cartão com esse nome.'); return; }
   const updated = { id, name, bank, limit, dueDay };

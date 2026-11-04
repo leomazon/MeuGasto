@@ -504,3 +504,13 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .bill-period{display:flex;align-items:center;gap:9px}
 .bill-heading .bank-badge{display:grid;color:var(--bank-color);font-size:10px}
 @media(max-width:760px){.bank-picker-options,.card-picker-options{max-height:220px}.bank-picker-trigger,.card-picker-trigger{min-height:46px}}
+
+.other-bank-wrap{display:grid;gap:7px;margin-top:8px;font-size:12px;font-weight:700}
+.other-bank-wrap[hidden]{display:none}
+.other-bank-wrap input{width:100%;height:39px;border:1px solid #e7e3ed;border-radius:8px;background:#fff;padding:0 10px;color:var(--ink);font-size:12px;font-weight:500}
+.other-bank-wrap input::placeholder{color:#aaa5b1}
+.bank-badge[data-bank-key="other"]{background:#efeaff!important;color:#6541c8!important}
+.bank-badge .material-icons{font-size:21px;line-height:1}
+.bank-badge-selected .material-icons{font-size:19px}
+.bank-badge-option-icon .material-icons{font-size:18px}
+@media(max-width:760px){.other-bank-wrap input{height:46px;font-size:14.5px}}

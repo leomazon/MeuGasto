@@ -48,7 +48,7 @@ test('requires a monthly due day when creating and editing a card', async () => 
   await page.getByLabel('Nome do cartão').fill('Cartão Prazo');
   await page.locator('#card-bank-trigger').click();
   const bankOptions = page.locator('#bank-options [role="option"]');
-  assert.equal(await bankOptions.count(), 5);
+  assert.equal(await bankOptions.count(), 6);
   const bankBrands = [
     ['Banco do Brasil', 'bb', '#FCFC30', '#ffdc00', '00000000.svg'], ['Nubank', 'nubank', '#f4e8fb', '#820ad1', '18236120.svg'],
     ['Bradesco', 'bradesco', '#fff0f3', '#cc092f', '60746948.svg'], ['Itaú', 'itau', '#ff9e00', '#003399', '60701190.svg'],
@@ -63,6 +63,9 @@ test('requires a monthly due day when creating and editing a card', async () => 
     assert.ok(iconStyle.includes(`--bank-color:${brandColor}`));
     assert.equal(await option.locator('.bank-badge-option-icon img').getAttribute('src'), `assets/banks/${asset}`);
   }
+  const otherBankOption = bankOptions.filter({ hasText: 'Outro' });
+  assert.equal(await otherBankOption.locator('.bank-badge-option-icon').getAttribute('data-bank-key'), 'other');
+  assert.equal(await otherBankOption.locator('.bank-badge-option-icon .material-icons').textContent(), 'credit_card');
   await page.waitForFunction(() => {
     const logos = [...document.querySelectorAll('#bank-options .bank-badge-option-icon img')];
     return logos.length === 5 && logos.every((logo) => logo.complete && logo.naturalWidth > 0);
@@ -86,6 +89,35 @@ test('requires a monthly due day when creating and editing a card', async () => 
   await page.locator('#save-card').click();
   cards = await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-cards-v1') || '[]'));
   assert.equal(cards[0].dueDay, 22);
+});
+
+test('lets the user enter another bank and uses the generic purple card icon', async () => {
+  await page.goto(appUrl);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole('button', { name: 'Cartões', exact: true }).click();
+  await page.locator('#new-card').click();
+  await page.locator('#card-bank-trigger').click();
+  await page.locator('#bank-options [data-bank-option="__other__"]').click();
+
+  assert.equal(await page.locator('#other-bank-wrap').isVisible(), true);
+  assert.equal(await page.locator('#card-bank-selected-icon .material-icons').textContent(), 'credit_card');
+  await page.getByLabel('Nome do banco').fill('Banco Inter');
+  await page.getByLabel('Nome do cartão').fill('Inter Gold');
+  await page.getByLabel('Limite total').fill('2500');
+  await page.getByLabel('Dia de vencimento mensal').fill('12');
+  await page.locator('#save-card').click();
+
+  const cards = await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-cards-v1') || '[]'));
+  assert.equal(cards[0].bank, 'Banco Inter');
+  const badge = page.locator('#cards-list .credit-card-top .bank-badge');
+  assert.equal(await badge.getAttribute('data-bank-key'), 'other');
+  assert.equal(await badge.locator('.material-icons').textContent(), 'credit_card');
+  assert.equal(await badge.evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(239, 234, 255)');
+
+  await page.getByRole('button', { name: 'Editar Inter Gold' }).click();
+  assert.equal(await page.locator('#card-bank').inputValue(), '__other__');
+  assert.equal(await page.getByLabel('Nome do banco').inputValue(), 'Banco Inter');
 });
 
 test('shows each card bank logo in the new-record card selector', async () => {
