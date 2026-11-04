@@ -8,6 +8,8 @@ Whenever a bug is found, add a regression test that reproduces it before fixing 
 
 Use Node's built-in test runner for core logic, Python's `unittest` for the SQLite server, and Playwright for browser end-to-end tests under `tests/e2e/`. Keep all test types in the repository. Before finishing a change, run the complete automated suite with `npm test` and `npm run test:e2e`. Install development dependencies with `npm install` and the E2E browser with `npx playwright install chromium` when needed.
 
+Prefer a testing pyramid: cover calculations, validation rules, formatting, and other isolated logic with unit tests; cover interactions between the UI, persistence, SQLite, and APIs with integration tests; reserve Playwright E2E for critical user workflows or behavior that depends on a real browser. Do not add E2E tests for cosmetic or layout-only adjustments. Choose the smallest test level that gives reliable coverage, and avoid growing the E2E suite when a unit or integration test can verify the behavior.
+
 For visual design and UI styling work, use the project-local `frontend-design` skill in `.agents/skills/frontend-design/SKILL.md` to guide the design decisions and visual review.
 
 ## Form layout consistency
