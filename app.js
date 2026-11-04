@@ -202,6 +202,11 @@ function renderOverview() {
   const summary = Core.monthlyOverview(expenses, settlements, selectedMonth());
   const { charges, total, pix, cash, card } = summary;
   const average = Core.averageChargeSummary(charges);
+  const balance = Core.monthlyBalance(expenses, settlements, selectedMonth());
+  $('income-total').textContent = currency.format(balance.income);
+  $('balance-expenses').textContent = currency.format(balance.expenses);
+  $('month-balance').textContent = currency.format(balance.balance);
+  $('month-balance').className = balance.balance < 0 ? 'negative-balance' : 'income-value';
   $('month-total').textContent = currency.format(total);
   $('entry-count').textContent = charges.length === 0 ? 'Nenhum gasto lançado' : `${charges.length} cobrança${charges.length === 1 ? '' : 's'} neste mês`;
   $('average-charge').textContent = average.chargeCount ? currency.format(average.averageCharge) : '—';
@@ -299,8 +304,8 @@ function render() {
   const selectedMonthTitle = selectedMonthLabel.charAt(0).toLocaleUpperCase('pt-BR') + selectedMonthLabel.slice(1);
   $('month-long-label').textContent = selectedMonthTitle;
   $('month-long-label').hidden = false;
-  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : 'Lançamentos';
-  $('new-expense-top').hidden = view === 'lancamentos';
+  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : view === 'receitas' ? 'Receitas' : 'Lançamentos';
+  $('new-expense-top').hidden = view === 'lancamentos' || view === 'receitas';
   document.querySelector('.app-shell').classList.toggle('transactions-active', view === 'lancamentos');
   document.querySelector('.app-shell').classList.add('page-title-active');
   $('date-greeting').textContent = `SEU RESUMO DE ${monthLabel(selectedMonth())}`;
@@ -308,10 +313,56 @@ function render() {
   $('overview-view').hidden = view !== 'inicio';
   $('transactions-view').hidden = view !== 'lancamentos';
   $('cards-view').hidden = view !== 'cartoes';
+  $('income-view').hidden = view !== 'receitas';
   document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
   renderOverview();
   renderTransactions();
   renderCards();
+  renderIncome();
+}
+function monthlyIncome() {
+  return expenses.filter((entry) => entry.type === 'income' && entry.firstDate.slice(0, 7) === selectedMonth())
+    .sort((a, b) => b.firstDate.localeCompare(a.firstDate) || expenses.indexOf(b) - expenses.indexOf(a));
+}
+function renderIncome() {
+  const entries = monthlyIncome();
+  $('income-month-total').textContent = `${monthLabel(selectedMonth())} · ${currency.format(entries.reduce((total, entry) => total + Number(entry.amount), 0))} recebidos`;
+  $('income-list').innerHTML = entries.length ? entries.map((entry) => `<div class="income-row"><span class="expense-emoji income-icon" aria-hidden="true">↙</span><div class="expense-name"><strong>${escapeHtml(entry.description)}</strong><span>${dateLabel(dateFromKey(entry.firstDate))}${entry.notes ? ` · ${escapeHtml(entry.notes)}` : ''}</span></div><strong class="expense-value income-value">${currency.format(entry.amount)}</strong><div class="row-actions"><button class="icon-button" data-edit-income="${escapeHtml(entry.id)}" aria-label="Editar receita ${escapeHtml(entry.description)}">✎</button><button class="icon-button delete" data-delete-income="${escapeHtml(entry.id)}" aria-label="Excluir receita ${escapeHtml(entry.description)}">×</button></div></div>`).join('') : '<p class="empty-note">Nenhuma receita recebida neste mês. Adicione seu salário ou outras entradas.</p>';
+}
+function openIncome(entry = null) {
+  $('income-form').reset();
+  $('income-id').value = entry?.id || '';
+  $('income-description').value = entry?.description || '';
+  $('income-amount').value = entry ? currency.format(entry.amount) : '';
+  $('income-date').value = entry?.firstDate || localDateKey();
+  $('income-date').max = localDateKey();
+  $('income-notes').value = entry?.notes || '';
+  $('income-dialog-title').textContent = entry ? 'Editar receita' : 'Adicionar receita';
+  $('income-dialog').showModal();
+  $('income-description').focus();
+}
+function submitIncome(event) {
+  event.preventDefault();
+  const amount = parseCurrencyInput($('income-amount').value);
+  const description = $('income-description').value.trim();
+  const firstDate = $('income-date').value;
+  if (!description || !(amount > 0) || !firstDate || firstDate > localDateKey()) { showToast('Informe descrição, valor positivo e uma data de recebimento até hoje.'); return; }
+  const id = $('income-id').value || createId('income');
+  const entry = { id, type: 'income', description, amount, firstDate, installments: 1, payment: 'Transferência', category: 'Receitas', notes: $('income-notes').value.trim() };
+  const index = expenses.findIndex((item) => item.id === id && item.type === 'income');
+  if (index >= 0) expenses[index] = entry; else expenses.push(entry);
+  saveExpenses();
+  $('income-dialog').close();
+  setMonth(firstDate.slice(0, 7));
+  showToast(index >= 0 ? 'Receita atualizada.' : 'Receita salva.');
+}
+function deleteIncome(id) {
+  const entry = expenses.find((item) => item.id === id && item.type === 'income');
+  if (!entry) return;
+  openDeleteConfirmation({ title: 'Excluir receita?', message: `“${entry.description}” será removida e o saldo mensal será recalculado. Essa ação não pode ser desfeita.`, confirmLabel: 'Excluir receita', onConfirm: () => {
+    expenses = expenses.filter((item) => item.id !== id);
+    saveExpenses(); render(); showToast('Receita excluída.');
+  } });
 }
 function populateCardSelect(select, excludeId = '') {
   const eligible = cards.filter((card) => card.id !== excludeId);
@@ -577,6 +628,17 @@ function initialize() {
   document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; render(); }));
   $('new-expense-top').addEventListener('click', () => openExpense());
   $('new-expense').addEventListener('click', () => openExpense());
+  $('new-income').addEventListener('click', () => openIncome());
+  $('manage-income').addEventListener('click', () => { view = 'receitas'; render(); });
+  $('income-form').addEventListener('submit', submitIncome);
+  $('income-amount').addEventListener('input', (event) => formatCurrencyInput(event.currentTarget));
+  for (const id of ['close-income', 'cancel-income']) $(id).addEventListener('click', () => $('income-dialog').close());
+  $('income-list').addEventListener('click', (event) => {
+    const edit = event.target.closest('[data-edit-income]');
+    const remove = event.target.closest('[data-delete-income]');
+    if (edit) openIncome(expenses.find((item) => item.id === edit.dataset.editIncome && item.type === 'income'));
+    if (remove) deleteIncome(remove.dataset.deleteIncome);
+  });
   $('new-card').addEventListener('click', () => openCardDialog());
   $('manage-cards').addEventListener('click', () => { view = 'cartoes'; render(); });
   $('all-categories').addEventListener('click', () => { view = 'lancamentos'; render(); });

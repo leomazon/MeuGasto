@@ -71,4 +71,19 @@ test('migrates existing browser expenses to SQLite and restores them after brows
 
   await page.locator('#recent-list').getByText('Compra migrada').waitFor();
   assert.equal((await page.evaluate(async () => (await (await fetch('/api/state')).json()).state.expenses))[0].amount, 42.5);
+  await page.getByRole('button', { name: 'Receitas', exact: true }).click();
+  await page.getByRole('button', { name: 'Nova receita', exact: true }).click();
+  const incomeForm = page.locator('#income-dialog');
+  await incomeForm.getByLabel('Descrição').fill('Receita persistida');
+  await incomeForm.getByLabel('Valor recebido').fill('1000,00');
+  await incomeForm.getByRole('button', { name: 'Salvar receita', exact: true }).click();
+  await page.waitForFunction(async () => {
+    const { state } = await (await fetch('/api/state')).json();
+    return state.expenses.some(entry => entry.type === 'income' && entry.amount === 1000);
+  });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.waitForFunction(() => document.querySelector('#income-total').textContent.replace(/\s/g, ' ') === 'R$ 1.000,00');
+  assert.equal((await page.locator('#month-balance').innerText()).replace(/\s/g, ' '), 'R$ 957,50');
+
 });

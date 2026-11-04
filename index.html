@@ -21,10 +21,11 @@
         <nav class="main-nav">
           <button class="nav-item active" data-view="inicio"><span aria-hidden="true">◫</span> Visão geral</button>
           <button class="nav-item" data-view="lancamentos"><span aria-hidden="true">≡</span> Lançamentos</button>
+          <button class="nav-item" data-view="receitas"><span aria-hidden="true">↙</span> Receitas</button>
           <button class="nav-item" data-view="cartoes"><span aria-hidden="true">▰</span> Cartões</button>
         </nav>
         <div class="sidebar-bottom">
-          <div class="privacy-note"><span aria-hidden="true">◉</span><p>Seus dados ficam neste navegador.</p></div>
+          <div class="privacy-note"><span aria-hidden="true">◉</span><p>Seus dados ficam neste PC.</p></div>
           <div class="backup-actions">
             <button class="side-action" id="export-button">↓ <span>Baixar backup</span></button>
             <button class="side-action" id="import-button">↑ <span>Importar backup</span></button>
@@ -60,6 +61,11 @@
         </section>
 
         <section class="overview-view" id="overview-view">
+          <section class="balance-panel" aria-labelledby="balance-title">
+            <div class="section-title-row"><div><h2 id="balance-title">Saldo do mês</h2><p class="balance-note">Receitas recebidas menos despesas do mês, sem saldo anterior.</p></div><button class="text-button" id="manage-income">Ver receitas ↗</button></div>
+            <div class="balance-metrics"><div><span>Receitas recebidas</span><strong id="income-total" class="income-value">R$ 0,00</strong></div><div><span>Despesas do mês</span><strong id="balance-expenses">R$ 0,00</strong></div><div class="net-balance"><span>Saldo final</span><strong id="month-balance">R$ 0,00</strong></div></div>
+            <p class="balance-note">As despesas incluem Pix, dinheiro e as parcelas de cartão deste mês, mesmo quando já liquidadas.</p>
+          </section>
           <div class="summary-row">
             <article class="total-panel">
               <div class="total-topline"><span>Gastos neste mês</span><span class="sparkle" aria-hidden="true">✳</span></div>
@@ -121,6 +127,11 @@
           <p class="local-footnote"><span aria-hidden="true">▣</span> Seus dados ficam salvos neste PC. Baixe um backup para guardar uma cópia ou transferi-los.</p>
         </section>
 
+        <section class="income-view" id="income-view" hidden>
+          <div class="section-title-row income-heading"><div><h2>Receitas recebidas</h2><p class="heading-copy" id="income-month-total"></p></div><button class="add-button" id="new-income"><span aria-hidden="true">＋</span> Nova receita</button></div>
+          <div class="income-list transactions-list" id="income-list"></div>
+          <p class="local-footnote">Registre o valor que entrou e a data de recebimento. O saldo é atualizado na visão geral.</p>
+        </section>
         <section class="cards-view" id="cards-view" hidden>
           <div class="section-title-row cards-heading"><div><p class="eyebrow">LIMITES E FATURAS</p><h2>Seus cartões</h2><p class="cards-intro">Acompanhe o limite comprometido e liquide as cobranças do mês.</p></div><button class="add-button" id="new-card"><span aria-hidden="true">＋</span> Adicionar cartão</button></div>
           <div id="cards-list" class="cards-list"></div>
@@ -152,6 +163,16 @@
         </div>
         <p class="installment-hint" id="installment-hint" hidden></p>
         <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-dialog">Cancelar</button><button class="add-button" type="submit" id="save-expense">Salvar gasto</button></div>
+      </form>
+    </dialog>
+    <dialog id="income-dialog" class="expense-dialog" aria-labelledby="income-dialog-title">
+      <form id="income-form">
+        <div class="dialog-heading"><h2 id="income-dialog-title">Adicionar receita</h2><button class="close-button" type="button" id="close-income" aria-label="Fechar">×</button></div>
+        <input type="hidden" id="income-id" />
+        <label class="field">Descrição<input id="income-description" required maxlength="90" placeholder="Ex.: salário, trabalho extra" /></label>
+        <div class="field-row"><label class="field">Valor recebido<input id="income-amount" required type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" /></label><label class="field">Data de recebimento<input id="income-date" required type="date" /></label></div>
+        <label class="field"><span>Observação <span class="optional">opcional</span></span><input id="income-notes" maxlength="120" placeholder="Uma nota curta" /></label>
+        <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-income">Cancelar</button><button class="add-button" type="submit">Salvar receita</button></div>
       </form>
     </dialog>
     <dialog id="card-dialog" class="expense-dialog">

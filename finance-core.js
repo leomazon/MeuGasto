@@ -48,7 +48,7 @@
       .sort((a, b) => b.date - a.date);
   }
   function transactionCharges(expenses, payments, month) {
-    return expenses.filter((expense) => expense.type !== 'debt-transfer')
+    return expenses.filter((expense) => expense.type !== 'debt-transfer' && expense.type !== 'income')
       .flatMap((expense) => Array.from({ length: Number(expense.installments) }, (_, index) => ({
         expense, index, date: installmentDate(expense.firstDate, index),
         amount: installmentAmount(expense.amount, expense.installments, index),
@@ -67,6 +67,12 @@
     const cardCents = charges.filter((charge) => charge.expense.payment === 'Cartão')
       .reduce((sum, charge) => sum + cents(charge.amount), 0);
     return { charges, total: totalCents / 100, pix: pixCents / 100, cash: cashCents / 100, card: cardCents / 100 };
+  }
+  function monthlyBalance(entries, payments, month) {
+    const incomeCents = entries.filter((entry) => entry.type === 'income' && entry.firstDate.slice(0, 7) === month)
+      .reduce((sum, entry) => sum + cents(entry.amount), 0);
+    const expenseCents = cents(monthlyOverview(entries, payments, month).total);
+    return { income: incomeCents / 100, expenses: expenseCents / 100, balance: (incomeCents - expenseCents) / 100 };
   }
   function categoryBreakdown(charges) {
     const totals = new Map();
@@ -142,6 +148,7 @@
     monthCharges,
     transactionCharges,
     monthlyOverview,
+    monthlyBalance,
     categoryBreakdown,
     categoryChargeShares,
     averageChargeSummary,

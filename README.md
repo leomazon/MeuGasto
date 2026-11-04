@@ -12,6 +12,8 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 
 ## O que está incluído
 
+- Cadastro, edição e exclusão de receitas recebidas, com data e valor em reais.
+- Saldo mensal: receitas recebidas menos despesas do mês, incluindo a parcela mensal de compras no cartão. Não acumula saldo anterior nem desconta novamente os pagamentos de fatura.
 - Dashboard mensal com gráficos de barras para comparar pagamentos e gastos por categoria.
 - Cadastro de cartões, limites e crédito disponível no dashboard.
 - Faturas mensais com liquidação integral ou cobrança por cobrança, via Pix ou outro cartão.
