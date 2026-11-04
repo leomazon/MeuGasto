@@ -176,12 +176,27 @@ function updateCategoryFilter() {
   $('category-filter').innerHTML = '<option value="">Todas as categorias</option>' + (type !== 'income' ? group('expense', 'Despesas') : '') + (type !== 'expense' ? group('income', 'Receitas') : '');
   $('category-filter').value = [...$('category-filter').options].some(option => option.value === selected) ? selected : '';
 }
+function recordPaymentMethods(type) {
+  return type === 'income' ? ['Transferência', 'Pix', 'Dinheiro'] : ['Pix', 'Dinheiro', 'Cartão'];
+}
+function updatePaymentFilter() {
+  const type = $('type-filter').value;
+  const selected = $('payment-filter').value;
+  const methods = type ? recordPaymentMethods(type) : [...new Set([...recordPaymentMethods('expense'), ...recordPaymentMethods('income')])];
+  for (const entry of expenses) {
+    if (entry.type === 'debt-transfer' || (type && (entry.type === 'income' ? 'income' : 'expense') !== type)) continue;
+    if (entry.payment && !methods.includes(entry.payment)) methods.push(entry.payment);
+  }
+  $('payment-filter-label').textContent = type === 'income' ? 'Forma de recebimento' : type === 'expense' ? 'Forma de pagamento' : 'Pagamento / recebimento';
+  $('payment-filter').innerHTML = '<option value="">Todas as formas</option>' + methods.map(method => `<option value="${escapeHtml(method)}">${escapeHtml(method)}</option>`).join('');
+  $('payment-filter').value = methods.includes(selected) ? selected : '';
+}
 function updateRecordType(selectedCategory = '') {
   const income = recordType() === 'income';
   const previousPayment = $('payment').value;
   $('category').innerHTML = recordCategories(income ? 'income' : 'expense').map(item => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
   if (selectedCategory) $('category').value = selectedCategory;
-  const methods = income ? ['Transferência', 'Pix', 'Dinheiro'] : ['Pix', 'Dinheiro', 'Cartão'];
+  const methods = recordPaymentMethods(income ? 'income' : 'expense');
   $('payment').innerHTML = methods.map(method => `<option value="${method}">${method}</option>`).join('');
   $('payment').value = methods.includes(previousPayment) ? previousPayment : methods[0];
   $('description').placeholder = income ? 'Ex.: salário, serviço prestado' : 'Ex.: mercado, conta de luz';
@@ -325,13 +340,14 @@ function renderTransactions() {
   const filteredCharges = Core.filterTransactionCharges(searchedCharges, {
     type: $('type-filter').value,
     category: $('category-filter').value,
+    payment: $('payment-filter').value,
     minAmount: $('amount-min').value.trim() ? parseCurrencyInput($('amount-min').value) : null,
     maxAmount: $('amount-max').value.trim() ? parseCurrencyInput($('amount-max').value) : null,
   });
   const charges = Core.sortTransactionCharges(filteredCharges, $('sort-order').value);
   const page = Core.paginate(charges, transactionPage, transactionPageSize);
   transactionPage = page.page;
-  const hasFilters = query || $('type-filter').value || $('category-filter').value || $('amount-min').value || $('amount-max').value;
+  const hasFilters = $('payment-filter').value || query || $('type-filter').value || $('category-filter').value || $('amount-min').value || $('amount-max').value;
   $('transactions-list').innerHTML = page.items.length ? page.items.map((charge) => renderExpenseRow(charge, true, shareByCharge.get(`${charge.expense.id}::${charge.index}`) ?? 0)).join('') : `<p class="empty-note">${hasFilters ? 'Nenhum lançamento deste mês combina com a busca e os filtros.' : 'Ainda não há registros neste mês.'}</p>`;
   const firstItem = page.totalItems ? (page.page - 1) * page.pageSize + 1 : 0;
   const lastItem = page.totalItems ? firstItem + page.items.length - 1 : 0;
@@ -380,7 +396,7 @@ function render() {
   $('cards-view').hidden = view !== 'cartoes';
   document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
   renderOverview();
-  updateCategoryFilter();
+  updateCategoryFilter(); updatePaymentFilter();
   renderTransactions();
   renderCards();
 }
@@ -679,7 +695,7 @@ function initialize() {
   });
   $('month-picker').value = monthKey(new Date());
   $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
-  updateCategoryFilter();
+  updateCategoryFilter(); updatePaymentFilter();
   $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
   populateCardSelect($('card-select'));
   document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; render(); }));
@@ -696,7 +712,8 @@ function initialize() {
   $('month-picker').addEventListener('change', () => { transactionPage = 1; render(); });
   $('search-input').addEventListener('input', () => { transactionPage = 1; renderTransactions(); });
   $('sort-order').addEventListener('change', () => { transactionPage = 1; renderTransactions(); });
-  $('type-filter').addEventListener('change', () => { updateCategoryFilter(); transactionPage = 1; renderTransactions(); });
+  $('type-filter').addEventListener('change', () => { updateCategoryFilter(); updatePaymentFilter(); transactionPage = 1; renderTransactions(); });
+  $('payment-filter').addEventListener('change', () => { transactionPage = 1; renderTransactions(); });
   $('category-filter').addEventListener('change', () => { transactionPage = 1; renderTransactions(); });
   for (const id of ['amount-min', 'amount-max']) $(id).addEventListener('input', (event) => {
     formatCurrencyInput(event.currentTarget);
@@ -707,8 +724,9 @@ function initialize() {
     $('search-input').value = '';
     $('sort-order').value = 'date-desc';
     $('type-filter').value = '';
-    updateCategoryFilter();
+    updateCategoryFilter(); updatePaymentFilter();
     $('category-filter').value = '';
+    $('payment-filter').value = '';
     $('amount-min').value = '';
     $('amount-max').value = '';
     transactionPage = 1;

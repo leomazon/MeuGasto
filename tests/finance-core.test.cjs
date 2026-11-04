@@ -232,3 +232,17 @@ test('fixed card payments settle only their own month and commit no infinite fut
   assert.deepEqual(Core.allocateFullPayment([feb]),[{expenseId:entry.id,installmentIndex:1,amount:100}]);
   assert.equal(Core.cardUsed([{...entry,recurringUntil:'2026-01'}],payments,'card',new Date(2026,2,1)),0);
 });
+
+
+test('combines payment and receipt method filters with type, category and amount',()=>{
+  const records=[
+    {expense:{id:'spent',type:'expense',category:'Moradia',payment:'Pix'},amount:100},
+    {expense:{id:'cash',type:'expense',category:'Moradia',payment:'Dinheiro'},amount:100},
+    {expense:{id:'received',type:'income',category:'Salário',payment:'Pix'},amount:200},
+    {expense:{id:'transfer',type:'income',category:'Salário',payment:'Transferência'},amount:300},
+  ];
+  assert.deepEqual(Core.filterTransactionCharges(records,{payment:'Pix'}).map(r=>r.expense.id),['spent','received']);
+  assert.deepEqual(Core.filterTransactionCharges(records,{type:'income',payment:'Transferência',category:'Salário',minAmount:250,maxAmount:300}).map(r=>r.expense.id),['transfer']);
+  assert.equal(Core.filterTransactionCharges(records,{type:'expense',payment:'Transferência'}).length,0);
+  assert.equal(Core.filterTransactionCharges(records,{payment:''}).length,4);
+});

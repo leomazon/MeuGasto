@@ -134,7 +134,7 @@
     const start = (page - 1) * pageSize;
     return { items: items.slice(start, start + pageSize), page, pageSize, totalItems, totalPages };
   }
-  function filterTransactionCharges(charges, { type = '', category = '', minAmount = null, maxAmount = null } = {}) {
+  function filterTransactionCharges(charges, { type = '', category = '', payment = '', minAmount = null, maxAmount = null } = {}) {
     const minimum = minAmount === null || minAmount === '' ? null : cents(minAmount);
     const maximum = maxAmount === null || maxAmount === '' ? null : cents(maxAmount);
     return charges.filter((charge) => {
@@ -142,6 +142,7 @@
       const chargeCategory = charge.expense.category || 'Outros';
       return (!type || (charge.expense.type === 'income' ? 'income' : 'expense') === type)
         && (!category || chargeCategory === category)
+        && (!payment || charge.expense.payment === payment)
         && (minimum === null || amount >= minimum)
         && (maximum === null || amount <= maximum);
     });

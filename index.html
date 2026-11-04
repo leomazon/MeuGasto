@@ -118,6 +118,7 @@
           <div class="transactions-filters" role="search" aria-label="Filtrar lançamentos">
             <label class="filter-field">Tipo<select id="type-filter"><option value="">Todos os tipos</option><option value="income">Receita</option><option value="expense">Despesa</option></select></label>
             <label class="filter-field category-filter-field">Categoria<select id="category-filter"><option value="">Todas as categorias</option></select></label>
+            <label class="filter-field payment-filter-field"><span id="payment-filter-label">Pagamento / recebimento</span><select id="payment-filter" aria-labelledby="payment-filter-label"><option value="">Todas as formas</option></select></label>
             <fieldset class="amount-range-filter"><legend class="sr-only">Faixa de valor</legend><div class="amount-range-fields"><label class="filter-field">De<input id="amount-min" type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor mínimo" /></label><label class="filter-field">Até<input id="amount-max" type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor máximo" /></label></div></fieldset>
             <button class="clear-filters-button" id="clear-filters" type="button">Limpar filtros</button>
           </div>

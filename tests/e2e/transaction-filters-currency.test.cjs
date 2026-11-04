@@ -122,3 +122,37 @@ test('sorts all filtered monthly records before pagination and resets the page o
   assert.equal(await page.getByLabel('Ordenar por',{exact:true}).inputValue(),'date-desc');
   assert.equal(await page.locator('#transactions-list .expense-name strong').first().innerText(),'Registro 12');
 });
+
+
+test('filters payment and receipt methods, resets pagination and clears incompatible selections',async()=>{
+  await page.evaluate(()=>{
+    const d=new Date();const firstDate=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+    const rows=Array.from({length:11},(_,i)=>({id:`pix-${i}`,description:`Conta Pix ${i}`,type:'expense',category:'Moradia',payment:'Pix',amount:10,installments:1,firstDate}));
+    rows.push({id:'card',description:'Conta cartão',type:'expense',category:'Moradia',payment:'Cartão',amount:300,installments:1,firstDate});
+    rows.push({id:'transfer',description:'Salário transferência',type:'income',category:'Salário',payment:'Transferência',amount:250,installments:1,firstDate});
+    rows.push({id:'income-pix',description:'Salário Pix',type:'income',category:'Salário',payment:'Pix',amount:100,installments:1,firstDate});
+    localStorage.setItem('meu-financeiro-v1',JSON.stringify(rows));
+  });
+  await page.reload();
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
+  await page.getByRole('button',{name:'Próxima página',exact:true}).click();
+  await page.locator('#payment-filter').selectOption('Pix');
+  assert.equal(await page.locator('#page-indicator').innerText(),'1 / 2');
+  await page.locator('#type-filter').selectOption('income');
+  assert.equal(await page.locator('#transactions-view').getByLabel('Forma de recebimento',{exact:true}).inputValue(),'Pix');
+  assert.deepEqual(await page.locator('#transactions-list .expense-name strong').allTextContents(),['Salário Pix']);
+  await page.locator('#payment-filter').selectOption('Transferência');
+  await page.locator('#category-filter').selectOption('Salário');
+  await page.locator('#amount-min').fill('150,00');
+  await page.locator('#amount-max').fill('300,00');
+  assert.deepEqual(await page.locator('#transactions-list .expense-name strong').allTextContents(),['Salário transferência']);
+  await page.locator('#clear-filters').click();
+  assert.equal(await page.locator('#payment-filter').inputValue(),'');
+  await page.locator('#type-filter').selectOption('expense');
+  await page.locator('#transactions-view').getByLabel('Forma de pagamento',{exact:true}).selectOption('Cartão');
+  assert.deepEqual(await page.locator('#transactions-list .expense-name strong').allTextContents(),['Conta cartão']);
+  await page.locator('#type-filter').selectOption('income');
+  assert.equal(await page.locator('#payment-filter').inputValue(),'');
+  assert.equal(await page.locator('#payment-filter option[value="Cartão"]').count(),0);
+  assert.equal(await page.locator('#transactions-list .expense-row').count(),2);
+});
