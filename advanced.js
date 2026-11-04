@@ -143,6 +143,8 @@ function setSidebarCollapsed(collapsed) {
   $('sidebar-toggle').title=collapsed ? 'Abrir menu lateral' : 'Fechar menu lateral';
 }
 function setupEnhancements() {
+  setupDatePicker('first-date');
+  setupDatePicker('realization-date');
   const smallScreen=matchMedia('(max-width:760px)');
   setSidebarCollapsed(smallScreen.matches);
   smallScreen.addEventListener('change',event=>setSidebarCollapsed(event.matches));
@@ -195,4 +197,75 @@ function setupEnhancements() {
       }
     }});
   });
+}
+
+function validCalendarDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
+  const [year,month,day]=value.split('-').map(Number);
+  const date=new Date(year,month-1,day);
+  return date.getFullYear()===year && date.getMonth()===month-1 && date.getDate()===day;
+}
+function calendarMonthLabel(date) {
+  return new Intl.DateTimeFormat('pt-BR',{month:'long',year:'numeric'}).format(date);
+}
+function calendarDateLabel(date) {
+  return new Intl.DateTimeFormat('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(date);
+}
+function renderDatePicker(input, month) {
+  const host=input.closest('.date-picker-control');
+  const popover=host.querySelector('.date-picker-popover');
+  const title=popover.querySelector('.date-picker-month');
+  title.textContent=calendarMonthLabel(month);
+  const grid=popover.querySelector('.date-picker-days');
+  const first=new Date(month.getFullYear(),month.getMonth(),1);
+  const start=new Date(first.getFullYear(),first.getMonth(),1-first.getDay());
+  const selected=input.value;
+  const today=localDateKey();
+  const max=input.getAttribute('max') || '';
+  grid.innerHTML=Array.from({length:42},(_,index)=>{
+    const date=new Date(start.getFullYear(),start.getMonth(),start.getDate()+index);
+    const key=localDateKey(date);
+    const outside=date.getMonth()!==month.getMonth();
+    const disabled=(Boolean(max) && key>max);
+    return `<button type="button" class="date-picker-day${outside ? ' outside-month' : ''}${key===today ? ' today' : ''}" role="gridcell" aria-label="${escapeHtml(calendarDateLabel(date))}" aria-selected="${String(key===selected)}" ${key===selected ? 'aria-current="date"' : ''} ${disabled ? 'disabled' : ''} data-date="${key}">${date.getDate()}</button>`;
+  }).join('');
+}
+function setupDatePicker(inputId) {
+  const input=$(inputId);
+  if (!input || input.type!=='date') return;
+  const wrapper=document.createElement('div');
+  wrapper.className='date-picker-control';
+  input.parentNode.insertBefore(wrapper,input);
+  wrapper.append(input);
+  input.classList.add('date-picker-input');
+  const trigger=document.createElement('button');
+  trigger.className='date-picker-trigger';trigger.type='button';trigger.setAttribute('aria-label','Abrir calendário');trigger.setAttribute('aria-haspopup','dialog');trigger.setAttribute('aria-expanded','false');
+  trigger.innerHTML='<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M7.5 3.5v3m9-3v3M3.5 9.5h17"/></svg>';
+  const popover=document.createElement('div');popover.className='date-picker-popover';popover.hidden=true;popover.setAttribute('role','dialog');popover.setAttribute('aria-label','Escolher data');
+  popover.innerHTML='<div class="date-picker-header"><button type="button" class="date-picker-nav" data-month-step="-1" aria-label="Mês anterior">‹</button><strong class="date-picker-month"></strong><button type="button" class="date-picker-nav" data-month-step="1" aria-label="Próximo mês">›</button></div><div class="date-picker-weekdays" aria-hidden="true"><span>Do</span><span>Se</span><span>Te</span><span>Qu</span><span>Qu</span><span>Se</span><span>Sa</span></div><div class="date-picker-days" role="grid"></div><div class="date-picker-footer"><button type="button" class="date-picker-today">Hoje</button></div>';
+  wrapper.append(trigger,popover);
+  let shownMonth=null;
+  const close=()=>{popover.hidden=true;trigger.setAttribute('aria-expanded','false');};
+  trigger.addEventListener('click',()=>{
+    const parts=(input.value || localDateKey()).split('-').map(Number);
+    shownMonth=new Date(parts[0],parts[1]-1,1);
+    renderDatePicker(input,shownMonth);popover.hidden=false;trigger.setAttribute('aria-expanded','true');
+  });
+  popover.addEventListener('click',event=>{
+    const navigation=event.target.closest('[data-month-step]');
+    if (navigation) {shownMonth.setMonth(shownMonth.getMonth()+Number(navigation.dataset.monthStep));renderDatePicker(input,shownMonth);return;}
+    const day=event.target.closest('[data-date]');
+    if (day && !day.disabled) {
+      input.value=day.dataset.date;
+      input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));
+      close();input.focus();
+    }
+    if (event.target.closest('.date-picker-today')) {
+      const today=localDateKey();
+      if (!max || today<=max) { input.value=today;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));close();input.focus(); }
+    }
+  });
+  input.addEventListener('input',()=>{if(popover.hidden)return;const parts=input.value.split('-').map(Number);if(parts.length===3&&validCalendarDate(input.value)){shownMonth=new Date(parts[0],parts[1]-1,1);renderDatePicker(input,shownMonth);}});
+  input.addEventListener('keydown',event=>{if(event.key==='Escape'&&!popover.hidden){close();trigger.focus();}});
+  document.addEventListener('pointerdown',event=>{if(!wrapper.contains(event.target))close();});
 }

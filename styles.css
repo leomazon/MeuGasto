@@ -377,3 +377,30 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 
 .nav-item svg{width:20px;height:20px;flex:0 0 20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .transactions-list .row-settle-button[data-realize]{width:92px;min-height:36px;flex:0 0 92px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center}
+
+/* A small in-app calendar keeps date selection consistent across browsers. */
+.date-picker-control{position:relative;min-width:0}
+.field .date-picker-control input{width:100%;padding-right:46px}
+.date-picker-trigger{position:absolute;z-index:1;right:5px;top:4px;display:grid;place-items:center;width:34px;height:32px;padding:0;border:0;border-radius:8px;background:#f5f2fb;color:#6a5c83}
+.date-picker-trigger:hover,.date-picker-trigger[aria-expanded="true"]{background:#ece6ff;color:#6541c8}
+.date-picker-trigger svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.date-picker-input::-webkit-calendar-picker-indicator{opacity:0;position:absolute;right:0;width:43px;height:100%;cursor:pointer}
+.date-picker-popover{position:absolute;z-index:12;top:calc(100% + 8px);left:0;width:min(306px,calc(100vw - 40px));padding:16px;border:1px solid #e8e1f2;border-radius:15px;background:#fff;box-shadow:0 16px 38px rgba(33,20,68,.2)}
+.date-picker-popover[hidden]{display:none}
+.date-picker-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.date-picker-header strong{color:var(--ink);font-size:15px;font-weight:700;text-transform:capitalize}
+.date-picker-nav{width:32px;height:32px;border:0;border-radius:9px;background:#f5f2fb;color:#6541c8;font-size:23px;line-height:1}
+.date-picker-nav:hover{background:#ece6ff}
+.date-picker-weekdays,.date-picker-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}
+.date-picker-weekdays{margin-bottom:5px;color:#827a8e;font-size:11px;font-weight:700}
+.date-picker-weekdays span{padding:5px 0}
+.date-picker-day{height:34px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--ink);font-size:13px;font-weight:500}
+.date-picker-day:hover:not(:disabled){background:#f1edff;color:#583bb0}
+.date-picker-day.outside-month{color:#b8b2c1}
+.date-picker-day.today{border-color:#d9cef3;color:#6541c8;font-weight:700}
+.date-picker-day[aria-selected="true"]{background:#6541c8;color:#fff;font-weight:700;box-shadow:0 3px 8px rgba(101,65,200,.22)}
+.date-picker-day:disabled{color:#d5d1da;cursor:not-allowed}
+.date-picker-footer{display:flex;justify-content:flex-end;margin-top:11px;padding-top:10px;border-top:1px solid var(--line)}
+.date-picker-today{padding:6px 10px;border:0;border-radius:7px;background:transparent;color:#6541c8;font-size:12px;font-weight:700}
+.date-picker-today:hover{background:#f1edff}
+@media(max-width:480px){.date-picker-popover{width:min(306px,calc(100vw - 36px));padding:13px}.date-picker-day{height:37px}}
