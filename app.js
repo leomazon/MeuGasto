@@ -11,13 +11,13 @@ const CATEGORY_DATA = [
   { name: 'Outros', icon: 'category', color: '#8b8298' },
 ];
 const INCOME_CATEGORY_DATA = [
-  { name: 'Prestação de serviço', icon: 'handyman', color: '#317c62' },
-  { name: 'Trabalho físico', icon: 'construction', color: '#317c62' },
-  { name: 'Salário', icon: 'work', color: '#317c62' },
-  { name: 'Vendas', icon: 'shopping_bag', color: '#317c62' },
-  { name: 'Rendimentos', icon: 'trending_up', color: '#317c62' },
-  { name: 'Aluguéis', icon: 'home_work', color: '#317c62' },
-  { name: 'Outras receitas', icon: 'south_west', color: '#317c62' },
+  { name: 'Prestação de serviço', icon: 'handyman', color: '#317c62', iconColor: '#c8793a' },
+  { name: 'Trabalho físico', icon: 'construction', color: '#317c62', iconColor: '#4a91b8' },
+  { name: 'Salário', icon: 'work', color: '#317c62', iconColor: '#317c62' },
+  { name: 'Vendas', icon: 'shopping_bag', color: '#317c62', iconColor: '#c89b38' },
+  { name: 'Rendimentos', icon: 'trending_up', color: '#317c62', iconColor: '#8a68c4' },
+  { name: 'Aluguéis', icon: 'home_work', color: '#317c62', iconColor: '#46977c' },
+  { name: 'Outras receitas', icon: 'south_west', color: '#317c62', iconColor: '#d56c90' },
 ];
 const STORAGE_KEY = 'meu-financeiro-v1'; // Keep the existing key so current expenses stay available.
 const CARD_STORAGE_KEY = 'meugasto-cards-v1';
@@ -246,6 +246,10 @@ function showToast(message) {
 function materialIcon(name, className = '') {
   return `<span class="material-icons ${className}" aria-hidden="true">${escapeHtml(name)}</span>`;
 }
+function categoryIcon(info, className) {
+  const color=info.iconColor || info.color;
+  return `<span class="material-icons ${className}" style="color:${color};background-color:${color}1a" aria-hidden="true">${escapeHtml(info.icon)}</span>`;
+}
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 }
@@ -270,7 +274,7 @@ function renderExpenseRow(charge, actions = false, categoryShare = null) {
   const settleButton = actions && !income && charge.expense.payment === 'Cartão' && charge.remaining > 0
     ? `<button class="row-settle-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Liquidar ${escapeHtml(charge.expense.description)}, ${charge.expense.recurring === true ? monthLabel(monthKey(charge.date)) : `parcela ${charge.index + 1}`}">Liquidar</button>` : charge.expense.payment !== 'Cartão' ? cashStatus.button : '';
   return `<div class="expense-row">
-    ${materialIcon(info.icon, 'expense-emoji')}
+    ${categoryIcon(info, 'expense-emoji')}
     <div class="expense-name"><strong>${escapeHtml(charge.expense.description)}</strong><span>${escapeHtml(charge.expense.category)} · ${escapeHtml(expenseLabel(charge))}${charge.expense.notes ? ` · ${escapeHtml(charge.expense.notes)}` : ''} ${fixedStatus} ${paymentStatus}</span>${categoryShareMarkup}</div>
     ${actions ? `<span class="row-date">${dateLabel(charge.date)}</span><span class="row-payment"><span class="record-kind ${income ? 'income-kind' : 'expense-kind'}">${income ? 'Receita' : 'Despesa'}</span><small>${escapeHtml(charge.expense.payment)}</small></span><strong class="expense-value ${income ? 'income-value' : ''}">${currency.format(charge.remaining > 0 ? charge.remaining : charge.amount)}</strong><div class="row-actions">${settleButton}<button class="icon-button" aria-label="Editar ${escapeHtml(charge.expense.description)}" data-edit="${escapeHtml(charge.expense.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(charge.expense.description)}" data-delete="${escapeHtml(charge.expense.id)}">${materialIcon('close')}</button></div>` : `<strong class="expense-value">${currency.format(charge.amount)}</strong>`}
   </div>`;
@@ -320,7 +324,7 @@ function renderCategoryChart(listId, summary, type) {
     const info = category(item.category, type);
     const percent = item.percent.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
     const baseLabel = income ? 'das receitas' : 'das despesas';
-    return `<div class="category-item" role="img" aria-label="${escapeHtml(item.category)}, ${currency.format(item.amount)}, ${percent}% ${baseLabel} do mês"><div class="category-chart-meta">${materialIcon(info.icon, 'category-emoji')}<span class="category-name">${escapeHtml(item.category)}</span><strong class="category-amount">${currency.format(item.amount)}</strong><span class="category-share">${percent}%</span></div><div class="category-track"><i style="width:${summary.total ? item.amount / summary.total * 100 : 0}%;background:${info.color}"></i></div></div>`;
+    return `<div class="category-item" role="img" aria-label="${escapeHtml(item.category)}, ${currency.format(item.amount)}, ${percent}% ${baseLabel} do mês"><div class="category-chart-meta">${categoryIcon(info, 'category-emoji')}<span class="category-name">${escapeHtml(item.category)}</span><strong class="category-amount">${currency.format(item.amount)}</strong><span class="category-share">${percent}%</span></div><div class="category-track"><i style="width:${summary.total ? item.amount / summary.total * 100 : 0}%;background:${info.color}"></i></div></div>`;
   }).join('') : `<p class="empty-note">${income ? 'Nenhuma receita neste mês.' : 'Nenhuma despesa registrada neste mês.'}</p>`;
 }
 function showCategoryTransactions(type) {
