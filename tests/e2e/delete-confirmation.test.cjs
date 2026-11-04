@@ -66,6 +66,11 @@ test('confirms deleting an expense in an app modal and allows canceling safely',
   assert.equal(await dialog.isVisible(), true, 'the custom confirmation modal should open');
   assert.match(await dialog.innerText(), /Mercado E2E/);
   assert.match(await dialog.innerText(), /1 cobrança/);
+  const warningIcon = dialog.locator('.delete-icon');
+  const warningIconStyle = await warningIcon.evaluate(icon => getComputedStyle(icon));
+  assert.equal(warningIconStyle.display, 'grid');
+  assert.equal(warningIconStyle.alignItems, 'center');
+  assert.equal(warningIconStyle.justifyItems, 'center');
   const modalBounds = await dialog.boundingBox();
   const closeBounds = await dialog.locator('#close-delete-dialog').boundingBox();
   assert.ok(closeBounds.y - modalBounds.y < 50, 'close button should sit near the modal upper edge');

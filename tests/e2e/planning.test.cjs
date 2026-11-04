@@ -126,6 +126,12 @@ test('saves category budgets, shows overruns and compares consecutive months', a
   assert.equal(await page.locator('#trend-chart .trend-month').count(),6);
   assert.equal(await page.locator('#trend-chart .trend-bar-income').count(),6);
   assert.equal(await page.locator('#trend-chart .trend-bar-expense').count(),6);
+  const currentExpenseBar=page.locator('#trend-chart .trend-bar-expense').last();
+  await currentExpenseBar.hover();
+  const currentExpenseTooltip=currentExpenseBar.locator('xpath=..').locator('.trend-bar-tooltip');
+  await page.waitForFunction(element=>getComputedStyle(element).opacity==='1',await currentExpenseTooltip.elementHandle());
+  assert.equal(await currentExpenseTooltip.evaluate(element=>getComputedStyle(element).opacity),'1');
+  assert.match(await currentExpenseTooltip.locator('text').textContent(),/150,00/);
   await page.locator('#trend-period').selectOption('12');
   assert.equal(await page.locator('#trend-chart .trend-month').count(),12);
   await page.reload();

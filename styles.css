@@ -305,13 +305,20 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .trend-legend i{width:10px;height:10px;border-radius:3px}
 .trend-income-key{background:#317c62}.trend-expense-key{background:#c2414d}
 .trend-chart-container{overflow-x:auto;margin:4px -4px 0}
-.trend-chart{display:block;width:100%;min-width:640px;height:auto;overflow:visible;font-family:'DM Sans',Arial,sans-serif;font-variant-numeric:tabular-nums}
+.trend-chart{display:block;width:100%;min-width:680px;height:auto;overflow:visible;font-family:'DM Sans',Arial,sans-serif;font-variant-numeric:tabular-nums}
 .trend-grid-line line{stroke:#e7e4ec;stroke-width:1}
 .trend-grid-line text{fill:var(--muted);font-size:12px}
 .trend-axis{stroke:#bcb6c7;stroke-width:1.2}
 .trend-current-band{fill:#f8f5ff}
 .trend-bar-income{fill:#317c62;transition:y .25s,height .25s}
 .trend-bar-expense{fill:#c2414d;transition:y .25s,height .25s}
+.trend-column{cursor:pointer}
+.trend-column:focus{outline:none}
+.trend-column:focus-visible>.trend-bar-income,.trend-column:focus-visible>.trend-bar-expense{stroke:#21163a;stroke-width:2}
+.trend-bar-tooltip{opacity:0;pointer-events:none;transition:opacity .12s ease}
+.trend-column:hover .trend-bar-tooltip,.trend-column:focus-visible .trend-bar-tooltip{opacity:1}
+.trend-bar-tooltip rect{fill:#21163a;filter:drop-shadow(0 3px 5px rgba(20,12,42,.2))}
+.trend-bar-tooltip text{fill:#fff;font-size:12px;font-weight:700}
 .trend-month-label{fill:#625d6b;font-size:12px;font-weight:600}
 .budget-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}
 .budget-list>.empty-note{grid-column:1/-1}
@@ -411,7 +418,7 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 
 @font-face{font-family:'Material Icons';font-style:normal;font-weight:400;src:url('assets/fonts/MaterialIcons-Regular.ttf') format('truetype');font-display:block}
 .material-icons{font-family:'Material Icons';font-weight:normal;font-style:normal;font-size:24px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;font-feature-settings:'liga';-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;-moz-osx-font-smoothing:grayscale}
-.category-emoji.material-icons,.expense-emoji.material-icons,.pay-icon.material-icons,.card-chip.material-icons,.empty-card-icon.material-icons,.mini-icon.material-icons{display:grid;place-items:center;line-height:1;text-align:center}
+.category-emoji.material-icons,.expense-emoji.material-icons,.pay-icon.material-icons,.card-chip.material-icons,.empty-card-icon.material-icons,.mini-icon.material-icons,.delete-icon.material-icons{display:grid;place-items:center;line-height:1;text-align:center}
 .nav-item .material-icons{width:20px;flex:0 0 20px;font-size:21px;text-align:center}
 .category-emoji.material-icons{color:var(--purple);font-size:20px}
 .expense-emoji.material-icons{color:var(--purple);font-size:22px}

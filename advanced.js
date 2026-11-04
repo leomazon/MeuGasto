@@ -99,7 +99,7 @@ function trendChartMarkup(series) {
   const largestValue=Math.max(0,...series.flatMap(item=>[item.projected.income,item.projected.expenses]));
   const magnitude=largestValue>0 ? 10**Math.floor(Math.log10(largestValue)) : 1;
   const axisMaximum=largestValue>0 ? Math.ceil(largestValue/magnitude)*magnitude : 1;
-  const width=Math.max(640,142+series.length*66), height=340;
+  const width=934, height=340;
   const left=94, right=18, top=20, bottom=48;
   const plotWidth=width-left-right, plotHeight=height-top-bottom;
   const groupWidth=plotWidth/series.length, barWidth=Math.min(25,groupWidth*.3), gap=Math.min(7,groupWidth*.08);
@@ -114,9 +114,16 @@ function trendChartMarkup(series) {
     const date=dateFromKey(`${item.month}-01`), monthShort=new Intl.DateTimeFormat('pt-BR',{month:'short'}).format(date).replace('.','');
     const label=`${monthShort}/${String(date.getFullYear()).slice(-2)}`;
     const details=`${monthLabel(item.month)}. Receitas previstas: ${currency.format(item.projected.income)}. Despesas previstas: ${currency.format(item.projected.expenses)}. Saldo previsto: ${currency.format(item.projected.balance)}. Saldo realizado: ${currency.format(item.actual.balance)}.`;
-    return `<g class="trend-month${item.month===selectedMonth() ? ' is-current' : ''}"><title>${escapeHtml(details)}</title><rect class="trend-bar-income" x="${center-gap/2-barWidth}" y="${top+plotHeight-incomeHeight}" width="${barWidth}" height="${incomeHeight}" rx="3"><title>Receitas previstas: ${currency.format(item.projected.income)}</title></rect><rect class="trend-bar-expense" x="${center+gap/2}" y="${top+plotHeight-expenseHeight}" width="${barWidth}" height="${expenseHeight}" rx="3"><title>Despesas previstas: ${currency.format(item.projected.expenses)}</title></rect><text class="trend-month-label" x="${center}" y="${top+plotHeight+23}" text-anchor="middle">${escapeHtml(label)}</text></g>`;
+    const bar=(type,value,x,barHeight)=>{
+      const barY=top+plotHeight-barHeight, tooltipWidth=112, tooltipHeight=28;
+      const tooltipX=Math.max(left,Math.min(width-right-tooltipWidth,x+barWidth/2-tooltipWidth/2));
+      const tooltipY=Math.max(2,barY-tooltipHeight-7);
+      const name=type==='income' ? 'Receitas previstas' : 'Despesas previstas';
+      return `<g class="trend-column" tabindex="${value>0 ? '0' : '-1'}" role="img" aria-label="${escapeHtml(name)} em ${escapeHtml(monthLabel(item.month))}: ${currency.format(value)}"><rect class="trend-bar-${type}" x="${x}" y="${barY}" width="${barWidth}" height="${barHeight}" rx="3"/><g class="trend-bar-tooltip" aria-hidden="true"><rect x="${tooltipX}" y="${tooltipY}" width="${tooltipWidth}" height="${tooltipHeight}" rx="7"/><text x="${tooltipX+tooltipWidth/2}" y="${tooltipY+18}" text-anchor="middle">${currency.format(value)}</text></g></g>`;
+    };
+    return `<g class="trend-month${item.month===selectedMonth() ? ' is-current' : ''}" aria-label="${escapeHtml(details)}">${bar('income',item.projected.income,center-gap/2-barWidth,incomeHeight)}${bar('expense',item.projected.expenses,center+gap/2,expenseHeight)}<text class="trend-month-label" x="${center}" y="${top+plotHeight+23}" text-anchor="middle">${escapeHtml(label)}</text></g>`;
   }).join('');
-  return `<svg class="trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Gráfico de colunas agrupadas com receitas previstas em verde e despesas previstas em vermelho, por mês"><title>Evolução mensal de receitas e despesas previstas</title>${bands}${grid}<line class="trend-axis" x1="${left}" y1="${top+plotHeight}" x2="${width-right}" y2="${top+plotHeight}"/>${bars}</svg>`;
+  return `<svg class="trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Gráfico de colunas agrupadas com receitas previstas em verde e despesas previstas em vermelho, por mês"><title>Evolução mensal de receitas e despesas previstas</title>${bands}${grid}<line class="trend-axis" x1="${left}" y1="${top}" x2="${left}" y2="${top+plotHeight}"/><line class="trend-axis" x1="${left}" y1="${top+plotHeight}" x2="${width-right}" y2="${top+plotHeight}"/>${bars}</svg>`;
 }
 function renderInsights() {
   const actual = Core.monthlyCashFlow(expenses,settlements,selectedMonth());
