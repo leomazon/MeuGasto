@@ -12,7 +12,7 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 
 ## O que está incluído
 
-- Cadastro, edição e exclusão de receitas recebidas, com data e valor em reais.
+- Lançamentos unificados de receitas e despesas, com seletor de tipo, categorias específicas e edição/exclusão.
 - Saldo mensal: receitas recebidas menos despesas do mês, incluindo a parcela mensal de compras no cartão. Não acumula saldo anterior nem desconta novamente os pagamentos de fatura.
 - Dashboard mensal com gráficos de barras para comparar pagamentos e gastos por categoria.
 - Cadastro de cartões, limites e crédito disponível no dashboard.
@@ -21,7 +21,7 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 - Categorias com ícones, edição e exclusão de lançamentos.
 - Compras no cartão à vista ou parceladas. O app distribui o valor total em cobranças mensais; a última parcela ajusta a diferença de centavos.
 - Exportação e importação de backup em JSON.
-- Filtros de lançamentos por categoria e intervalo de valores.
+- Filtros de lançamentos por tipo (receita/despesa), categoria e intervalo de valores.
 - Campos de dinheiro formatados automaticamente em reais.
 - Layout adaptado para celular e computador.
 

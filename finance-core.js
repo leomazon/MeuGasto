@@ -57,6 +57,11 @@
       .filter((charge) => `${charge.date.getFullYear()}-${String(charge.date.getMonth() + 1).padStart(2, '0')}` === month)
       .sort((a, b) => b.date - a.date);
   }
+  function monthlyRecords(entries, payments, month) {
+    const income = entries.filter(entry => entry.type === 'income' && entry.firstDate.slice(0, 7) === month)
+      .map(expense => ({ expense, index: 0, date: installmentDate(expense.firstDate, 0), amount: Number(expense.amount), remaining: 0 }));
+    return [...transactionCharges(entries, payments, month), ...income].sort((a, b) => b.date - a.date);
+  }
   function monthlyOverview(expenses, payments, month) {
     const charges = transactionCharges(expenses, payments, month);
     const totalCents = charges.reduce((sum, charge) => sum + cents(charge.amount), 0);
@@ -114,13 +119,14 @@
     const start = (page - 1) * pageSize;
     return { items: items.slice(start, start + pageSize), page, pageSize, totalItems, totalPages };
   }
-  function filterTransactionCharges(charges, { category = '', minAmount = null, maxAmount = null } = {}) {
+  function filterTransactionCharges(charges, { type = '', category = '', minAmount = null, maxAmount = null } = {}) {
     const minimum = minAmount === null || minAmount === '' ? null : cents(minAmount);
     const maximum = maxAmount === null || maxAmount === '' ? null : cents(maxAmount);
     return charges.filter((charge) => {
       const amount = cents(charge.amount);
       const chargeCategory = charge.expense.category || 'Outros';
-      return (!category || chargeCategory === category)
+      return (!type || (charge.expense.type === 'income' ? 'income' : 'expense') === type)
+        && (!category || chargeCategory === category)
         && (minimum === null || amount >= minimum)
         && (maximum === null || amount <= maximum);
     });
@@ -148,6 +154,7 @@
     monthCharges,
     transactionCharges,
     monthlyOverview,
+    monthlyRecords,
     monthlyBalance,
     categoryBreakdown,
     categoryChargeShares,

@@ -76,7 +76,7 @@ test('confirms deleting an expense in an app modal and allows canceling safely',
   assert.equal(await page.getByRole('button', { name: 'Excluir Mercado E2E' }).count(), 1, 'cancel leaves the expense in place');
 
   await page.getByRole('button', { name: 'Excluir Mercado E2E' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Excluir gasto' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Excluir registro' }).click();
   assert.equal(await page.getByRole('button', { name: 'Excluir Mercado E2E' }).count(), 0, 'confirm removes the expense from the list');
   assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('meu-financeiro-v1') || '[]')), []);
 });
@@ -147,7 +147,7 @@ test('requires confirmation to delete a paid expense and removes its linked paym
   assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-card-payments-v1')))).length, 1);
 
   await page.getByRole('button', { name: 'Excluir Compra liquidada' }).click();
-  await page.locator('#delete-dialog').getByRole('button', { name: 'Excluir gasto' }).click();
+  await page.locator('#delete-dialog').getByRole('button', { name: 'Excluir registro' }).click();
   assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('meu-financeiro-v1')))).length, 0);
   assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-card-payments-v1')))).length, 0);
 });
@@ -200,7 +200,7 @@ test('uses larger readable type for transaction details and card billing details
 
 test('adds a cash purchase and shows cash separately beside Pix and card in the overview', async () => {
   await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
-  await page.getByRole('button', { name: 'Novo gasto' }).click();
+  await page.getByRole('button', { name: 'Novo registro' }).click();
   const dialog = page.locator('#expense-dialog');
   await dialog.locator('#description').fill('Compra em dinheiro');
   await dialog.locator('#amount').fill('12,50');
@@ -210,7 +210,7 @@ test('adds a cash purchase and shows cash separately beside Pix and card in the 
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   }));
   assert.equal(await dialog.locator('#card-details-row').isHidden(), true, 'cash purchases should not ask for card details');
-  await dialog.getByRole('button', { name: 'Salvar gasto' }).click();
+  await dialog.getByRole('button', { name: 'Salvar registro' }).click();
   await page.getByRole('button', { name: 'Visão geral', exact: true }).click();
 
   const amountText = async (selector) => (await page.locator(selector).innerText()).replace(/\u00a0/g, ' ');

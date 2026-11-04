@@ -69,12 +69,12 @@ test('filters monthly launches by category and an inclusive BRL amount range', a
 
 test('formats purchase amounts and card limits as Brazilian reais while typing', async () => {
   await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
-  await page.getByRole('button', { name: 'Novo gasto' }).first().click();
+  await page.getByRole('button', { name: 'Novo registro' }).first().click();
   const expenseDialog = page.locator('#expense-dialog');
   await expenseDialog.locator('#description').fill('Compra formatada');
   await expenseDialog.locator('#amount').pressSequentially('123456');
   assert.equal((await expenseDialog.locator('#amount').inputValue()).replace(/\s/g, ' '), 'R$ 1.234,56');
-  await expenseDialog.getByRole('button', { name: 'Salvar gasto' }).click();
+  await expenseDialog.getByRole('button', { name: 'Salvar registro' }).click();
   await page.getByRole('button', { name: 'Visão geral', exact: true }).click();
   assert.equal((await page.locator('#month-total').innerText()).replace(/\s/g, ' '), 'R$ 1.234,56');
   assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('meu-financeiro-v1'))))[0].amount, 1234.56);

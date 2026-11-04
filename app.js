@@ -10,6 +10,15 @@ const CATEGORY_DATA = [
   { name: 'Contas', icon: '💡', color: '#c89b38' },
   { name: 'Outros', icon: '✳️', color: '#8b8298' },
 ];
+const INCOME_CATEGORY_DATA = [
+  { name: 'Prestação de serviço', icon: '🛠️', color: '#317c62' },
+  { name: 'Trabalho físico', icon: '🧰', color: '#317c62' },
+  { name: 'Salário', icon: '💼', color: '#317c62' },
+  { name: 'Vendas', icon: '🛍️', color: '#317c62' },
+  { name: 'Rendimentos', icon: '📈', color: '#317c62' },
+  { name: 'Aluguéis', icon: '🏘️', color: '#317c62' },
+  { name: 'Outras receitas', icon: '↙', color: '#317c62' },
+];
 const STORAGE_KEY = 'meu-financeiro-v1'; // Keep the existing key so current expenses stay available.
 const CARD_STORAGE_KEY = 'meugasto-cards-v1';
 const PAYMENT_STORAGE_KEY = 'meugasto-card-payments-v1';
@@ -144,7 +153,42 @@ function migrateLegacyCardLinks() {
   if (changed) { saveCards(); saveExpenses(); }
 }
 migrateLegacyCardLinks();
-function category(name) { return CATEGORY_DATA.find((item) => item.name === name) || CATEGORY_DATA.at(-1); }
+function category(name, type = 'expense') {
+  return [...CATEGORY_DATA, ...INCOME_CATEGORY_DATA].find(item => item.name === name)
+    || (type === 'income' ? INCOME_CATEGORY_DATA.at(-1) : CATEGORY_DATA.at(-1));
+}
+function recordType() { return document.querySelector('input[name="record-type"]:checked').value; }
+function recordCategories(type) {
+  const base = type === 'income' ? INCOME_CATEGORY_DATA : CATEGORY_DATA;
+  const names = new Set(base.map(item => item.name));
+  const extra = [];
+  for (const entry of expenses) {
+    if ((entry.type === 'income' ? 'income' : 'expense') !== type || entry.type === 'debt-transfer' || !entry.category || names.has(entry.category)) continue;
+    names.add(entry.category);
+    extra.push({ ...category(entry.category, type), name: entry.category });
+  }
+  return [...base, ...extra];
+}
+function updateCategoryFilter() {
+  const selected = $('category-filter').value;
+  const type = $('type-filter').value;
+  const group = (kind, label) => `<optgroup label="${label}">${recordCategories(kind).map(item => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('')}</optgroup>`;
+  $('category-filter').innerHTML = '<option value="">Todas as categorias</option>' + (type !== 'income' ? group('expense', 'Despesas') : '') + (type !== 'expense' ? group('income', 'Receitas') : '');
+  $('category-filter').value = [...$('category-filter').options].some(option => option.value === selected) ? selected : '';
+}
+function updateRecordType(selectedCategory = '') {
+  const income = recordType() === 'income';
+  const previousPayment = $('payment').value;
+  $('category').innerHTML = recordCategories(income ? 'income' : 'expense').map(item => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
+  if (selectedCategory) $('category').value = selectedCategory;
+  const methods = income ? ['Transferência', 'Pix', 'Dinheiro'] : ['Pix', 'Dinheiro', 'Cartão'];
+  $('payment').innerHTML = methods.map(method => `<option value="${method}">${method}</option>`).join('');
+  $('payment').value = methods.includes(previousPayment) ? previousPayment : methods[0];
+  $('payment-label').textContent = income ? 'Forma de recebimento' : 'Forma de pagamento';
+  $('record-date-label').textContent = income ? 'Data de recebimento' : 'Data do primeiro pagamento';
+  if (income) $('first-date').max = localDateKey(); else $('first-date').removeAttribute('max');
+  updatePaymentFields();
+}
 function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
 function dateFromKey(value) { const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day); }
 function localDateKey(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
@@ -179,23 +223,25 @@ function escapeHtml(value) {
 }
 function expenseLabel(charge) {
   const { expense, index } = charge;
+  if (expense.type === 'income') return 'Receita recebida';
   const card = expense.payment === 'Cartão' ? cardForExpense(expense) : null;
   const cardLabel = card ? ` · ${escapeHtml(card.name)}` : '';
   return Number(expense.installments) > 1 ? `${index + 1}/${expense.installments} parcela${cardLabel}` : (expense.payment === 'Cartão' ? `${expense.cardMode || 'À vista'}${cardLabel}` : expense.payment);
 }
 function renderExpenseRow(charge, actions = false, categoryShare = null) {
-  const info = category(charge.expense.category);
+  const income = charge.expense.type === 'income';
+  const info = category(charge.expense.category, income ? 'income' : 'expense');
   const paymentCard = charge.expense.payment === 'Cartão' ? cardForExpense(charge.expense) : null;
-  const isPaid = charge.remaining <= 0;
+  const isPaid = !income && charge.remaining <= 0;
   const isOverdue = !isPaid && paymentCard?.dueDay && Core.isChargeOverdue(charge.date, paymentCard.dueDay, localDateKey());
-  const paymentStatus = isPaid ? '<span class="paid-tag">Liquidado</span>' : isOverdue ? '<span class="overdue-tag">Vencido</span>' : '';
-  const categoryShareMarkup = categoryShare === null ? '' : `<div class="category-share" role="img" aria-label="${escapeHtml(charge.expense.description)} corresponde a ${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria ${escapeHtml(charge.expense.category || 'Outros')}"><span class="category-share-track" aria-hidden="true"><i style="width:${categoryShare}%;background:${info.color}"></i></span><span class="category-share-label">${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria</span></div>`;
-  const settleButton = actions && charge.expense.payment === 'Cartão' && charge.remaining > 0
+  const paymentStatus = income ? '' : isPaid ? '<span class="paid-tag">Liquidado</span>' : isOverdue ? '<span class="overdue-tag">Vencido</span>' : '';
+  const categoryShareMarkup = income || categoryShare === null ? '' : `<div class="category-share" role="img" aria-label="${escapeHtml(charge.expense.description)} corresponde a ${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria ${escapeHtml(charge.expense.category || 'Outros')}"><span class="category-share-track" aria-hidden="true"><i style="width:${categoryShare}%;background:${info.color}"></i></span><span class="category-share-label">${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria</span></div>`;
+  const settleButton = actions && !income && charge.expense.payment === 'Cartão' && charge.remaining > 0
     ? `<button class="row-settle-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Liquidar ${escapeHtml(charge.expense.description)}, parcela ${charge.index + 1}">Liquidar</button>` : '';
   return `<div class="expense-row">
     <span class="expense-emoji" aria-hidden="true">${info.icon}</span>
     <div class="expense-name"><strong>${escapeHtml(charge.expense.description)}</strong><span>${escapeHtml(charge.expense.category)} · ${escapeHtml(expenseLabel(charge))}${charge.expense.notes ? ` · ${escapeHtml(charge.expense.notes)}` : ''} ${paymentStatus}</span>${categoryShareMarkup}</div>
-    ${actions ? `<span class="row-date">${dateLabel(charge.date)}</span><span class="row-payment">${escapeHtml(charge.expense.payment)}</span><strong class="expense-value">${currency.format(charge.remaining > 0 ? charge.remaining : charge.amount)}</strong><div class="row-actions">${settleButton}<button class="icon-button" aria-label="Editar ${escapeHtml(charge.expense.description)}" data-edit="${escapeHtml(charge.expense.id)}">✎</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(charge.expense.description)}" data-delete="${escapeHtml(charge.expense.id)}">×</button></div>` : `<strong class="expense-value">${currency.format(charge.amount)}</strong>`}
+    ${actions ? `<span class="row-date">${dateLabel(charge.date)}</span><span class="row-payment"><span class="record-kind ${income ? 'income-kind' : 'expense-kind'}">${income ? 'Receita' : 'Despesa'}</span><small>${escapeHtml(charge.expense.payment)}</small></span><strong class="expense-value ${income ? 'income-value' : ''}">${currency.format(charge.remaining > 0 ? charge.remaining : charge.amount)}</strong><div class="row-actions">${settleButton}<button class="icon-button" aria-label="Editar ${escapeHtml(charge.expense.description)}" data-edit="${escapeHtml(charge.expense.id)}">✎</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(charge.expense.description)}" data-delete="${escapeHtml(charge.expense.id)}">×</button></div>` : `<strong class="expense-value">${currency.format(charge.amount)}</strong>`}
   </div>`;
 }
 function renderOverview() {
@@ -251,22 +297,23 @@ function renderDashboardCards() {
 }
 function renderTransactions() {
   const query = $('search-input').value.trim().toLocaleLowerCase('pt-BR');
-  const allCharges = Core.transactionCharges(expenses, settlements, selectedMonth());
-  const shareByCharge = new Map(Core.categoryChargeShares(allCharges).map((share) => [`${share.expenseId}::${share.installmentIndex}`, share.percent]));
+  const allCharges = Core.monthlyRecords(expenses, settlements, selectedMonth());
+  const shareByCharge = new Map(Core.categoryChargeShares(allCharges.filter(charge => charge.expense.type !== 'income')).map((share) => [`${share.expenseId}::${share.installmentIndex}`, share.percent]));
   const searchedCharges = allCharges.filter((charge) => {
     const card = cardForExpense(charge.expense);
     const haystack = `${charge.expense.description} ${charge.expense.category} ${charge.expense.payment} ${card?.name || ''} ${card?.bank || ''}`.toLocaleLowerCase('pt-BR');
     return !query || haystack.includes(query);
   });
   const charges = Core.filterTransactionCharges(searchedCharges, {
+    type: $('type-filter').value,
     category: $('category-filter').value,
     minAmount: $('amount-min').value.trim() ? parseCurrencyInput($('amount-min').value) : null,
     maxAmount: $('amount-max').value.trim() ? parseCurrencyInput($('amount-max').value) : null,
   });
   const page = Core.paginate(charges, transactionPage, transactionPageSize);
   transactionPage = page.page;
-  const hasFilters = query || $('category-filter').value || $('amount-min').value || $('amount-max').value;
-  $('transactions-list').innerHTML = page.items.length ? page.items.map((charge) => renderExpenseRow(charge, true, shareByCharge.get(`${charge.expense.id}::${charge.index}`) ?? 0)).join('') : `<p class="empty-note">${hasFilters ? 'Nenhum lançamento deste mês combina com a busca e os filtros.' : 'Ainda não há gastos neste mês.'}</p>`;
+  const hasFilters = query || $('type-filter').value || $('category-filter').value || $('amount-min').value || $('amount-max').value;
+  $('transactions-list').innerHTML = page.items.length ? page.items.map((charge) => renderExpenseRow(charge, true, shareByCharge.get(`${charge.expense.id}::${charge.index}`) ?? 0)).join('') : `<p class="empty-note">${hasFilters ? 'Nenhum lançamento deste mês combina com a busca e os filtros.' : 'Ainda não há registros neste mês.'}</p>`;
   const firstItem = page.totalItems ? (page.page - 1) * page.pageSize + 1 : 0;
   const lastItem = page.totalItems ? firstItem + page.items.length - 1 : 0;
   $('transactions-count').textContent = page.totalItems ? `Exibindo ${firstItem}–${lastItem} de ${page.totalItems} lançamentos` : 'Nenhum lançamento neste mês';
@@ -304,7 +351,7 @@ function render() {
   const selectedMonthTitle = selectedMonthLabel.charAt(0).toLocaleUpperCase('pt-BR') + selectedMonthLabel.slice(1);
   $('month-long-label').textContent = selectedMonthTitle;
   $('month-long-label').hidden = false;
-  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : view === 'receitas' ? 'Receitas' : 'Lançamentos';
+  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : 'Lançamentos';
   $('new-expense-top').hidden = view !== 'cartoes';
   document.querySelector('.app-shell').classList.toggle('transactions-active', view === 'lancamentos');
   document.querySelector('.app-shell').classList.add('page-title-active');
@@ -313,54 +360,18 @@ function render() {
   $('overview-view').hidden = view !== 'inicio';
   $('transactions-view').hidden = view !== 'lancamentos';
   $('cards-view').hidden = view !== 'cartoes';
-  $('income-view').hidden = view !== 'receitas';
   document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
   renderOverview();
+  updateCategoryFilter();
   renderTransactions();
   renderCards();
-  renderIncome();
-}
-function monthlyIncome() {
-  return expenses.filter((entry) => entry.type === 'income' && entry.firstDate.slice(0, 7) === selectedMonth())
-    .sort((a, b) => b.firstDate.localeCompare(a.firstDate) || expenses.indexOf(b) - expenses.indexOf(a));
-}
-function renderIncome() {
-  const entries = monthlyIncome();
-  $('income-list').innerHTML = entries.length ? entries.map((entry) => `<div class="income-row"><span class="expense-emoji income-icon" aria-hidden="true">↙</span><div class="expense-name"><strong>${escapeHtml(entry.description)}</strong><span>${dateLabel(dateFromKey(entry.firstDate))}${entry.notes ? ` · ${escapeHtml(entry.notes)}` : ''}</span></div><strong class="expense-value income-value">${currency.format(entry.amount)}</strong><div class="row-actions"><button class="icon-button" data-edit-income="${escapeHtml(entry.id)}" aria-label="Editar receita ${escapeHtml(entry.description)}">✎</button><button class="icon-button delete" data-delete-income="${escapeHtml(entry.id)}" aria-label="Excluir receita ${escapeHtml(entry.description)}">×</button></div></div>`).join('') : '<p class="empty-note">Nenhuma receita recebida neste mês. Adicione seu salário ou outras entradas.</p>';
-}
-function openIncome(entry = null) {
-  $('income-form').reset();
-  $('income-id').value = entry?.id || '';
-  $('income-description').value = entry?.description || '';
-  $('income-amount').value = entry ? currency.format(entry.amount) : '';
-  $('income-date').value = entry?.firstDate || localDateKey();
-  $('income-date').max = localDateKey();
-  $('income-notes').value = entry?.notes || '';
-  $('income-dialog-title').textContent = entry ? 'Editar receita' : 'Adicionar receita';
-  $('income-dialog').showModal();
-  $('income-description').focus();
-}
-function submitIncome(event) {
-  event.preventDefault();
-  const amount = parseCurrencyInput($('income-amount').value);
-  const description = $('income-description').value.trim();
-  const firstDate = $('income-date').value;
-  if (!description || !(amount > 0) || !firstDate || firstDate > localDateKey()) { showToast('Informe descrição, valor positivo e uma data de recebimento até hoje.'); return; }
-  const id = $('income-id').value || createId('income');
-  const entry = { id, type: 'income', description, amount, firstDate, installments: 1, payment: 'Transferência', category: 'Receitas', notes: $('income-notes').value.trim() };
-  const index = expenses.findIndex((item) => item.id === id && item.type === 'income');
-  if (index >= 0) expenses[index] = entry; else expenses.push(entry);
-  saveExpenses();
-  $('income-dialog').close();
-  setMonth(firstDate.slice(0, 7));
-  showToast(index >= 0 ? 'Receita atualizada.' : 'Receita salva.');
 }
 function deleteIncome(id) {
   const entry = expenses.find((item) => item.id === id && item.type === 'income');
   if (!entry) return;
-  openDeleteConfirmation({ title: 'Excluir receita?', message: `“${entry.description}” será removida e o saldo mensal será recalculado. Essa ação não pode ser desfeita.`, confirmLabel: 'Excluir receita', onConfirm: () => {
+  openDeleteConfirmation({ title: 'Excluir registro?', message: `“${entry.description}” será removida e o saldo mensal será recalculado. Essa ação não pode ser desfeita.`, confirmLabel: 'Excluir registro', onConfirm: () => {
     expenses = expenses.filter((item) => item.id !== id);
-    saveExpenses(); render(); showToast('Receita excluída.');
+    saveExpenses(); render(); showToast('Registro excluído.');
   } });
 }
 function populateCardSelect(select, excludeId = '') {
@@ -372,7 +383,8 @@ function openExpense(expense = null) {
   $('expense-id').value = expense?.id || '';
   $('description').value = expense?.description || '';
   $('amount').value = expense ? currency.format(Number(expense.amount)) : '';
-  $('category').value = expense?.category || CATEGORY_DATA[0].name;
+  document.querySelector(`input[name="record-type"][value="${expense?.type === 'income' ? 'income' : 'expense'}"]`).checked = true;
+  updateRecordType(expense?.category || '');
   $('payment').value = expense?.payment || 'Pix';
   $('card-mode').value = expense?.cardMode || (Number(expense?.installments) > 1 ? 'Parcelado' : 'À vista');
   $('installments').value = String(expense?.installments || 2);
@@ -380,14 +392,14 @@ function openExpense(expense = null) {
   $('card-select').value = expense?.cardId || cardForExpense(expense || {})?.id || cards[0]?.id || '';
   $('first-date').value = expense?.firstDate || localDateKey();
   $('notes').value = expense?.notes || '';
-  $('dialog-title').textContent = expense ? 'Editar gasto' : 'Adicionar gasto';
-  $('save-expense').textContent = expense ? 'Salvar alterações' : 'Salvar gasto';
+  $('dialog-title').textContent = expense ? 'Editar registro' : 'Novo registro';
+  $('save-expense').textContent = expense ? 'Salvar alterações' : 'Salvar registro';
   updatePaymentFields();
   $('expense-dialog').showModal();
   $('description').focus();
 }
 function updatePaymentFields() {
-  const isCard = $('payment').value === 'Cartão';
+  const isCard = recordType() === 'expense' && $('payment').value === 'Cartão';
   const isInstallment = isCard && $('card-mode').value === 'Parcelado';
   $('card-mode-wrap').hidden = !isCard;
   $('card-details-row').hidden = !isCard;
@@ -402,6 +414,7 @@ function updatePaymentFields() {
 }
 function submitExpense(event) {
   event.preventDefault();
+  const type = recordType();
   const payment = $('payment').value;
   const cardId = payment === 'Cartão' ? $('card-select').value : '';
   const chosenCard = cardById(cardId);
@@ -413,8 +426,9 @@ function submitExpense(event) {
   const expense = {
     id: $('expense-id').value || createId('expense'), description: $('description').value.trim(), amount,
     category: $('category').value, payment, cardId, card: chosenCard?.name || '', cardMode, installments,
-    firstDate: $('first-date').value, notes: $('notes').value.trim(), type: 'expense',
+    firstDate: $('first-date').value, notes: $('notes').value.trim(), type,
   };
+  if (!expense.description || (type === 'income' && expense.firstDate > localDateKey())) { showToast('Confira a descrição e a data de recebimento.'); return; }
   const existing = expenses.findIndex((item) => item.id === expense.id);
   const resetsSettlements = existing >= 0 && settlementResetOnSave === expense.id;
   if (existing >= 0 && settlements.some((item) => item.expenseId === expense.id) && !resetsSettlements) {
@@ -430,7 +444,7 @@ function submitExpense(event) {
   saveExpenses();
   $('expense-dialog').close();
   setMonth(monthKey(dateFromKey(expense.firstDate)));
-  showToast(resetsSettlements ? 'Gasto atualizado. Os pagamentos anteriores foram removidos.' : existing >= 0 ? 'Gasto atualizado.' : 'Gasto salvo.');
+  showToast(resetsSettlements ? 'Registro atualizado. Os pagamentos anteriores foram removidos.' : existing >= 0 ? 'Registro atualizado.' : 'Registro salvo.');
 }
 function openDeleteConfirmation({ eyebrow = 'CONFIRME A EXCLUSÃO', title, message, confirmLabel, confirmClass = 'danger-button', onConfirm }) {
   $('confirm-dialog-eyebrow').textContent = eyebrow;
@@ -452,21 +466,22 @@ function confirmDelete() {
 function deleteExpense(id) {
   const expense = expenses.find((item) => item.id === id);
   if (!expense) return;
+  if (expense.type === 'income') { deleteIncome(id); return; }
   const linkedPayments = settlements.filter((item) => item.expenseId === id);
   const charges = `${expense.installments} cobrança${expense.installments === 1 ? '' : 's'}`;
   const paymentNotice = linkedPayments.length === 1 ? 'Também será removido 1 pagamento registrado.'
     : linkedPayments.length > 1 ? `Também serão removidos ${linkedPayments.length} pagamentos registrados.` : '';
   openDeleteConfirmation({
-    title: 'Excluir gasto?',
+    title: 'Excluir registro?',
     message: `“${expense.description}” e suas ${charges} serão removidas. ${paymentNotice} Essa ação não pode ser desfeita.`.replace(/\s+/g, ' '),
-    confirmLabel: 'Excluir gasto',
+    confirmLabel: 'Excluir registro',
     onConfirm: () => {
       expenses = expenses.filter((item) => item.id !== id);
       settlements = settlements.filter((item) => item.expenseId !== id);
       saveExpenses();
       saveSettlements();
       render();
-      showToast('Gasto excluído.');
+      showToast('Registro excluído.');
     },
   });
 }
@@ -604,7 +619,7 @@ async function importBackup(file) {
     const incomingCards = Array.isArray(parsed.cards) ? parsed.cards : [];
     const incomingSettlements = Array.isArray(parsed.settlements) ? parsed.settlements : [];
     if (!Array.isArray(incoming) || !incoming.every(isValidExpense) || !incomingCards.every((card) => card && typeof card.id === 'string' && Number.isFinite(Number(card.limit)))) throw new Error('invalid');
-    if ((expenses.length || cards.length) && !window.confirm('Importar este backup vai substituir gastos, cartões e pagamentos atuais neste navegador. Continuar?')) return;
+    if ((expenses.length || cards.length) && !window.confirm('Importar este backup vai substituir registros, cartões e pagamentos salvos neste PC. Continuar?')) return;
     expenses = incoming; cards = incomingCards; settlements = incomingSettlements;
     migrateLegacyCardLinks();
     saveExpenses(); saveCards(); saveSettlements(); render();
@@ -621,23 +636,14 @@ function initialize() {
   });
   $('month-picker').value = monthKey(new Date());
   $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
-  $('category-filter').innerHTML = '<option value="">Todas as categorias</option>' + CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
+  updateCategoryFilter();
   $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
   populateCardSelect($('card-select'));
   document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; render(); }));
   $('new-expense-top').addEventListener('click', () => openExpense());
   $('new-expense').addEventListener('click', () => openExpense());
-  $('new-income').addEventListener('click', () => openIncome());
-  $('manage-income').addEventListener('click', () => { view = 'receitas'; render(); });
-  $('income-form').addEventListener('submit', submitIncome);
-  $('income-amount').addEventListener('input', (event) => formatCurrencyInput(event.currentTarget));
-  for (const id of ['close-income', 'cancel-income']) $(id).addEventListener('click', () => $('income-dialog').close());
-  $('income-list').addEventListener('click', (event) => {
-    const edit = event.target.closest('[data-edit-income]');
-    const remove = event.target.closest('[data-delete-income]');
-    if (edit) openIncome(expenses.find((item) => item.id === edit.dataset.editIncome && item.type === 'income'));
-    if (remove) deleteIncome(remove.dataset.deleteIncome);
-  });
+  $('manage-income').addEventListener('click', () => { view = 'lancamentos'; $('clear-filters').click(); render(); });
+  document.querySelectorAll('input[name="record-type"]').forEach(input => input.addEventListener('change', () => updateRecordType()));
   $('new-card').addEventListener('click', () => openCardDialog());
   $('manage-cards').addEventListener('click', () => { view = 'cartoes'; render(); });
   $('all-categories').addEventListener('click', () => { view = 'lancamentos'; render(); });
@@ -646,6 +652,7 @@ function initialize() {
   $('next-month').addEventListener('click', () => { const date = dateFromKey(`${selectedMonth()}-01`); date.setMonth(date.getMonth() + 1); transactionPage = 1; setMonth(monthKey(date)); });
   $('month-picker').addEventListener('change', () => { transactionPage = 1; render(); });
   $('search-input').addEventListener('input', () => { transactionPage = 1; renderTransactions(); });
+  $('type-filter').addEventListener('change', () => { updateCategoryFilter(); transactionPage = 1; renderTransactions(); });
   $('category-filter').addEventListener('change', () => { transactionPage = 1; renderTransactions(); });
   for (const id of ['amount-min', 'amount-max']) $(id).addEventListener('input', (event) => {
     formatCurrencyInput(event.currentTarget);
@@ -654,6 +661,8 @@ function initialize() {
   });
   $('clear-filters').addEventListener('click', () => {
     $('search-input').value = '';
+    $('type-filter').value = '';
+    updateCategoryFilter();
     $('category-filter').value = '';
     $('amount-min').value = '';
     $('amount-max').value = '';

@@ -21,7 +21,6 @@
         <nav class="main-nav">
           <button class="nav-item active" data-view="inicio"><span aria-hidden="true">◫</span> Visão geral</button>
           <button class="nav-item" data-view="lancamentos"><span aria-hidden="true">≡</span> Lançamentos</button>
-          <button class="nav-item" data-view="receitas"><span aria-hidden="true">↙</span> Receitas</button>
           <button class="nav-item" data-view="cartoes"><span aria-hidden="true">▰</span> Cartões</button>
         </nav>
         <div class="sidebar-bottom">
@@ -48,7 +47,7 @@
             </div>
             <button id="next-month" class="month-arrow" aria-label="Próximo mês">›</button>
           </div>
-          <button class="add-button top-add" id="new-expense-top" hidden><span aria-hidden="true">＋</span> Novo gasto</button>
+          <button class="add-button top-add" id="new-expense-top" hidden><span aria-hidden="true">＋</span> Novo registro</button>
         </header>
 
         <section class="page-heading" id="page-heading">
@@ -62,7 +61,7 @@
 
         <section class="overview-view" id="overview-view">
           <section class="balance-panel" aria-labelledby="balance-title">
-            <div class="section-title-row"><div><h2 id="balance-title">Saldo do mês</h2><p class="balance-note">Receitas recebidas menos despesas do mês, sem saldo anterior.</p></div><button class="text-button" id="manage-income">Ver receitas ↗</button></div>
+            <div class="section-title-row"><div><h2 id="balance-title">Saldo do mês</h2><p class="balance-note">Receitas recebidas menos despesas do mês, sem saldo anterior.</p></div><button class="text-button" id="manage-income">Ver lançamentos ↗</button></div>
             <div class="balance-metrics"><div><span>Receitas recebidas</span><strong id="income-total" class="income-value">R$ 0,00</strong></div><div><span>Despesas do mês</span><strong id="balance-expenses">R$ 0,00</strong></div><div class="net-balance"><span>Saldo final</span><strong id="month-balance">R$ 0,00</strong></div></div>
             <p class="balance-note">As despesas incluem Pix, dinheiro e as parcelas de cartão deste mês, mesmo quando já liquidadas.</p>
           </section>
@@ -106,12 +105,13 @@
 
         <section class="transactions-view" id="transactions-view" hidden>
           <div class="transactions-toolbar">
-            <label class="search-box transactions-search" id="transaction-search"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar gasto neste mês</span><input id="search-input" type="search" placeholder="Buscar gasto neste mês" /></label>
-            <button class="add-button top-add" id="new-expense"><span aria-hidden="true">＋</span> Novo gasto</button>
+            <label class="search-box transactions-search" id="transaction-search"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar registro neste mês</span><input id="search-input" type="search" placeholder="Buscar registro neste mês" /></label>
+            <button class="add-button top-add" id="new-expense"><span aria-hidden="true">＋</span> Novo registro</button>
           </div>
           <div class="transactions-filters" role="search" aria-label="Filtrar lançamentos">
+            <label class="filter-field">Tipo<select id="type-filter"><option value="">Todos os tipos</option><option value="income">Receita</option><option value="expense">Despesa</option></select></label>
             <label class="filter-field category-filter-field">Categoria<select id="category-filter"><option value="">Todas as categorias</option></select></label>
-            <fieldset class="amount-range-filter"><legend>Faixa de valor</legend><div class="amount-range-fields"><label class="filter-field">De<input id="amount-min" type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor mínimo" /></label><label class="filter-field">Até<input id="amount-max" type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor máximo" /></label></div></fieldset>
+            <fieldset class="amount-range-filter"><legend class="sr-only">Faixa de valor</legend><div class="amount-range-fields"><label class="filter-field">De<input id="amount-min" type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor mínimo" /></label><label class="filter-field">Até<input id="amount-max" type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor máximo" /></label></div></fieldset>
             <button class="clear-filters-button" id="clear-filters" type="button">Limpar filtros</button>
           </div>
           <div id="transactions-list" class="transactions-list"></div>
@@ -127,11 +127,6 @@
           <p class="local-footnote"><span aria-hidden="true">▣</span> Seus dados ficam salvos neste PC. Baixe um backup para guardar uma cópia ou transferi-los.</p>
         </section>
 
-        <section class="income-view" id="income-view" hidden>
-          <div class="section-title-row income-heading"><div><h2>Receitas recebidas</h2></div><button class="add-button" id="new-income"><span aria-hidden="true">＋</span> Nova receita</button></div>
-          <div class="income-list transactions-list" id="income-list"></div>
-          <p class="local-footnote">Registre o valor que entrou e a data de recebimento. O saldo é atualizado na visão geral.</p>
-        </section>
         <section class="cards-view" id="cards-view" hidden>
           <div class="section-title-row cards-heading"><div><p class="eyebrow">LIMITES E FATURAS</p><h2>Seus cartões</h2><p class="cards-intro">Acompanhe o limite comprometido e liquide as cobranças do mês.</p></div><button class="add-button" id="new-card"><span aria-hidden="true">＋</span> Adicionar cartão</button></div>
           <div id="cards-list" class="cards-list"></div>
@@ -142,15 +137,16 @@
 
     <dialog id="expense-dialog" class="expense-dialog">
       <form id="expense-form">
-        <div class="dialog-heading"><div><p class="eyebrow">NOVO REGISTRO</p><h2 id="dialog-title">Adicionar gasto</h2></div><button class="close-button" type="button" id="close-dialog" aria-label="Fechar">×</button></div>
+        <div class="dialog-heading"><div><h2 id="dialog-title">Novo registro</h2></div><button class="close-button" type="button" id="close-dialog" aria-label="Fechar">×</button></div>
         <input type="hidden" id="expense-id" />
-        <label class="field full-field">O que foi?<input id="description" required maxlength="90" placeholder="Ex.: mercado, conta de luz" /></label>
+        <fieldset class="record-type-switch"><legend>Tipo de registro</legend><div><label><input type="radio" name="record-type" value="expense" checked /><span>Despesa</span></label><label><input type="radio" name="record-type" value="income" /><span>Receita</span></label></div></fieldset>
+        <label class="field full-field">Descrição<input id="description" required maxlength="90" placeholder="Ex.: mercado, conta de luz" /></label>
         <div class="field-row">
           <label class="field">Valor total<input id="amount" class="currency-input" required type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" /></label>
           <label class="field">Categoria<select id="category" required></select></label>
         </div>
         <div class="field-row">
-          <label class="field">Como pagou?<select id="payment" required><option value="Pix">Pix</option><option value="Dinheiro">Dinheiro</option><option value="Cartão">Cartão</option></select></label>
+          <label class="field"><span id="payment-label">Forma de pagamento</span><select id="payment" required><option value="Pix">Pix</option><option value="Dinheiro">Dinheiro</option><option value="Cartão">Cartão</option></select></label>
           <label class="field" id="card-mode-wrap">Tipo de compra<select id="card-mode"><option value="À vista">À vista</option><option value="Parcelado">Parcelado</option></select></label>
         </div>
         <div class="field-row conditional-row" id="card-details-row" hidden>
@@ -158,21 +154,11 @@
           <label class="field" id="installments-wrap">Número de parcelas<select id="installments"></select></label>
         </div>
         <div class="field-row">
-          <label class="field">Data do primeiro pagamento<input id="first-date" type="date" required /></label>
+          <label class="field"><span id="record-date-label">Data do primeiro pagamento</span><input id="first-date" type="date" required /></label>
           <label class="field"><span>Observação <span class="optional">opcional</span></span><input id="notes" maxlength="120" placeholder="Uma nota curta" /></label>
         </div>
         <p class="installment-hint" id="installment-hint" hidden></p>
-        <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-dialog">Cancelar</button><button class="add-button" type="submit" id="save-expense">Salvar gasto</button></div>
-      </form>
-    </dialog>
-    <dialog id="income-dialog" class="expense-dialog" aria-labelledby="income-dialog-title">
-      <form id="income-form">
-        <div class="dialog-heading"><h2 id="income-dialog-title">Adicionar receita</h2><button class="close-button" type="button" id="close-income" aria-label="Fechar">×</button></div>
-        <input type="hidden" id="income-id" />
-        <label class="field">Descrição<input id="income-description" required maxlength="90" placeholder="Ex.: salário, trabalho extra" /></label>
-        <div class="field-row"><label class="field">Valor recebido<input id="income-amount" required type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" /></label><label class="field">Data de recebimento<input id="income-date" required type="date" /></label></div>
-        <label class="field"><span>Observação <span class="optional">opcional</span></span><input id="income-notes" maxlength="120" placeholder="Uma nota curta" /></label>
-        <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-income">Cancelar</button><button class="add-button" type="submit">Salvar receita</button></div>
+        <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-dialog">Cancelar</button><button class="add-button" type="submit" id="save-expense">Salvar registro</button></div>
       </form>
     </dialog>
     <dialog id="card-dialog" class="expense-dialog">

@@ -150,3 +150,18 @@ test('monthly balance counts received income separately and avoids double counti
   assert.deepEqual(Core.monthlyBalance([], [], '2026-11'), { income: 0, expenses: 0, balance: 0 });
   assert.equal(Core.monthlyBalance(entries.filter(e => e.type !== 'income'), payments, '2026-11').balance, -1400);
 });
+
+
+test('combines monthly income and expense installments and filters by record type', () => {
+  const entries = [
+    { id:'salary', type:'income', category:'Salário', amount:3000, installments:1, firstDate:'2026-11-03', payment:'Pix' },
+    { id:'purchase', type:'expense', category:'Compras', amount:600, installments:3, firstDate:'2026-10-01', payment:'Cartão' },
+    { id:'old-income', type:'income', amount:900, installments:1, firstDate:'2026-10-03' },
+    { id:'funding', type:'debt-transfer', amount:200, installments:1, firstDate:'2026-11-01' },
+  ];
+  const records = Core.monthlyRecords(entries, [], '2026-11');
+  assert.deepEqual(records.map(r => [r.expense.id,r.amount]), [['salary',3000],['purchase',200]]);
+  assert.deepEqual(Core.filterTransactionCharges(records,{type:'income',category:'Salário',minAmount:3000,maxAmount:3000}).map(r=>r.expense.id), ['salary']);
+  assert.deepEqual(Core.filterTransactionCharges(records,{type:'expense'}).map(r=>r.expense.id), ['purchase']);
+  assert.equal(Core.monthlyOverview(entries, [], '2026-11').total, 200);
+});
