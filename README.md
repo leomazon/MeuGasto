@@ -13,7 +13,7 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 ## O que está incluído
 
 - Lançamentos unificados de receitas e despesas, com seletor de tipo, categorias específicas e edição/exclusão.
-- Saldo mensal: receitas recebidas menos despesas do mês, incluindo a parcela mensal de compras no cartão. Não acumula saldo anterior nem desconta novamente os pagamentos de fatura.
+- Saldo mensal: receitas menos despesas do mês, incluindo os registros fixos previstos e a parcela mensal de compras no cartão. Não acumula saldo anterior nem desconta novamente os pagamentos de fatura.
 - Dashboard mensal com gráficos separados de receitas e despesas por categoria, com percentuais sobre os respectivos totais.
 - Barras em Lançamentos mostram a participação de cada receita ou despesa na própria categoria do mês, sem mudar a base ao aplicar filtros.
 - Cadastro de cartões, limites e crédito disponível no dashboard.
@@ -24,6 +24,8 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 - Exportação e importação de backup em JSON.
 - Filtros de lançamentos por tipo (receita/despesa), categoria e intervalo de valores.
 - Ordenação de lançamentos por data, categoria (A–Z ou Z–A), maior ou menor valor, aplicada antes da paginação.
+- Registros fixos mensais de receitas e despesas, repetidos a partir da data inicial. Desmarcar a opção ao editar encerra a repetição após o mês selecionado e preserva o histórico.
+- Para registros fixos no cartão, cada mês tem sua própria liquidação; apenas os meses já iniciados comprometem o limite. O valor informado é mensal, sem parcelamento.
 - Campos de dinheiro formatados automaticamente em reais.
 - Layout adaptado para celular e computador.
 

@@ -204,3 +204,31 @@ test('keeps category percentages separate for income and expenses with the same 
   assert.equal(shares.find(s=>s.expenseId==='d').percent,100);
   assert.deepEqual(Core.monthlyCategoryBreakdown([],[],'2026-11'),{income:{total:0,categories:[]},expense:{total:0,categories:[]}});
 });
+
+
+test('fixed records recur from their first month, clamp month-end dates and respect an inclusive end month', () => {
+  const entries=[
+    {id:'salary',type:'income',recurring:true,amount:3000,installments:1,firstDate:'2026-01-31',category:'Salário'},
+    {id:'rent',type:'expense',recurring:true,recurringUntil:'2026-03',amount:800,installments:1,firstDate:'2026-01-31',payment:'Pix',category:'Moradia'},
+  ];
+  assert.equal(Core.monthlyRecords(entries,[],'2025-12').length,0);
+  const feb=Core.monthlyRecords(entries,[],'2026-02');
+  assert.equal(feb.length,2);
+  assert.ok(feb.every(r=>r.date.getDate()===28 && r.index===1 && r.amount===r.expense.amount));
+  assert.deepEqual(Core.monthlyBalance(entries,[],'2026-02'),{income:3000,expenses:800,balance:2200});
+  assert.equal(Core.monthlyRecords(entries,[],'2026-03').length,2);
+  assert.equal(Core.monthlyRecords(entries,[],'2026-04').length,1);
+  assert.equal(Core.monthlyCategoryBreakdown(entries,[],'2026-02').income.total,3000);
+});
+
+test('fixed card payments settle only their own month and commit no infinite future credit', () => {
+  const entry={id:'subscription',type:'expense',recurring:true,amount:100,installments:1,firstDate:'2026-01-31',payment:'Cartão',cardId:'card'};
+  const payments=[{expenseId:entry.id,installmentIndex:0,amount:100}];
+  assert.equal(Core.monthCharges([entry],payments,'card','2026-01')[0].remaining,0);
+  const feb=Core.monthCharges([entry],payments,'card','2026-02')[0];
+  assert.equal(feb.index,1);
+  assert.equal(feb.remaining,100);
+  assert.equal(Core.cardUsed([entry],payments,'card',new Date(2026,1,28)),100);
+  assert.deepEqual(Core.allocateFullPayment([feb]),[{expenseId:entry.id,installmentIndex:1,amount:100}]);
+  assert.equal(Core.cardUsed([{...entry,recurringUntil:'2026-01'}],payments,'card',new Date(2026,2,1)),0);
+});

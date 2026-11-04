@@ -35,32 +35,35 @@
     return Boolean(dueDate && /^\d{4}-\d{2}-\d{2}$/.test(currentDate) && currentDate > dueDate);
   }
   function chargeRemaining(expense, index, payments) {
-    return Math.max(0, cents(installmentAmount(expense.amount, expense.installments, index)) - paymentTotal(expense.id, index, payments)) / 100;
+    return Math.max(0, cents(expense.recurring === true ? expense.amount : installmentAmount(expense.amount, expense.installments, index)) - paymentTotal(expense.id, index, payments)) / 100;
+  }
+  function monthOffset(firstDate, month) {
+    const [year, startMonth] = firstDate.split('-').map(Number);
+    const [targetYear, targetMonth] = month.split('-').map(Number);
+    return (targetYear - year) * 12 + targetMonth - startMonth;
+  }
+  function entryCharges(expense, payments, month) {
+    const offset = monthOffset(expense.firstDate, month);
+    if (offset < 0) return [];
+    if (expense.recurring === true && expense.recurringUntil && month > expense.recurringUntil) return [];
+    const indices = expense.recurring === true ? [offset] : Array.from({ length: Number(expense.installments) }, (_, index) => index);
+    return indices.map(index => ({
+      expense, index, date: installmentDate(expense.firstDate, index),
+      amount: expense.recurring === true ? Number(expense.amount) : installmentAmount(expense.amount, expense.installments, index),
+      remaining: expense.type === 'income' ? 0 : chargeRemaining(expense, index, payments),
+    })).filter(charge => dateKey(charge.date).slice(0, 7) === month);
   }
   function monthCharges(expenses, payments, cardId, month) {
-    return expenses.filter((expense) => expense.payment === 'Cartão' && (cardId === null || expense.cardId === cardId))
-      .flatMap((expense) => Array.from({ length: Number(expense.installments) }, (_, index) => ({
-        expense, index, date: installmentDate(expense.firstDate, index),
-        amount: installmentAmount(expense.amount, expense.installments, index),
-        remaining: chargeRemaining(expense, index, payments),
-      })))
-      .filter((charge) => `${charge.date.getFullYear()}-${String(charge.date.getMonth() + 1).padStart(2, '0')}` === month)
-      .sort((a, b) => b.date - a.date);
+    return expenses.filter(expense => expense.type !== 'income' && expense.payment === 'Cartão' && (cardId === null || expense.cardId === cardId))
+      .flatMap(expense => entryCharges(expense, payments, month)).sort((a,b) => b.date-a.date);
   }
   function transactionCharges(expenses, payments, month) {
-    return expenses.filter((expense) => expense.type !== 'debt-transfer' && expense.type !== 'income')
-      .flatMap((expense) => Array.from({ length: Number(expense.installments) }, (_, index) => ({
-        expense, index, date: installmentDate(expense.firstDate, index),
-        amount: installmentAmount(expense.amount, expense.installments, index),
-        remaining: chargeRemaining(expense, index, payments),
-      })))
-      .filter((charge) => `${charge.date.getFullYear()}-${String(charge.date.getMonth() + 1).padStart(2, '0')}` === month)
-      .sort((a, b) => b.date - a.date);
+    return expenses.filter(expense => expense.type !== 'debt-transfer' && expense.type !== 'income')
+      .flatMap(expense => entryCharges(expense, payments, month)).sort((a,b) => b.date-a.date);
   }
   function monthlyRecords(entries, payments, month) {
-    const income = entries.filter(entry => entry.type === 'income' && entry.firstDate.slice(0, 7) === month)
-      .map(expense => ({ expense, index: 0, date: installmentDate(expense.firstDate, 0), amount: Number(expense.amount), remaining: 0 }));
-    return [...transactionCharges(entries, payments, month), ...income].sort((a, b) => b.date - a.date);
+    const income = entries.filter(entry => entry.type === 'income').flatMap(entry => entryCharges(entry, payments, month));
+    return [...transactionCharges(entries, payments, month), ...income].sort((a,b) => b.date-a.date);
   }
   function monthlyOverview(expenses, payments, month) {
     const charges = transactionCharges(expenses, payments, month);
@@ -74,8 +77,8 @@
     return { charges, total: totalCents / 100, pix: pixCents / 100, cash: cashCents / 100, card: cardCents / 100 };
   }
   function monthlyBalance(entries, payments, month) {
-    const incomeCents = entries.filter((entry) => entry.type === 'income' && entry.firstDate.slice(0, 7) === month)
-      .reduce((sum, entry) => sum + cents(entry.amount), 0);
+    const incomeCents = monthlyRecords(entries, payments, month).filter(record => record.expense.type === 'income')
+      .reduce((sum, record) => sum + cents(record.amount), 0);
     const expenseCents = cents(monthlyOverview(entries, payments, month).total);
     return { income: incomeCents / 100, expenses: expenseCents / 100, balance: (incomeCents - expenseCents) / 100 };
   }
@@ -155,9 +158,14 @@
       return recentFirst(a, b);
     });
   }
-  function cardUsed(expenses, payments, cardId) {
-    const usedCents = expenses.filter((expense) => expense.payment === 'Cartão' && expense.cardId === cardId)
-      .reduce((total, expense) => total + Array.from({ length: Number(expense.installments) }, (_, index) => Math.round(chargeRemaining(expense, index, payments) * 100)).reduce((sum, amount) => sum + amount, 0), 0);
+  function cardUsed(expenses, payments, cardId, asOf = new Date()) {
+    const currentMonth = dateKey(asOf).slice(0,7);
+    const usedCents = expenses.filter(expense => expense.type !== 'income' && expense.payment === 'Cartão' && expense.cardId === cardId)
+      .reduce((total, expense) => {
+        const lastMonth = expense.recurringUntil && expense.recurringUntil < currentMonth ? expense.recurringUntil : currentMonth;
+        const count = expense.recurring === true ? Math.max(0, monthOffset(expense.firstDate, lastMonth) + 1) : Number(expense.installments);
+        return total + Array.from({length:count}, (_,index) => cents(chargeRemaining(expense,index,payments))).reduce((sum,value) => sum+value,0);
+      },0);
     return usedCents / 100;
   }
   function allocateFullPayment(charges) {

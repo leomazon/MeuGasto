@@ -77,6 +77,7 @@ test('migrates existing browser expenses to SQLite and restores them after brows
   await incomeForm.getByRole('radio', {name:'Receita',exact:true}).check();
   await incomeForm.getByLabel('Descrição').fill('Receita persistida');
   await incomeForm.locator('#amount').fill('1000,00');
+  await incomeForm.getByRole('checkbox',{name:'Registro fixo mensal',exact:true}).check();
   await incomeForm.getByRole('button', { name: 'Salvar registro', exact: true }).click();
   await page.waitForFunction(async () => {
     const { state } = await (await fetch('/api/state')).json();
@@ -86,5 +87,7 @@ test('migrates existing browser expenses to SQLite and restores them after brows
   await page.reload();
   await page.waitForFunction(() => document.querySelector('#income-total').textContent.replace(/\s/g, ' ') === 'R$ 1.000,00');
   assert.equal((await page.locator('#month-balance').innerText()).replace(/\s/g, ' '), 'R$ 957,50');
+  await page.getByRole('button',{name:'Próximo mês',exact:true}).click();
+  assert.equal((await page.locator('#month-balance').innerText()).replace(/\s/g, ' '), 'R$ 1.000,00');
 
 });

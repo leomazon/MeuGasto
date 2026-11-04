@@ -60,8 +60,8 @@
 
         <section class="overview-view" id="overview-view">
           <section class="balance-panel" aria-labelledby="balance-title">
-            <div class="section-title-row"><div><h2 id="balance-title">Saldo do mês</h2><p class="balance-note">Receitas recebidas menos despesas do mês, sem saldo anterior.</p></div><button class="text-button" id="manage-income">Ver lançamentos ↗</button></div>
-            <div class="balance-metrics"><div><span>Receitas recebidas</span><strong id="income-total" class="income-value">R$ 0,00</strong></div><div><span>Despesas do mês</span><strong id="balance-expenses">R$ 0,00</strong></div><div class="net-balance"><span>Saldo final</span><strong id="month-balance">R$ 0,00</strong></div></div>
+            <div class="section-title-row"><div><h2 id="balance-title">Saldo do mês</h2><p class="balance-note">Receitas menos despesas do mês, incluindo registros fixos previstos. Sem saldo anterior.</p></div><button class="text-button" id="manage-income">Ver lançamentos ↗</button></div>
+            <div class="balance-metrics"><div><span>Receitas do mês</span><strong id="income-total" class="income-value">R$ 0,00</strong></div><div><span>Despesas do mês</span><strong id="balance-expenses">R$ 0,00</strong></div><div class="net-balance"><span>Saldo final</span><strong id="month-balance">R$ 0,00</strong></div></div>
             <p class="balance-note">As despesas incluem Pix, dinheiro e as parcelas de cartão deste mês, mesmo quando já liquidadas.</p>
           </section>
           <div class="summary-row">
@@ -165,6 +165,8 @@
           <label class="field"><span id="record-date-label">Data do primeiro pagamento</span><input id="first-date" type="date" required /></label>
           <label class="field"><span>Observação <span class="optional">opcional</span></span><input id="notes" maxlength="120" placeholder="Uma nota curta" /></label>
         </div>
+        <label class="recurring-control"><input type="checkbox" id="recurring-record" /><span>Registro fixo mensal</span></label>
+        <p class="recurring-hint" id="recurring-hint">Repete o valor integral todo mês a partir da data inicial. Os valores de meses futuros são previstos.</p>
         <p class="installment-hint" id="installment-hint" hidden></p>
         <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-dialog">Cancelar</button><button class="add-button" type="submit" id="save-expense">Salvar registro</button></div>
       </form>
