@@ -236,7 +236,7 @@ function renderExpenseRow(charge, actions = false, categoryShare = null) {
   const isPaid = !income && charge.remaining <= 0;
   const isOverdue = !isPaid && paymentCard?.dueDay && Core.isChargeOverdue(charge.date, paymentCard.dueDay, localDateKey());
   const paymentStatus = income ? '' : isPaid ? '<span class="paid-tag">Liquidado</span>' : isOverdue ? '<span class="overdue-tag">Vencido</span>' : '';
-  const categoryShareMarkup = income || categoryShare === null ? '' : `<div class="category-share" role="img" aria-label="${escapeHtml(charge.expense.description)} corresponde a ${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria ${escapeHtml(charge.expense.category || 'Outros')}"><span class="category-share-track" aria-hidden="true"><i style="width:${categoryShare}%;background:${info.color}"></i></span><span class="category-share-label">${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria</span></div>`;
+  const categoryShareMarkup = categoryShare === null ? '' : `<div class="category-share" role="img" aria-label="${escapeHtml(charge.expense.description)} corresponde a ${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria ${escapeHtml(charge.expense.category || 'Outros')}"><span class="category-share-track" aria-hidden="true"><i style="width:${categoryShare}%;background:${info.color}"></i></span><span class="category-share-label">${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria</span></div>`;
   const settleButton = actions && !income && charge.expense.payment === 'Cartão' && charge.remaining > 0
     ? `<button class="row-settle-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Liquidar ${escapeHtml(charge.expense.description)}, parcela ${charge.index + 1}">Liquidar</button>` : '';
   return `<div class="expense-row">
@@ -271,17 +271,32 @@ function renderOverview() {
   $('cash-share').textContent = `${cashShare}%`;
   $('card-share').textContent = `${cardShare}%`;
   $('payment-foot').textContent = total ? `Distribuição dos ${currency.format(total)} gastos neste mês.` : 'Seus pagamentos aparecem aqui conforme você registra os gastos.';
-  const categoryTotals = Core.categoryBreakdown(charges).map((item) => ({ ...category(item.category), name: item.category, total: item.amount })).filter((item) => item.total > 0);
-  $('category-list').innerHTML = categoryTotals.length ? categoryTotals.map((item) => {
-    const share = total ? Math.round((item.total / total) * 100) : 0;
-    return `<div class="category-item"><div class="category-chart-meta"><span class="category-emoji" aria-hidden="true">${item.icon}</span><span class="category-name">${escapeHtml(item.name)}</span><strong class="category-amount">${currency.format(item.total)}</strong><span class="category-share">${share}%</span></div><div class="category-track"><i style="width:${total ? (item.total / total) * 100 : 0}%;background:${item.color}"></i></div></div>`;
-  }).join('') : '<p class="empty-note">Seus gastos vão aparecer por categoria aqui.</p>';
-  const recentLimit = Math.max(5, categoryTotals.length);
+  const breakdown = Core.monthlyCategoryBreakdown(expenses, settlements, selectedMonth());
+  renderCategoryChart('category-list', breakdown.expense, 'expense');
+  renderCategoryChart('income-category-list', breakdown.income, 'income');
+  $('expense-category-context').textContent = `Percentuais sobre ${currency.format(breakdown.expense.total)} em despesas neste mês.`;
+  $('income-category-context').textContent = `Percentuais sobre ${currency.format(breakdown.income.total)} recebidos neste mês.`;
+  const recentLimit = Math.max(5, breakdown.expense.categories.length);
   const recentCharges = [...charges].sort((a, b) => b.date - a.date
     || expenses.indexOf(b.expense) - expenses.indexOf(a.expense)
     || b.index - a.index);
   $('recent-list').innerHTML = recentCharges.length ? recentCharges.slice(0, recentLimit).map((charge) => renderExpenseRow(charge)).join('') : '<p class="empty-note">Comece adicionando seu primeiro gasto.</p>';
   renderDashboardCards();
+}
+function renderCategoryChart(listId, summary, type) {
+  const income = type === 'income';
+  $(listId).innerHTML = summary.categories.length ? summary.categories.map(item => {
+    const info = category(item.category, type);
+    const percent = item.percent.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+    const baseLabel = income ? 'das receitas' : 'das despesas';
+    return `<div class="category-item" role="img" aria-label="${escapeHtml(item.category)}, ${currency.format(item.amount)}, ${percent}% ${baseLabel} do mês"><div class="category-chart-meta"><span class="category-emoji" aria-hidden="true">${info.icon}</span><span class="category-name">${escapeHtml(item.category)}</span><strong class="category-amount">${currency.format(item.amount)}</strong><span class="category-share">${percent}%</span></div><div class="category-track"><i style="width:${summary.total ? item.amount / summary.total * 100 : 0}%;background:${info.color}"></i></div></div>`;
+  }).join('') : `<p class="empty-note">${income ? 'Nenhuma receita recebida neste mês.' : 'Nenhuma despesa registrada neste mês.'}</p>`;
+}
+function showCategoryTransactions(type) {
+  view = 'lancamentos';
+  $('clear-filters').click();
+  $('type-filter').value = type;
+  render();
 }
 function renderDashboardCards() {
   if (!cards.length) {
@@ -299,7 +314,7 @@ function renderDashboardCards() {
 function renderTransactions() {
   const query = $('search-input').value.trim().toLocaleLowerCase('pt-BR');
   const allCharges = Core.monthlyRecords(expenses, settlements, selectedMonth());
-  const shareByCharge = new Map(Core.categoryChargeShares(allCharges.filter(charge => charge.expense.type !== 'income')).map((share) => [`${share.expenseId}::${share.installmentIndex}`, share.percent]));
+  const shareByCharge = new Map(Core.categoryChargeShares(allCharges).map((share) => [`${share.expenseId}::${share.installmentIndex}`, share.percent]));
   const searchedCharges = allCharges.filter((charge) => {
     const card = cardForExpense(charge.expense);
     const haystack = `${charge.expense.description} ${charge.expense.category} ${charge.expense.payment} ${card?.name || ''} ${card?.bank || ''}`.toLocaleLowerCase('pt-BR');
@@ -648,7 +663,8 @@ function initialize() {
   document.querySelectorAll('input[name="record-type"]').forEach(input => input.addEventListener('change', () => updateRecordType()));
   $('new-card').addEventListener('click', () => openCardDialog());
   $('manage-cards').addEventListener('click', () => { view = 'cartoes'; render(); });
-  $('all-categories').addEventListener('click', () => { view = 'lancamentos'; render(); });
+  $('all-categories').addEventListener('click', () => showCategoryTransactions('expense'));
+  $('all-income-categories').addEventListener('click', () => showCategoryTransactions('income'));
   $('all-transactions').addEventListener('click', () => { view = 'lancamentos'; render(); });
   $('prev-month').addEventListener('click', () => { const date = dateFromKey(`${selectedMonth()}-01`); date.setMonth(date.getMonth() - 1); transactionPage = 1; setMonth(monthKey(date)); });
   $('next-month').addEventListener('click', () => { const date = dateFromKey(`${selectedMonth()}-01`); date.setMonth(date.getMonth() + 1); transactionPage = 1; setMonth(monthKey(date)); });

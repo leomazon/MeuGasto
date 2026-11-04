@@ -94,11 +94,11 @@
 }
 
 /* Keep the category chart row full-width across desktop and compact breakpoints. */
-#category-list .category-item{grid-template-columns:minmax(0,1fr);align-items:stretch;gap:8px;min-height:0}
-#category-list .category-chart-meta{width:100%;grid-template-columns:34px minmax(0,1fr) auto 42px}
-#category-list .category-chart-meta .category-name{min-width:0;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#category-list .category-track{grid-column:1;grid-row:auto;height:11px}
-@media(max-width:760px){#category-list .category-chart-meta{grid-template-columns:32px minmax(0,1fr) auto 36px;gap:8px}}
+:is(#category-list,#income-category-list) .category-item{grid-template-columns:minmax(0,1fr);align-items:stretch;gap:8px;min-height:0}
+:is(#category-list,#income-category-list) .category-chart-meta{width:100%;grid-template-columns:34px minmax(0,1fr) auto 42px}
+:is(#category-list,#income-category-list) .category-chart-meta .category-name{min-width:0;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:is(#category-list,#income-category-list) .category-track{grid-column:1;grid-row:auto;height:11px}
+@media(max-width:760px){:is(#category-list,#income-category-list) .category-chart-meta{grid-template-columns:32px minmax(0,1fr) auto 36px;gap:8px}}
 
 /* Dashboard breakdowns use legible, comparable horizontal bars. */
 .payment-lines{gap:22px;margin-top:26px}
@@ -112,15 +112,15 @@
 .payment-panel .progress-track i{border-radius:8px}
 .payment-panel .payment-foot{margin-top:17px;font-size:12px}
 .category-list{gap:11px;margin-top:21px}
-#category-list .category-item{display:grid;grid-template-columns:minmax(0,1fr);align-items:stretch;gap:8px;min-height:0;padding:5px 0}
-#category-list .category-chart-meta{display:grid;width:100%;grid-template-columns:34px minmax(0,1fr) auto 42px;align-items:center;gap:10px}
-#category-list .category-chart-meta .category-emoji{width:32px;height:32px;font-size:18.5px}
-#category-list .category-chart-meta .category-name{min-width:0;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14.5px}
-#category-list .category-chart-meta .category-amount{min-width:80px;text-align:right;font-size:13px}
-#category-list .category-share{text-align:right;color:#81779a;font-size:12px;font-weight:700}
-#category-list .category-track{grid-column:1;grid-row:auto;height:11px;border-radius:8px;background:#efedf3;overflow:hidden}
-#category-list .category-track i{min-width:3px;border-radius:8px}
-@media(max-width:760px){.payment-panel .payment-foot{font-size:11px}#category-list .category-chart-meta{grid-template-columns:32px minmax(0,1fr) auto 36px;gap:8px}#category-list .category-chart-meta .category-amount{min-width:72px;font-size:12px}#category-list .category-chart-meta .category-name{font-size:13px}}
+:is(#category-list,#income-category-list) .category-item{display:grid;grid-template-columns:minmax(0,1fr);align-items:stretch;gap:8px;min-height:0;padding:5px 0}
+:is(#category-list,#income-category-list) .category-chart-meta{display:grid;width:100%;grid-template-columns:34px minmax(0,1fr) auto 42px;align-items:center;gap:10px}
+:is(#category-list,#income-category-list) .category-chart-meta .category-emoji{width:32px;height:32px;font-size:18.5px}
+:is(#category-list,#income-category-list) .category-chart-meta .category-name{min-width:0;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14.5px}
+:is(#category-list,#income-category-list) .category-chart-meta .category-amount{min-width:80px;text-align:right;font-size:13px}
+:is(#category-list,#income-category-list) .category-share{text-align:right;color:#81779a;font-size:12px;font-weight:700}
+:is(#category-list,#income-category-list) .category-track{grid-column:1;grid-row:auto;height:11px;border-radius:8px;background:#efedf3;overflow:hidden}
+:is(#category-list,#income-category-list) .category-track i{min-width:3px;border-radius:8px}
+@media(max-width:760px){.payment-panel .payment-foot{font-size:11px}:is(#category-list,#income-category-list) .category-chart-meta{grid-template-columns:32px minmax(0,1fr) auto 36px;gap:8px}:is(#category-list,#income-category-list) .category-chart-meta .category-amount{min-width:72px;font-size:12px}:is(#category-list,#income-category-list) .category-chart-meta .category-name{font-size:13px}}
 
 /* Clearer details and stronger number hierarchy across the app. */
 .transactions-list .expense-name strong{font-size:17px}
@@ -209,14 +209,14 @@
 @keyframes row-arrive{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 @keyframes modal-arrive{from{opacity:0;transform:translate(-50%,-47%) scale(.985)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 #overview-view:not([hidden]),#transactions-view:not([hidden]),#cards-view:not([hidden]){animation:view-arrive .32s cubic-bezier(.2,.7,.25,1) both}
-#category-list .category-track i,.payment-panel .progress-track i,.card-progress i{transform-origin:left center;animation:bar-fill .72s cubic-bezier(.18,.72,.25,1) both}
-#category-list .category-item:nth-child(2) .category-track i,.payment-panel .payment-line:nth-child(2) .progress-track i{animation-delay:70ms}
-#category-list .category-item:nth-child(3) .category-track i,.payment-panel .payment-line:nth-child(3) .progress-track i{animation-delay:140ms}
-#category-list .category-item:nth-child(4) .category-track i{animation-delay:210ms}
-#category-list .category-item:nth-child(5) .category-track i{animation-delay:280ms}
-#category-list .category-item:nth-child(6) .category-track i{animation-delay:350ms}
-#category-list .category-item:nth-child(7) .category-track i{animation-delay:420ms}
-#category-list .category-item:nth-child(8) .category-track i{animation-delay:490ms}
+:is(#category-list,#income-category-list) .category-track i,.payment-panel .progress-track i,.card-progress i{transform-origin:left center;animation:bar-fill .72s cubic-bezier(.18,.72,.25,1) both}
+:is(#category-list,#income-category-list) .category-item:nth-child(2) .category-track i,.payment-panel .payment-line:nth-child(2) .progress-track i{animation-delay:70ms}
+:is(#category-list,#income-category-list) .category-item:nth-child(3) .category-track i,.payment-panel .payment-line:nth-child(3) .progress-track i{animation-delay:140ms}
+:is(#category-list,#income-category-list) .category-item:nth-child(4) .category-track i{animation-delay:210ms}
+:is(#category-list,#income-category-list) .category-item:nth-child(5) .category-track i{animation-delay:280ms}
+:is(#category-list,#income-category-list) .category-item:nth-child(6) .category-track i{animation-delay:350ms}
+:is(#category-list,#income-category-list) .category-item:nth-child(7) .category-track i{animation-delay:420ms}
+:is(#category-list,#income-category-list) .category-item:nth-child(8) .category-track i{animation-delay:490ms}
 #recent-list .expense-row{animation:row-arrive .26s ease-out both}
 #recent-list .expense-row:nth-child(2){animation-delay:45ms}
 #recent-list .expense-row:nth-child(3){animation-delay:90ms}
@@ -226,7 +226,7 @@
 .nav-item:hover{transform:translateX(2px)}
 dialog[open]{animation:modal-arrive .2s cubic-bezier(.2,.7,.25,1) both}
 @media(hover:hover){.credit-card-card,.dashboard-card{transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}.credit-card-card:hover,.dashboard-card:hover{transform:translateY(-2px);border-color:#ded6ef;box-shadow:0 8px 22px rgba(38,22,77,.08)}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
 /* A fixed control stays available as the purple navigation panel slides away. */
 .sidebar{transition:transform .22s ease}
@@ -277,3 +277,6 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 
 .transactions-order{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin:0 0 16px;color:var(--muted);font-size:13px}.transactions-order select{height:41px;min-width:185px;max-width:100%;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font-size:14px}.transactions-order select:focus-visible{outline:3px solid #aa94f3;outline-offset:2px}
 @media(max-width:500px){.transactions-order{justify-content:space-between}.transactions-order select{min-width:0;flex:0 1 205px}}
+
+.category-comparison,.activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.category-context{margin:12px 0 0;font-size:13px;color:var(--muted);line-height:1.5}.income-category-panel .eyebrow{color:#317c62}.activity-grid .dashboard-card-section{margin-top:0}.activity-grid .dashboard-cards{grid-template-columns:1fr}.activity-grid .recent-panel{min-height:0}.transactions-list .category-share-track i{transform-origin:left;animation:bar-fill .55s cubic-bezier(.18,.72,.25,1) both}
+@media(max-width:760px){.category-comparison,.activity-grid{grid-template-columns:1fr}.category-context{font-size:12px}}

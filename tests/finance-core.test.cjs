@@ -181,3 +181,26 @@ test('sorts monthly records by category and amount without mutating their source
   assert.deepEqual(ids('date-desc'),['health','education','food']);
   assert.deepEqual(records.map(r=>r.expense.id),['health','food','education']);
 });
+
+
+test('keeps category percentages separate for income and expenses with the same category name', () => {
+  const entries = [
+    {id:'a',type:'income',category:'Outros',amount:300,installments:1,firstDate:'2026-11-01'},
+    {id:'b',type:'income',category:'Outros',amount:100,installments:1,firstDate:'2026-11-02'},
+    {id:'c',type:'income',category:'Salário',amount:600,installments:1,firstDate:'2026-11-03'},
+    {id:'d',type:'expense',category:'Outros',amount:200,installments:1,firstDate:'2026-11-01'},
+    {id:'e',type:'expense',category:'Moradia',amount:600,installments:3,firstDate:'2026-10-01'},
+    {id:'old',type:'income',category:'Outros',amount:9000,installments:1,firstDate:'2026-10-01'},
+    {id:'funding',type:'debt-transfer',amount:1000,installments:1,firstDate:'2026-11-01'},
+  ];
+  const result=Core.monthlyCategoryBreakdown(entries,[],'2026-11');
+  assert.equal(result.income.total,1000);
+  assert.equal(result.expense.total,400);
+  assert.deepEqual(result.income.categories,[{category:'Salário',amount:600,percent:60},{category:'Outros',amount:400,percent:40}]);
+  assert.deepEqual(result.expense.categories.map(c=>c.percent),[50,50]);
+  const shares=Core.categoryChargeShares(Core.monthlyRecords(entries,[],'2026-11'));
+  assert.equal(shares.find(s=>s.expenseId==='a').percent,75);
+  assert.equal(shares.find(s=>s.expenseId==='b').percent,25);
+  assert.equal(shares.find(s=>s.expenseId==='d').percent,100);
+  assert.deepEqual(Core.monthlyCategoryBreakdown([],[],'2026-11'),{income:{total:0,categories:[]},expense:{total:0,categories:[]}});
+});

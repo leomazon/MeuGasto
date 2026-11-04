@@ -88,15 +88,27 @@
     return [...totals].map(([category, amountCents]) => ({ category, amount: amountCents / 100 }))
       .sort((a, b) => b.amount - a.amount);
   }
+  function monthlyCategoryBreakdown(entries, payments, month) {
+    const records = monthlyRecords(entries, payments, month);
+    const summarize = type => {
+      const items = records.filter(record => (record.expense.type === 'income' ? 'income' : 'expense') === type);
+      const totalCents = items.reduce((sum, item) => sum + cents(item.amount), 0);
+      return {
+        total: totalCents / 100,
+        categories: categoryBreakdown(items).map(item => ({ ...item, percent: totalCents ? Math.round(cents(item.amount) * 1000 / totalCents) / 10 : 0 })),
+      };
+    };
+    return { income: summarize('income'), expense: summarize('expense') };
+  }
   function categoryChargeShares(charges) {
     const totals = new Map();
+    const groupKey = charge => JSON.stringify([charge.expense.type === 'income' ? 'income' : 'expense', charge.expense.category || 'Outros']);
     for (const charge of charges) {
-      const category = charge.expense.category || 'Outros';
-      totals.set(category, (totals.get(category) || 0) + cents(charge.amount));
+      const key = groupKey(charge);
+      totals.set(key, (totals.get(key) || 0) + cents(charge.amount));
     }
-    return charges.map((charge) => {
-      const category = charge.expense.category || 'Outros';
-      const totalCents = totals.get(category) || 0;
+    return charges.map(charge => {
+      const totalCents = totals.get(groupKey(charge)) || 0;
       return {
         expenseId: charge.expense.id,
         installmentIndex: Number(charge.index) || 0,
@@ -169,6 +181,7 @@
     monthlyRecords,
     monthlyBalance,
     categoryBreakdown,
+    monthlyCategoryBreakdown,
     categoryChargeShares,
     averageChargeSummary,
     paginate,

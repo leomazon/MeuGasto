@@ -14,7 +14,8 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 
 - Lançamentos unificados de receitas e despesas, com seletor de tipo, categorias específicas e edição/exclusão.
 - Saldo mensal: receitas recebidas menos despesas do mês, incluindo a parcela mensal de compras no cartão. Não acumula saldo anterior nem desconta novamente os pagamentos de fatura.
-- Dashboard mensal com gráficos de barras para comparar pagamentos e gastos por categoria.
+- Dashboard mensal com gráficos separados de receitas e despesas por categoria, com percentuais sobre os respectivos totais.
+- Barras em Lançamentos mostram a participação de cada receita ou despesa na própria categoria do mês, sem mudar a base ao aplicar filtros.
 - Cadastro de cartões, limites e crédito disponível no dashboard.
 - Faturas mensais com liquidação integral ou cobrança por cobrança, via Pix ou outro cartão.
 - Lançamentos filtrados pelo mês selecionado, com busca, paginação e opções de 10, 20, 30 ou 50 itens por página.

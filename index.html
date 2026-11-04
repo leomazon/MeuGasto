@@ -86,20 +86,28 @@
             </article>
           </div>
 
-          <div class="lower-grid">
+          <div class="lower-grid category-comparison">
             <section class="category-panel">
-              <div class="section-title-row"><div><h2>Gastos por categoria</h2><p class="eyebrow">CATEGORIAS</p></div><button class="text-button" id="all-categories">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
+              <div class="section-title-row"><div><h2>Despesas por categoria</h2><p class="eyebrow">DESPESAS</p></div><button class="text-button" id="all-categories">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
+              <p class="category-context" id="expense-category-context"></p>
               <div id="category-list" class="category-list"></div>
             </section>
+            <section class="category-panel income-category-panel">
+              <div class="section-title-row"><div><h2>Receitas por categoria</h2><p class="eyebrow">RECEITAS</p></div><button class="text-button" id="all-income-categories">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
+              <p class="category-context" id="income-category-context"></p>
+              <div id="income-category-list" class="category-list"></div>
+            </section>
+          </div>
+          <div class="lower-grid activity-grid">
             <section class="recent-panel">
               <div class="section-title-row"><div><h2>Últimos gastos</h2><p class="eyebrow">RECÉM-ADICIONADOS</p></div><button class="text-button" id="all-transactions">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
               <div id="recent-list" class="recent-list"></div>
             </section>
+            <section class="dashboard-card-section">
+              <div class="section-title-row"><div><h2>Seus cartões</h2><p class="eyebrow">CRÉDITO DISPONÍVEL</p></div><button class="text-button" id="manage-cards">Gerenciar cartões <span aria-hidden="true">↗</span></button></div>
+              <div id="dashboard-cards" class="dashboard-cards"></div>
+            </section>
           </div>
-          <section class="dashboard-card-section">
-            <div class="section-title-row"><div><p class="eyebrow">CRÉDITO DISPONÍVEL</p><h2>Seus cartões</h2></div><button class="text-button" id="manage-cards">Gerenciar cartões <span aria-hidden="true">↗</span></button></div>
-            <div id="dashboard-cards" class="dashboard-cards"></div>
-          </section>
           <p class="local-footnote"><span aria-hidden="true">▣</span> Seus dados ficam salvos neste PC. Baixe um backup para guardar uma cópia ou transferi-los.</p>
         </section>
 
