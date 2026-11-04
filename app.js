@@ -391,6 +391,7 @@ function syncBankPicker() {
   const select = $('card-bank');
   if (!select) return;
   const selected = select.value;
+  $('card-bank-trigger').classList.toggle('is-placeholder', !selected);
   $('bank-selected-name').textContent = selected ? bankInfo(selected).name : 'Selecione um banco';
   $('card-bank-selected-icon').outerHTML = selected ? bankBadgeMarkup(selected, 'bank-badge-selected').replace('<span ', '<span id="card-bank-selected-icon" aria-hidden="true" ') : '<span class="bank-badge bank-badge-selected" id="card-bank-selected-icon" aria-hidden="true"></span>';
   $('bank-options').innerHTML = [...select.options].filter((option) => option.value).map((option) => `<div class="bank-picker-option" role="option" tabindex="-1" data-bank-option="${escapeHtml(option.value)}" aria-selected="${String(option.value === selected)}">${bankBadgeMarkup(option.value, 'bank-badge-option-icon').replace(' role="img"', ' aria-hidden="true"').replace(/ aria-label="[^"]*"/, '')}<span>${escapeHtml(bankInfo(option.value).name)}</span></div>`).join('');
