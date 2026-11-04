@@ -514,3 +514,14 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .bank-picker-trigger.is-placeholder .bank-badge-selected{display:none}
 #card-dialog.bank-picker-open{min-height:min(540px,calc(100vh - 32px))}
 @media(max-width:760px){#card-dialog.bank-picker-open{min-height:min(560px,calc(100vh - 24px))}}
+
+.field input,.field select,.field .bank-picker-trigger,.field .card-picker-trigger,.field .category-picker-trigger,.field .payment-picker-trigger{transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease}
+.field input:focus-visible,.field select:focus-visible,.field :is(.bank-picker-trigger,.card-picker-trigger,.category-picker-trigger,.payment-picker-trigger):focus-visible{outline:0;border-color:#8a68e4;box-shadow:0 0 0 3px rgba(101,65,200,.16)}
+.field.has-error input,.field.has-error select,.field.has-error :is(.bank-picker-trigger,.card-picker-trigger,.category-picker-trigger,.payment-picker-trigger){border-color:#b44752;background:#fff7f7;box-shadow:0 0 0 2px rgba(180,71,82,.1)}
+.field.has-error :is(input,select,.bank-picker-trigger,.card-picker-trigger,.category-picker-trigger,.payment-picker-trigger):focus-visible{outline-color:#b44752;border-color:#b44752;box-shadow:0 0 0 3px rgba(180,71,82,.16)}
+.field.is-valid input[aria-invalid="false"],.field.is-valid select[aria-invalid="false"],.field.is-valid :is(.bank-picker-trigger,.card-picker-trigger,.category-picker-trigger,.payment-picker-trigger)[aria-invalid="false"]{border-color:#419879;background:#f6fbf8}
+.field-error-message{display:block;grid-column:1/-1;margin-top:-3px;color:#ad3e49;font-size:12.5px;font-weight:600;line-height:1.4}
+.field input:disabled,.field select:disabled{cursor:not-allowed;background:#f2f0f6;color:#837d8d;border-color:#e4e0eb}
+.toast[data-tone="success"]{background:#267450}
+.toast[data-tone="error"]{background:#ad3e49}
+.toast[data-tone="info"]{background:#372663}

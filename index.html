@@ -165,7 +165,7 @@
     </div>
 
     <dialog id="expense-dialog" class="expense-dialog">
-      <form id="expense-form">
+      <form id="expense-form" novalidate>
         <div class="dialog-heading"><div><h2 id="dialog-title">Novo registro</h2></div><button class="close-button" type="button" id="close-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
         <input type="hidden" id="expense-id" />
         <label class="field full-field" id="edit-scope-wrap" hidden>Aplicar alterações a<select id="edit-scope"><option value="series">Toda a série</option><option value="month">Somente este mês</option></select></label>
@@ -195,7 +195,7 @@
       </form>
     </dialog>
     <dialog id="card-dialog" class="expense-dialog">
-      <form id="card-form">
+      <form id="card-form" novalidate>
         <div class="dialog-heading"><div><p class="eyebrow">CADASTRO DE CARTÃO</p><h2 id="card-dialog-title">Adicionar cartão</h2></div><button class="close-button" type="button" id="close-card-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
         <input type="hidden" id="card-id" />
         <label class="field full-field">Nome do cartão<input id="card-name" required maxlength="50" placeholder="Ex.: Nubank Gold" /></label>
@@ -209,7 +209,7 @@
       </form>
     </dialog>
     <dialog id="settlement-dialog" class="expense-dialog settlement-dialog">
-      <form id="settlement-form">
+      <form id="settlement-form" novalidate>
         <div class="dialog-heading"><div><p class="eyebrow">PAGAMENTO DE FATURA</p><h2>Liquidar cobrança</h2></div><button class="close-button" type="button" id="close-settlement-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
         <p class="settlement-summary" id="settlement-summary"></p>
         <label class="field full-field">Forma de pagamento<select id="settlement-method"><option value="Pix">Pix</option><option value="Dinheiro">Dinheiro</option><option value="Cartão">Outro cartão</option></select></label>
@@ -225,13 +225,13 @@
       <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-delete" autofocus>Manter</button><button type="button" class="danger-button" id="confirm-delete">Excluir</button></div>
     </dialog>
     <dialog id="realization-dialog" class="expense-dialog" aria-labelledby="realization-title">
-      <form id="realization-form"><div class="dialog-heading"><h2 id="realization-title">Confirmar pagamento</h2><button class="close-button" type="button" data-close="realization-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
+      <form id="realization-form" novalidate><div class="dialog-heading"><h2 id="realization-title">Confirmar pagamento</h2><button class="close-button" type="button" data-close="realization-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
       <p id="realization-summary" class="settlement-summary"></p>
       <label class="field full-field"><span id="realization-date-label">Data do pagamento</span><input id="realization-date" type="date" required /></label>
       <div class="dialog-actions"><button class="cancel-button" type="button" data-close="realization-dialog">Cancelar</button><button class="add-button" type="submit">Confirmar</button></div></form>
     </dialog>
     <dialog id="budget-dialog" class="expense-dialog" aria-labelledby="budget-dialog-title">
-      <form id="budget-form"><div class="dialog-heading"><h2 id="budget-dialog-title">Orçamento mensal</h2><button class="close-button" type="button" data-close="budget-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
+      <form id="budget-form" novalidate><div class="dialog-heading"><h2 id="budget-dialog-title">Orçamento mensal</h2><button class="close-button" type="button" data-close="budget-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
       <label class="field full-field">Categoria<select id="budget-category" required></select></label>
       <label class="field full-field">Limite mensal<input id="budget-amount" type="text" inputmode="decimal" placeholder="R$ 0,00" required /></label>
       <div class="dialog-actions"><button class="cancel-button" type="button" data-close="budget-dialog">Cancelar</button><button class="add-button" type="submit">Salvar orçamento</button></div></form>

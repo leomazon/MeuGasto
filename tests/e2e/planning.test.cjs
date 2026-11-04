@@ -112,6 +112,7 @@ test('edits a fixed record for one month while preserving neighboring months and
 });
 
 test('saves category budgets, shows overruns and compares consecutive months', async () => {
+  await page.getByRole('button',{name:'Análises',exact:true}).click();
   await page.locator('#new-budget').click();
   await page.locator('#budget-category').selectOption('Moradia');
   await page.locator('#budget-amount').fill('100,00');
@@ -121,7 +122,7 @@ test('saves category budgets, shows overruns and compares consecutive months', a
   await page.locator('#description').fill('Condomínio');
   await page.locator('#amount').fill('150,00');
   await page.locator('#save-expense').click();
-  await page.getByRole('button',{name:'Visão geral',exact:true}).click();
+  await page.getByRole('button',{name:'Análises',exact:true}).click();
   assert.match(await page.locator('#budget-list').innerText(),/50,00 acima/);
   assert.equal(await page.locator('#trend-chart .trend-month').count(),6);
   assert.equal(await page.locator('#trend-chart .trend-bar-income').count(),6);
@@ -135,6 +136,7 @@ test('saves category budgets, shows overruns and compares consecutive months', a
   await page.locator('#trend-period').selectOption('12');
   assert.equal(await page.locator('#trend-chart .trend-month').count(),12);
   await page.reload();
+  await page.getByRole('button',{name:'Análises',exact:true}).click();
   assert.match(await page.locator('#budget-list').innerText(),/50,00 acima/);
   await page.getByRole('button',{name:'Excluir orçamento de Moradia',exact:true}).click();
   await page.locator('#confirm-delete').click();

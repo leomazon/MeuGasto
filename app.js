@@ -120,7 +120,7 @@ function persistLocalDatabase() {
   }).catch(() => {
     localDatabaseEnabled = false;
     saveBrowserCache();
-    showToast('Não foi possível atualizar o banco local. A cópia do navegador foi mantida.');
+    showToast('Não foi possível salvar no banco local. Seus dados continuam disponíveis nesta cópia do navegador.', 'error');
   });
   return localDatabaseQueue;
 }
@@ -357,11 +357,147 @@ function chargesForMonth(month, cardId = null) {
 }
 function cardUsed(cardId) { return Core.cardUsed(expenses, settlements, cardId); }
 function setMonth(value) { $('month-picker').value = value; transactionPage = 1; render(); }
-function showToast(message) {
+function showToast(message, tone = 'info') {
   $('toast').textContent = message;
+  $('toast').dataset.tone = tone;
   $('toast').classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => $('toast').classList.remove('show'), 2800);
+}
+const FIELD_ERROR_MESSAGES = {
+  description: 'Informe a descrição deste registro.',
+  amount: 'Informe um valor maior que zero.',
+  category: 'Escolha uma categoria para o registro.',
+  payment: 'Escolha a forma de pagamento ou recebimento.',
+  'card-select': 'Selecione o cartão usado neste registro.',
+  installments: 'Escolha o número de parcelas.',
+  'first-date': 'Informe a data do primeiro pagamento ou recebimento.',
+  'card-name': 'Informe o nome do cartão.',
+  'card-bank': 'Selecione o banco ou emissor do cartão.',
+  'card-bank-other': 'Digite o nome do banco.',
+  'card-limit': 'Informe um limite maior que zero.',
+  'card-due-day': 'Informe um dia de vencimento entre 1 e 31.',
+  'funding-card': 'Selecione outro cartão para pagar esta fatura.',
+  'realization-date': 'Informe a data do pagamento ou recebimento.',
+  'budget-category': 'Escolha uma categoria para o orçamento.',
+  'budget-amount': 'Informe um limite maior que zero.',
+};
+function fieldValidationTarget(control) {
+  return control.matches('select[aria-hidden="true"]') ? $(`${control.id}-trigger`) || control : control;
+}
+function fieldValidationMessage(control) {
+  const value = String(control.value || '').trim();
+  const id = control.id;
+  if (control.required && !value) return FIELD_ERROR_MESSAGES[id] || 'Preencha este campo.';
+  if (['amount', 'card-limit', 'budget-amount'].includes(id) && parseCurrencyInput(value) <= 0) return FIELD_ERROR_MESSAGES[id];
+  if (id === 'card-due-day') {
+    const day = Number(value);
+    if (!Number.isInteger(day) || day < 1 || day > 31) return FIELD_ERROR_MESSAGES[id];
+  }
+  if (id === 'first-date' && $('record-status').value === 'realized' && value > localDateKey()) return 'A data do registro não pode ser futura quando ele já está pago ou recebido.';
+  if (id === 'realization-date' && value > localDateKey()) return 'A data de confirmação não pode ser futura.';
+  if (!control.validity.valid) {
+    if (control.validity.rangeOverflow && control.type === 'date') return 'Informe uma data igual ou anterior a hoje.';
+    if (control.validity.rangeUnderflow && id === 'card-due-day') return FIELD_ERROR_MESSAGES[id];
+    if (control.validity.typeMismatch) return 'Confira o formato informado.';
+    return FIELD_ERROR_MESSAGES[id] || 'Confira o valor informado.';
+  }
+  return '';
+}
+function clearFieldValidation(control, markValid = false) {
+  if (!control?.id) return;
+  const target = fieldValidationTarget(control);
+  const field = control.closest('.field') || target.closest('.field');
+  const errorId = `field-error-${control.id}`;
+  const hadError = Boolean(field?.classList.contains('has-error'));
+  $(errorId)?.remove();
+  field?.classList.remove('has-error', 'is-valid');
+  target.removeAttribute('aria-errormessage');
+  const descriptions = (target.getAttribute('aria-describedby') || '').split(/\s+/).filter((id) => id && id !== errorId);
+  if (descriptions.length) target.setAttribute('aria-describedby', descriptions.join(' '));
+  else target.removeAttribute('aria-describedby');
+  if (hadError && markValid) {
+    target.setAttribute('aria-invalid', 'false');
+    field?.classList.add('is-valid');
+  } else target.removeAttribute('aria-invalid');
+}
+function setFieldValidationError(control, message) {
+  const target = fieldValidationTarget(control);
+  const field = control.closest('.field') || target.closest('.field');
+  if (!field) { showToast(message, 'error'); return; }
+  clearFieldValidation(control);
+  const error = document.createElement('span');
+  error.className = 'field-error-message';
+  error.id = `field-error-${control.id}`;
+  error.setAttribute('role', 'alert');
+  error.textContent = message;
+  field.append(error);
+  field.classList.add('has-error');
+  target.setAttribute('aria-invalid', 'true');
+  target.setAttribute('aria-errormessage', error.id);
+  const descriptions = new Set((target.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+  descriptions.add(error.id);
+  target.setAttribute('aria-describedby', [...descriptions].join(' '));
+}
+function clearFormValidation(form) {
+  form.querySelectorAll('.field-error-message').forEach((error) => error.remove());
+  form.querySelectorAll('.field.has-error,.field.is-valid').forEach((field) => field.classList.remove('has-error', 'is-valid'));
+  form.querySelectorAll('[aria-invalid],[aria-errormessage]').forEach((control) => {
+    control.removeAttribute('aria-invalid');
+    control.removeAttribute('aria-errormessage');
+    const descriptions = (control.getAttribute('aria-describedby') || '').split(/\s+/).filter((id) => id && !id.startsWith('field-error-'));
+    if (descriptions.length) control.setAttribute('aria-describedby', descriptions.join(' '));
+    else control.removeAttribute('aria-describedby');
+  });
+  delete form.dataset.validationAttempted;
+}
+function validateForm(form) {
+  clearFormValidation(form);
+  const invalidTargets = [];
+  for (const control of form.querySelectorAll('input,select,textarea')) {
+    if (control.type === 'hidden' || control.disabled || control.closest('[hidden]')) continue;
+    const message = fieldValidationMessage(control);
+    if (!message) continue;
+    setFieldValidationError(control, message);
+    invalidTargets.push(fieldValidationTarget(control));
+  }
+  if (invalidTargets.length) {
+    invalidTargets[0].focus();
+    invalidTargets[0].scrollIntoView({ block: 'nearest' });
+    return false;
+  }
+  return true;
+}
+function refreshFieldValidation(control) {
+  if (!control?.matches('input,select,textarea') || control.type === 'hidden') return;
+  const field = control.closest('.field');
+  if (!field) return;
+  const message = fieldValidationMessage(control);
+  if (field.classList.contains('has-error')) {
+    if (message) setFieldValidationError(control, message);
+    else clearFieldValidation(control, true);
+  } else if (field.classList.contains('is-valid')) {
+    if (message) {
+      field.classList.remove('is-valid');
+      fieldValidationTarget(control).removeAttribute('aria-invalid');
+      if (control.form?.dataset.validationAttempted) setFieldValidationError(control, message);
+    }
+  } else if (message && control.form?.dataset.validationAttempted) setFieldValidationError(control, message);
+}
+function setupFormValidation() {
+  for (const form of document.querySelectorAll('form')) {
+    form.noValidate = true;
+    form.addEventListener('reset', () => clearFormValidation(form));
+    form.addEventListener('input', (event) => refreshFieldValidation(event.target));
+    form.addEventListener('change', (event) => refreshFieldValidation(event.target));
+    form.addEventListener('submit', (event) => {
+      if (!validateForm(form)) {
+        form.dataset.validationAttempted = 'true';
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }, true);
+  }
 }
 function materialIcon(name, className = '') {
   return `<span class="material-icons ${className}" aria-hidden="true">${escapeHtml(name)}</span>`;
@@ -709,7 +845,7 @@ function deleteIncome(id) {
   openDeleteConfirmation({ title: 'Excluir registro?', message: `“${entry.description}” ${entry.recurring === true ? 'e todas as suas ocorrências mensais serão removidas' : 'será removida'} e o saldo será recalculado. Essa ação não pode ser desfeita.`, confirmLabel: 'Excluir registro', onConfirm: () => {
     expenses = expenses.filter((item) => item.id !== id);
     settlements = settlements.filter(item=>item.expenseId!==id);
-    saveExpenses(); saveSettlements(); render(); showToast('Registro excluído.');
+    saveExpenses(); saveSettlements(); render(); showToast('Registro excluído.', 'success');
   } });
 }
 function populateCardSelect(select, excludeId = '') {
@@ -791,11 +927,14 @@ function submitExpense(event) {
   const payment = $('payment').value;
   const cardId = payment === 'Cartão' ? $('card-select').value : '';
   const chosenCard = cardById(cardId);
-  if (payment === 'Cartão' && !chosenCard) { showToast('Cadastre um cartão antes de lançar uma compra no crédito.'); return; }
+  if (payment === 'Cartão' && !chosenCard) {
+    setFieldValidationError(cards.length ? $('card-select') : $('payment'), cards.length ? FIELD_ERROR_MESSAGES['card-select'] : 'Cadastre um cartão antes de registrar uma compra no crédito.');
+    return;
+  }
   const cardMode = payment === 'Cartão' ? recurring ? 'À vista' : $('card-mode').value : '';
   const installments = payment === 'Cartão' && cardMode === 'Parcelado' ? Number($('installments').value) : 1;
   const amount = Math.round(parseCurrencyInput($('amount').value) * 100) / 100;
-  if (!(amount > 0)) { showToast('Informe um valor maior que zero.'); return; }
+  if (!(amount > 0)) { setFieldValidationError($('amount'), FIELD_ERROR_MESSAGES.amount); return; }
   if (previous?.recurring === true && $('edit-scope').value === 'month') { submitMonthlyOverride(previous, amount, chosenCard); return; }
   const expense = {
     ...previous,
@@ -803,16 +942,17 @@ function submitExpense(event) {
     category: $('category').value, payment, cardId, card: chosenCard?.name || '', cardMode, installments,
     firstDate: $('first-date').value, notes: $('notes').value.trim(), type, recurring, status: payment==='Cartão' ? 'planned' : previous?.recurring === true ? previous.status || 'planned' : $('record-status').value, recurringUntil,
   };
-  if (!expense.description || (expense.status === 'realized' && expense.firstDate > localDateKey())) { showToast('Confira a descrição e a data de recebimento.'); return; }
-  if (recurringUntil && expense.firstDate.slice(0,7) > recurringUntil) { showToast('A data inicial precisa ser anterior ao encerramento da repetição.'); return; }
-  if (previous?.recurring === true && recurringUntil && settlements.some(payment => payment.expenseId === previous.id && monthKey(Core.installmentDate(previous.firstDate, Number(payment.installmentIndex))) > recurringUntil)) { showToast('Há liquidações posteriores. Encerre a repetição no último mês já liquidado ou depois dele.'); return; }
+  if (!expense.description) { setFieldValidationError($('description'), FIELD_ERROR_MESSAGES.description); return; }
+  if (expense.status === 'realized' && expense.firstDate > localDateKey()) { setFieldValidationError($('first-date'), 'A data do registro não pode ser futura quando ele já está pago ou recebido.'); return; }
+  if (recurringUntil && expense.firstDate.slice(0,7) > recurringUntil) { setFieldValidationError($('first-date'), 'A data inicial precisa ser anterior ao encerramento da repetição.'); return; }
+  if (previous?.recurring === true && recurringUntil && settlements.some(payment => payment.expenseId === previous.id && monthKey(Core.installmentDate(previous.firstDate, Number(payment.installmentIndex))) > recurringUntil)) { showToast('Há liquidações posteriores a esse mês. Encerre a repetição no último mês já liquidado ou depois dele.', 'error'); return; }
   const existing = expenses.findIndex((item) => item.id === expense.id);
   const authorizedEdit = existing >= 0 && settlementResetOnSave === expense.id;
   const financialState = entry => JSON.stringify([Math.round(Number(entry.amount) * 100), entry.firstDate, entry.payment, entry.cardId || '', entry.type || 'expense', Number(entry.installments) || 1, entry.recurring === true]);
   const financialChange = previous && financialState(previous) !== financialState(expense);
   const resetsSettlements = authorizedEdit && (!previous?.recurring || financialChange);
   if (existing >= 0 && settlements.some((item) => item.expenseId === expense.id) && !authorizedEdit) {
-    showToast('Confirme a edição de uma compra com pagamentos antes de salvar.');
+    showToast('Confirme a edição antes de salvar uma compra que já tem pagamentos.', 'error');
     return;
   }
   if (resetsSettlements) {
@@ -825,7 +965,7 @@ function submitExpense(event) {
   saveExpenses();
   $('expense-dialog').close();
   setMonth(previous?.recurring === true ? selectedMonth() : monthKey(dateFromKey(expense.firstDate)));
-  showToast(resetsSettlements ? 'Registro atualizado. Os pagamentos anteriores foram removidos.' : existing >= 0 ? 'Registro atualizado.' : 'Registro salvo.');
+  showToast(resetsSettlements ? 'Registro atualizado. Os pagamentos anteriores foram removidos.' : existing >= 0 ? 'Registro atualizado.' : 'Registro salvo.', 'success');
 }
 function openDeleteConfirmation({ eyebrow = 'CONFIRME A EXCLUSÃO', title, message, confirmLabel, confirmClass = 'danger-button', onConfirm }) {
   $('confirm-dialog-eyebrow').textContent = eyebrow;
@@ -862,7 +1002,7 @@ function deleteExpense(id) {
       saveExpenses();
       saveSettlements();
       render();
-      showToast('Registro excluído.');
+      showToast('Registro excluído.', 'success');
     },
   });
 }
@@ -898,9 +1038,13 @@ function submitCard(event) {
   const bank = selectedBank === OTHER_BANK_VALUE ? $('card-bank-other').value.trim() : bankInfo(selectedBank).name;
   const limit = Math.round(parseCurrencyInput($('card-limit').value) * 100) / 100;
   const dueDay = Number($('card-due-day').value);
-  if (!name || !selectedBank || (selectedBank === OTHER_BANK_VALUE && !bank) || !(limit > 0) || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) { showToast('Preencha nome, banco, limite e um dia de vencimento entre 1 e 31.'); return; }
+  if (!name) { setFieldValidationError($('card-name'), FIELD_ERROR_MESSAGES['card-name']); return; }
+  if (!selectedBank) { setFieldValidationError($('card-bank'), FIELD_ERROR_MESSAGES['card-bank']); return; }
+  if (selectedBank === OTHER_BANK_VALUE && !bank) { setFieldValidationError($('card-bank-other'), FIELD_ERROR_MESSAGES['card-bank-other']); return; }
+  if (!(limit > 0)) { setFieldValidationError($('card-limit'), FIELD_ERROR_MESSAGES['card-limit']); return; }
+  if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) { setFieldValidationError($('card-due-day'), FIELD_ERROR_MESSAGES['card-due-day']); return; }
   const id = $('card-id').value || createId('card');
-  if (cards.some((card) => card.id !== id && card.name.toLocaleLowerCase('pt-BR') === name.toLocaleLowerCase('pt-BR'))) { showToast('Já existe um cartão com esse nome.'); return; }
+  if (cards.some((card) => card.id !== id && card.name.toLocaleLowerCase('pt-BR') === name.toLocaleLowerCase('pt-BR'))) { setFieldValidationError($('card-name'), 'Já existe um cartão com esse nome.'); return; }
   const updated = { id, name, bank, limit, dueDay };
   const index = cards.findIndex((card) => card.id === id);
   if (index >= 0) cards[index] = updated; else cards.push(updated);
@@ -908,28 +1052,29 @@ function submitCard(event) {
   saveCards(); saveExpenses();
   $('card-dialog').close();
   render();
-  showToast(index >= 0 ? 'Cartão atualizado.' : 'Cartão salvo.');
+  showToast(index >= 0 ? 'Cartão atualizado.' : 'Cartão salvo.', 'success');
 }
 function deleteCard(id) {
   const card = cardById(id);
   if (!card) return;
-  if (expenses.some((expense) => expense.cardId === id) || settlements.some((payment) => payment.sourceCardId === id || payment.targetCardId === id)) { showToast('Este cartão está ligado a compras ou pagamentos e não pode ser excluído.'); return; }
+  if (expenses.some((expense) => expense.cardId === id) || settlements.some((payment) => payment.sourceCardId === id || payment.targetCardId === id)) { showToast('Este cartão ainda está vinculado a compras ou pagamentos. Remova esses vínculos antes de excluí-lo.', 'error'); return; }
   openDeleteConfirmation({
     title: 'Excluir cartão?',
     message: `O cartão “${card.name}” será removido. Essa ação não pode ser desfeita.`,
     confirmLabel: 'Excluir cartão',
     onConfirm: () => {
       cards = cards.filter((item) => item.id !== id);
-      saveCards(); render(); showToast('Cartão excluído.');
+      saveCards(); render(); showToast('Cartão excluído.', 'success');
     },
   });
 }
 function startSettlement(charges) {
   const payable = charges.filter((charge) => charge.remaining > 0);
-  if (!payable.length) { showToast('Não há cobranças em aberto para liquidar.'); return; }
+  if (!payable.length) { showToast('Não há cobranças em aberto para liquidar.', 'info'); return; }
   const targetCardId = payable[0].expense.cardId;
-  if (payable.some((charge) => charge.expense.cardId !== targetCardId)) { showToast('Selecione cobranças de um mesmo cartão.'); return; }
+  if (payable.some((charge) => charge.expense.cardId !== targetCardId)) { showToast('Selecione cobranças de um único cartão para liquidar a fatura.', 'error'); return; }
   settlementTarget = { cardId: targetCardId, month: selectedMonth(), charges: payable.map((charge) => ({ expenseId: charge.expense.id, installmentIndex: charge.index })) };
+  clearFormValidation($('settlement-form'));
   const total = payable.reduce((sum, charge) => sum + charge.remaining, 0);
   $('settlement-summary').textContent = `${cardById(targetCardId)?.name || 'Cartão'} · ${monthLabel(selectedMonth())} · ${currency.format(total)}${payable.length === 1 ? ' nesta cobrança' : ` em ${payable.length} cobranças`}`;
   populateCardSelect($('funding-card'), targetCardId);
@@ -958,7 +1103,12 @@ function confirmSettlement(event) {
   const method = $('settlement-method').value;
   const sourceCardId = method === 'Cartão' ? $('funding-card').value : '';
   const sourceCard = cardById(sourceCardId);
-  if (method === 'Cartão' && (!sourceCard || sourceCard.id === targetCard?.id)) { showToast('Escolha outro cartão cadastrado para pagar esta fatura.'); return; }
+  if (method === 'Cartão' && !sourceCard) {
+    const hasOtherCard = cards.some((card) => card.id !== targetCard?.id);
+    setFieldValidationError(hasOtherCard ? $('funding-card') : $('settlement-method'), hasOtherCard ? FIELD_ERROR_MESSAGES['funding-card'] : 'Cadastre outro cartão antes de escolher essa forma de pagamento.');
+    return;
+  }
+  if (method === 'Cartão' && sourceCard.id === targetCard?.id) { setFieldValidationError($('funding-card'), 'Use um cartão diferente daquele cuja fatura está sendo paga.'); return; }
   const payable = settlementTarget.charges.map((item) => {
     const root = expenses.find((entry) => entry.id === item.expenseId);
     const expense = root && Core.occurrenceEntry(root,item.installmentIndex);
@@ -966,7 +1116,7 @@ function confirmSettlement(event) {
     return expense ? { ...item, expense, index: item.installmentIndex, amount: remaining, remaining } : null;
   }).filter((item) => item && item.amount > 0);
   const total = payable.reduce((sum, item) => sum + item.amount, 0);
-  if (!total) { $('settlement-dialog').close(); render(); showToast('Essas cobranças já foram liquidadas.'); return; }
+  if (!total) { $('settlement-dialog').close(); render(); showToast('Essas cobranças já foram liquidadas.', 'info'); return; }
   const batchId = createId('payment');
   const paidAt = localDateKey();
   const allocations = Core.allocateFullPayment(payable);
@@ -986,7 +1136,7 @@ function confirmSettlement(event) {
   $('settlement-dialog').close();
   settlementTarget = null;
   render();
-  showToast(`Pagamento de ${currency.format(total)} registrado via ${method}.`);
+  showToast(`Pagamento de ${currency.format(total)} registrado via ${method}.`, 'success');
 }
 function exportBackup() {
   const blob = new Blob([JSON.stringify({ app: 'MeuGasto', version: 3, exportedAt: new Date().toISOString(), expenses, cards, settlements, budgets }, null, 2)], { type: 'application/json' });
@@ -995,7 +1145,7 @@ function exportBackup() {
   link.download = `meugasto-backup-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(link.href);
-  showToast('Backup baixado.');
+  showToast('Backup baixado.', 'success');
 }
 async function importBackup(file) {
   try {
@@ -1010,11 +1160,12 @@ async function importBackup(file) {
     saveBudgets();
     migrateLegacyCardLinks();
     saveExpenses(); saveCards(); saveSettlements(); render();
-    showToast('Backup importado.');
-  } catch { showToast('Não foi possível ler esse backup. Selecione um arquivo exportado pelo app.'); }
+    showToast('Backup importado.', 'success');
+  } catch { showToast('Não foi possível importar esse arquivo. Confira se ele foi exportado pelo MeuGasto e tente novamente.', 'error'); }
   finally { $('import-file').value = ''; }
 }
 function initialize() {
+  setupFormValidation();
   setupEnhancements();
   $('sidebar-toggle').addEventListener('click', () => setSidebarCollapsed(!document.querySelector('.app-shell').classList.contains('sidebar-collapsed')));
   $('month-picker').value = monthKey(new Date());

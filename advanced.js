@@ -50,7 +50,7 @@ function startRealization(id,index) {
     openDeleteConfirmation({eyebrow:'CONFIRME A ALTERAÇÃO',title:income ? 'Reabrir receita?' : 'Reabrir despesa?',message:`“${charge.expense.description}” voltará a ficar em aberto somente neste mês. O valor previsto será mantido e a confirmação de ${income ? 'recebimento' : 'pagamento'} será removida.`,confirmLabel:'Reabrir registro',confirmClass:'add-button',onConfirm:()=>{
       root.realizationStates = {...root.realizationStates,[index]:'planned'};
       settlements = settlements.filter(payment=>payment.expenseId!==id || Number(payment.installmentIndex)!==index);
-      saveExpenses(); saveSettlements(); render(); showToast('Registro reaberto.');
+      saveExpenses(); saveSettlements(); render(); showToast('Registro reaberto.', 'success');
     }});
     return;
   }
@@ -60,6 +60,7 @@ function startRealization(id,index) {
   $('realization-summary').textContent = `${charge.expense.description} · ${currency.format(charge.amount)} · ${charge.expense.payment}`;
   $('realization-date').max = localDateKey();
   $('realization-date').value = localDateKey();
+  clearFormValidation($('realization-form'));
   $('realization-dialog').showModal();
 }
 function confirmRealization(event) {
@@ -68,32 +69,34 @@ function confirmRealization(event) {
   const {id,index,amount,income} = realizationTarget;
   const entry = expenses.find(item=>item.id===id);
   const date = $('realization-date').value;
-  if (!entry || !date || date > localDateKey()) return;
+  if (!entry) { showToast('Este registro não está mais disponível. Atualize a lista e tente novamente.', 'error'); return; }
+  if (!date) { setFieldValidationError($('realization-date'), FIELD_ERROR_MESSAGES['realization-date']); return; }
+  if (date > localDateKey()) { setFieldValidationError($('realization-date'), 'A data de confirmação não pode ser futura.'); return; }
   const effective = Core.occurrenceEntry(entry,index);
   // Replacing this occurrence's confirmation makes double submission harmless.
   settlements = settlements.filter(payment=>payment.expenseId!==id || Number(payment.installmentIndex)!==index);
   settlements.push({id:createId('cashflow'),expenseId:id,installmentIndex:index,amount,date,month:selectedMonth(),method:effective.payment,kind:income ? 'receipt' : 'cash-payment'});
   entry.realizationStates = {...entry.realizationStates,[index]:'confirmed'};
   saveExpenses(); saveSettlements(); $('realization-dialog').close(); realizationTarget=null; render();
-  showToast(income ? 'Recebimento confirmado.' : 'Pagamento confirmado.');
+  showToast(income ? 'Recebimento confirmado.' : 'Pagamento confirmado.', 'success');
 }
 function submitMonthlyOverride(previous, amount, chosenCard) {
   const month = selectedMonth(), index = occurrenceIndex(previous);
   const date = $('first-date').value;
-  if (index < 0 || date.slice(0,7)!==month) { showToast('Escolha uma data dentro do mês selecionado.'); return; }
+  if (index < 0 || date.slice(0,7)!==month) { setFieldValidationError($('first-date'), 'Escolha uma data dentro do mês selecionado.'); return; }
   const old = Core.occurrenceEntry(previous,index);
   const payment = $('payment').value;
   const override = {description:$('description').value.trim(),amount,category:$('category').value,payment,cardId:chosenCard?.id || '',card:chosenCard?.name || '',notes:$('notes').value.trim(),date,status:payment==='Cartão' ? 'planned' : $('record-status').value};
   const changed = Number(old.amount)!==amount || old.payment!==payment || (old.cardId || '')!==override.cardId || localDateKey(Core.occurrenceDate(previous,index))!==date;
   const linked = settlements.some(item=>item.expenseId===previous.id && Number(item.installmentIndex)===index);
-  if (linked && settlementResetOnSave!==previous.id) { showToast('Confirme a edição antes de alterar um mês já liquidado.'); return; }
+  if (linked && settlementResetOnSave!==previous.id) { showToast('Confirme a edição antes de alterar um mês já liquidado.', 'error'); return; }
   if (linked && (changed || override.status==='planned')) {
     settlements = settlements.filter(item=>item.expenseId!==previous.id || Number(item.installmentIndex)!==index);
     override.status='planned';
   }
   previous.overrides={...previous.overrides,[month]:override};
   previous.realizationStates={...previous.realizationStates,[index]:override.status==='planned' ? 'planned' : 'confirmed'};
-  saveExpenses(); saveSettlements(); $('expense-dialog').close(); render(); showToast('Somente este mês foi atualizado.');
+  saveExpenses(); saveSettlements(); $('expense-dialog').close(); render(); showToast('Somente este mês foi atualizado.', 'success');
 }
 function trendChartMarkup(series) {
   const largestValue=Math.max(0,...series.flatMap(item=>[item.projected.income,item.projected.expenses]));
@@ -191,8 +194,8 @@ function setupEnhancements() {
   $('budget-amount').addEventListener('input',event=>formatCurrencyInput(event.currentTarget));
   $('budget-form').addEventListener('submit',event=>{
     event.preventDefault(); const amount=parseCurrencyInput($('budget-amount').value), name=$('budget-category').value;
-    if (!(amount>0)) { showToast('Informe um limite maior que zero.'); return; }
-    budgets=budgets.filter(item=>item.category!==name); budgets.push({category:name,amount}); saveBudgets(); $('budget-dialog').close(); render(); showToast('Orçamento salvo.');
+    if (!(amount>0)) { setFieldValidationError($('budget-amount'), FIELD_ERROR_MESSAGES['budget-amount']); return; }
+    budgets=budgets.filter(item=>item.category!==name); budgets.push({category:name,amount}); saveBudgets(); $('budget-dialog').close(); render(); showToast('Orçamento salvo.', 'success');
   });
   $('budget-list').addEventListener('click',event=>{
     const edit=event.target.closest('[data-budget-edit]'),remove=event.target.closest('[data-budget-delete]');
@@ -204,7 +207,7 @@ function setupEnhancements() {
   $('local-backups').addEventListener('click',()=>{ $('backups-dialog').showModal(); loadLocalBackups(); });
   $('create-backup').addEventListener('click',async()=>{
     $('create-backup').disabled=true;
-    try { await localDatabaseQueue; const response=await fetch('/api/backups',{method:'POST'}); if (!response.ok) throw new Error(); await loadLocalBackups(); showToast('Cópia local criada.'); }
+    try { await localDatabaseQueue; const response=await fetch('/api/backups',{method:'POST'}); if (!response.ok) throw new Error(); await loadLocalBackups(); showToast('Cópia local criada.', 'success'); }
     catch { $('backups-feedback').textContent='Não foi possível criar a cópia. Tente novamente.'; $('create-backup').disabled=false; }
   });
   $('backup-list').addEventListener('click',event=>{
@@ -219,7 +222,7 @@ function setupEnhancements() {
         const response=await fetch('/api/backups/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:button.dataset.restore})});
         if (!response.ok) throw new Error();
         if (!await restoreLocalDatabase()) throw new Error();
-        render(); await loadLocalBackups(); showToast('Cópia restaurada.');
+        render(); await loadLocalBackups(); showToast('Cópia restaurada.', 'success');
       } catch { $('backups-feedback').textContent='Não foi possível concluir a restauração. Reabra o app para conferir os dados locais.'; $('create-backup').disabled=false; }
       finally {
         restoringBackup=false; $('backup-list').inert=false;
