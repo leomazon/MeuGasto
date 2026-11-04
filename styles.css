@@ -317,8 +317,12 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .trend-column:focus-visible>.trend-bar-income,.trend-column:focus-visible>.trend-bar-expense{stroke:#21163a;stroke-width:2}
 .trend-bar-tooltip{opacity:0;pointer-events:none;transition:opacity .12s ease}
 .trend-column:hover .trend-bar-tooltip,.trend-column:focus-visible .trend-bar-tooltip{opacity:1}
-.trend-bar-tooltip rect{fill:#21163a;filter:drop-shadow(0 3px 5px rgba(20,12,42,.2))}
-.trend-bar-tooltip text{fill:#fff;font-size:12px;font-weight:700}
+.trend-bar-tooltip rect{fill:#f1eff5;filter:drop-shadow(0 3px 5px rgba(20,12,42,.12))}
+.trend-bar-tooltip text{fill:#393342;font-size:12px;font-weight:700}
+.trend-column-income .trend-bar-tooltip rect{fill:#e4f3eb}
+.trend-column-income .trend-bar-tooltip text{fill:#286b51}
+.trend-column-expense .trend-bar-tooltip rect{fill:#fde8e9}
+.trend-column-expense .trend-bar-tooltip text{fill:#a83240}
 .trend-month-label{fill:#625d6b;font-size:12px;font-weight:600}
 .budget-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}
 .budget-list>.empty-note{grid-column:1/-1}
