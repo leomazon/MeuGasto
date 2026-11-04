@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#26164d" />
+    <meta name="description" content="MeuGasto: um app simples para acompanhar despesas pessoais." />
+    <link rel="icon" type="image/svg+xml" href="meugasto-icon.svg" />
+    <title>MeuGasto</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Fechar menu lateral" aria-expanded="true" aria-controls="sidebar" title="Fechar menu lateral"><span aria-hidden="true">‹</span></button>
+      <aside class="sidebar" id="sidebar" aria-label="Navegação principal">
+        <a class="brand" href="#inicio" aria-label="MeuGasto, início">
+          <img class="brand-mark" src="meugasto-icon.svg" alt="" />
+          <span>MeuGasto</span>
+        </a>
+        <p class="nav-label">Seu espaço</p>
+        <nav class="main-nav">
+          <button class="nav-item active" data-view="inicio"><span aria-hidden="true">◫</span> Visão geral</button>
+          <button class="nav-item" data-view="lancamentos"><span aria-hidden="true">≡</span> Lançamentos</button>
+          <button class="nav-item" data-view="cartoes"><span aria-hidden="true">▰</span> Cartões</button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="privacy-note"><span aria-hidden="true">◉</span><p>Seus dados ficam neste navegador.</p></div>
+          <div class="backup-actions">
+            <button class="side-action" id="export-button">↓ <span>Baixar backup</span></button>
+            <button class="side-action" id="import-button">↑ <span>Importar backup</span></button>
+            <input id="import-file" type="file" accept="application/json,.json" hidden />
+          </div>
+          <span class="version">MeuGasto · MVP</span>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <h1 class="topbar-page-title" id="page-top-title">Visão geral</h1>
+          <div class="mobile-brand"><img class="brand-mark" src="meugasto-icon.svg" alt="" /> MeuGasto</div>
+          <div class="month-control">
+            <button id="prev-month" class="month-arrow" aria-label="Mês anterior">‹</button>
+            <div class="month-picker-display">
+              <label for="month-picker" class="sr-only">Mês de referência</label>
+              <input type="month" id="month-picker" />
+              <span class="month-long-label" id="month-long-label" hidden></span>
+            </div>
+            <button id="next-month" class="month-arrow" aria-label="Próximo mês">›</button>
+          </div>
+          <button class="add-button top-add" id="new-expense-top"><span aria-hidden="true">＋</span> Novo gasto</button>
+        </header>
+
+        <section class="page-heading" id="page-heading">
+          <div>
+            <p class="eyebrow" id="date-greeting">SEU RESUMO DO MÊS</p>
+            <h1 id="page-title">O dinheiro do mês, em foco.</h1>
+            <p class="heading-copy" id="page-copy">Um retrato claro dos seus gastos, do seu jeito.</p>
+          </div>
+          <div class="heading-orbit" aria-hidden="true"><span>R$</span><i></i><b></b></div>
+        </section>
+
+        <section class="overview-view" id="overview-view">
+          <div class="summary-row">
+            <article class="total-panel">
+              <div class="total-topline"><span>Gastos neste mês</span><span class="sparkle" aria-hidden="true">✳</span></div>
+              <strong id="month-total">R$ 0,00</strong>
+              <div class="total-footer"><span class="status-dot"></span><span id="entry-count">Nenhum gasto lançado</span></div>
+              <div class="total-insights">
+                <div class="total-insight"><span class="total-insight-label">Média por cobrança</span><strong id="average-charge">—</strong><small id="average-charge-count">Sem cobranças neste mês</small></div>
+              </div>
+              <div class="panel-curve" aria-hidden="true"></div>
+            </article>
+            <article class="payment-panel">
+              <div class="section-title-row"><div><h2>Forma de pagamento</h2><p class="eyebrow">PAGAMENTOS</p></div><span class="mini-icon" aria-hidden="true">◈</span></div>
+              <div class="payment-lines">
+                <div class="payment-line"><span class="pay-icon pix-icon" aria-hidden="true"><img class="pix-brand" src="pix-symbol.svg" alt="" /></span><div class="pay-label"><div class="pay-meta"><span>Pix</span><span class="payment-share" id="pix-share">0%</span></div><div class="progress-track"><i id="pix-bar"></i></div></div><strong id="pix-total">R$ 0,00</strong></div>
+                <div class="payment-line"><span class="pay-icon cash-icon" aria-hidden="true">💵</span><div class="pay-label"><div class="pay-meta"><span>Dinheiro</span><span class="payment-share" id="cash-share">0%</span></div><div class="progress-track"><i id="cash-bar"></i></div></div><strong id="cash-total">R$ 0,00</strong></div>
+                <div class="payment-line"><span class="pay-icon card-icon" aria-hidden="true">▰</span><div class="pay-label"><div class="pay-meta"><span>Cartão</span><span class="payment-share" id="card-share">0%</span></div><div class="progress-track"><i id="card-bar"></i></div></div><strong id="card-total">R$ 0,00</strong></div>
+              </div>
+              <p class="payment-foot" id="payment-foot">Seus pagamentos aparecem aqui conforme você registra os gastos.</p>
+            </article>
+          </div>
+
+          <div class="lower-grid">
+            <section class="category-panel">
+              <div class="section-title-row"><div><h2>Gastos por categoria</h2><p class="eyebrow">CATEGORIAS</p></div><button class="text-button" id="all-categories">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
+              <div id="category-list" class="category-list"></div>
+            </section>
+            <section class="recent-panel">
+              <div class="section-title-row"><div><h2>Últimos gastos</h2><p class="eyebrow">RECÉM-ADICIONADOS</p></div><button class="text-button" id="all-transactions">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
+              <div id="recent-list" class="recent-list"></div>
+            </section>
+          </div>
+          <section class="dashboard-card-section">
+            <div class="section-title-row"><div><p class="eyebrow">CRÉDITO DISPONÍVEL</p><h2>Seus cartões</h2></div><button class="text-button" id="manage-cards">Gerenciar cartões <span aria-hidden="true">↗</span></button></div>
+            <div id="dashboard-cards" class="dashboard-cards"></div>
+          </section>
+          <p class="local-footnote"><span aria-hidden="true">▣</span> Os dados são salvos apenas neste navegador. Baixe um backup para transferi-los ou guardá-los.</p>
+        </section>
+
+        <section class="transactions-view" id="transactions-view" hidden>
+          <div class="transactions-toolbar">
+            <label class="search-box transactions-search" id="transaction-search"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar gasto neste mês</span><input id="search-input" type="search" placeholder="Buscar gasto neste mês" /></label>
+            <button class="add-button top-add" id="new-expense"><span aria-hidden="true">＋</span> Novo gasto</button>
+          </div>
+          <div id="transactions-list" class="transactions-list"></div>
+          <div class="pagination-bar" aria-label="Paginação dos lançamentos">
+            <span class="pagination-count" id="transactions-count">Nenhum lançamento neste mês</span>
+            <div class="pagination-controls">
+              <label class="page-size-control">Itens por página<select id="page-size"><option value="10" selected>10</option><option value="20">20</option><option value="30">30</option><option value="50">50</option></select></label>
+              <button class="page-button" id="previous-page" type="button" aria-label="Página anterior">Anterior</button>
+              <span class="page-indicator" id="page-indicator">1 / 1</span>
+              <button class="page-button" id="next-page" type="button" aria-label="Próxima página">Próxima</button>
+            </div>
+          </div>
+          <p class="local-footnote"><span aria-hidden="true">▣</span> Os dados são salvos apenas neste navegador. Baixe um backup para transferi-los ou guardá-los.</p>
+        </section>
+
+        <section class="cards-view" id="cards-view" hidden>
+          <div class="section-title-row cards-heading"><div><p class="eyebrow">LIMITES E FATURAS</p><h2>Seus cartões</h2><p class="cards-intro">Acompanhe o limite comprometido e liquide as cobranças do mês.</p></div><button class="add-button" id="new-card"><span aria-hidden="true">＋</span> Adicionar cartão</button></div>
+          <div id="cards-list" class="cards-list"></div>
+          <p class="local-footnote"><span aria-hidden="true">▣</span> Os limites e pagamentos ficam salvos neste navegador.</p>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="expense-dialog" class="expense-dialog">
+      <form id="expense-form">
+        <div class="dialog-heading"><div><p class="eyebrow">NOVO REGISTRO</p><h2 id="dialog-title">Adicionar gasto</h2></div><button class="close-button" type="button" id="close-dialog" aria-label="Fechar">×</button></div>
+        <input type="hidden" id="expense-id" />
+        <label class="field full-field">O que foi?<input id="description" required maxlength="90" placeholder="Ex.: mercado, conta de luz" /></label>
+        <div class="field-row">
+          <label class="field">Valor total<input id="amount" required type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" /></label>
+          <label class="field">Categoria<select id="category" required></select></label>
+        </div>
+        <div class="field-row">
+          <label class="field">Como pagou?<select id="payment" required><option value="Pix">Pix</option><option value="Dinheiro">Dinheiro</option><option value="Cartão">Cartão</option></select></label>
+          <label class="field" id="card-mode-wrap">Tipo de compra<select id="card-mode"><option value="À vista">À vista</option><option value="Parcelado">Parcelado</option></select></label>
+        </div>
+        <div class="field-row conditional-row" id="card-details-row" hidden>
+          <label class="field" id="card-select-wrap">Cartão<select id="card-select"></select></label>
+          <label class="field" id="installments-wrap">Número de parcelas<select id="installments"></select></label>
+        </div>
+        <div class="field-row">
+          <label class="field">Data do primeiro pagamento<input id="first-date" type="date" required /></label>
+          <label class="field"><span>Observação <span class="optional">opcional</span></span><input id="notes" maxlength="120" placeholder="Uma nota curta" /></label>
+        </div>
+        <p class="installment-hint" id="installment-hint" hidden></p>
+        <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-dialog">Cancelar</button><button class="add-button" type="submit" id="save-expense">Salvar gasto</button></div>
+      </form>
+    </dialog>
+    <dialog id="card-dialog" class="expense-dialog">
+      <form id="card-form">
+        <div class="dialog-heading"><div><p class="eyebrow">CADASTRO DE CARTÃO</p><h2 id="card-dialog-title">Adicionar cartão</h2></div><button class="close-button" type="button" id="close-card-dialog" aria-label="Fechar">×</button></div>
+        <input type="hidden" id="card-id" />
+        <label class="field full-field">Nome do cartão<input id="card-name" required maxlength="50" placeholder="Ex.: Nubank Gold" /></label>
+        <div class="field-row">
+          <label class="field">Banco ou emissor<input id="card-bank" required maxlength="50" placeholder="Ex.: Nubank" /></label>
+          <label class="field">Limite total<input id="card-limit" type="number" required min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" /></label>
+        </div>
+        <label class="field full-field">Dia de vencimento mensal<input id="card-due-day" type="number" required min="1" max="31" step="1" inputmode="numeric" placeholder="Ex.: 10" /></label>
+        <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-card-dialog">Cancelar</button><button class="add-button" id="save-card" type="submit">Salvar cartão</button></div>
+      </form>
+    </dialog>
+    <dialog id="settlement-dialog" class="expense-dialog settlement-dialog">
+      <form id="settlement-form">
+        <div class="dialog-heading"><div><p class="eyebrow">PAGAMENTO DE FATURA</p><h2>Liquidar cobrança</h2></div><button class="close-button" type="button" id="close-settlement-dialog" aria-label="Fechar">×</button></div>
+        <p class="settlement-summary" id="settlement-summary"></p>
+        <label class="field full-field">Forma de pagamento<select id="settlement-method"><option value="Pix">Pix</option><option value="Cartão">Outro cartão</option></select></label>
+        <label class="field full-field" id="funding-card-wrap" hidden>Cartão usado para pagar<select id="funding-card"></select></label>
+        <p class="installment-hint" id="funding-card-hint" hidden>O valor pago será registrado como uma nova compra nesse cartão, mantendo o limite utilizado correto.</p>
+        <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-settlement">Cancelar</button><button class="add-button" type="submit">Confirmar pagamento</button></div>
+      </form>
+    </dialog>
+    <dialog id="delete-dialog" class="expense-dialog delete-dialog" aria-labelledby="delete-dialog-title" aria-describedby="delete-dialog-message">
+      <div class="delete-icon" aria-hidden="true">!</div>
+      <div class="dialog-heading"><div><p class="eyebrow" id="confirm-dialog-eyebrow">CONFIRME A EXCLUSÃO</p><h2 id="delete-dialog-title">Excluir item?</h2></div><button class="close-button" type="button" id="close-delete-dialog" aria-label="Fechar">×</button></div>
+      <p class="delete-message" id="delete-dialog-message"></p>
+      <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-delete" autofocus>Manter</button><button type="button" class="danger-button" id="confirm-delete">Excluir</button></div>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="finance-core.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

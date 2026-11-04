@@ -1,0 +1,560 @@
+const CATEGORY_DATA = [
+  { name: 'Moradia', icon: '🏠', color: '#8665da' },
+  { name: 'Alimentação', icon: '🍋', color: '#dc9b37' },
+  { name: 'Transporte', icon: '🚲', color: '#4a91b8' },
+  { name: 'Saúde', icon: '🌿', color: '#46977c' },
+  { name: 'Lazer', icon: '🎟️', color: '#d56c90' },
+  { name: 'Educação', icon: '📚', color: '#8871cb' },
+  { name: 'Compras', icon: '🛍️', color: '#cf805d' },
+  { name: 'Assinaturas', icon: '🎧', color: '#577ab4' },
+  { name: 'Contas', icon: '💡', color: '#c89b38' },
+  { name: 'Outros', icon: '✳️', color: '#8b8298' },
+];
+const STORAGE_KEY = 'meu-financeiro-v1'; // Keep the existing key so current expenses stay available.
+const CARD_STORAGE_KEY = 'meugasto-cards-v1';
+const PAYMENT_STORAGE_KEY = 'meugasto-card-payments-v1';
+const Core = window.FinanceCore;
+const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const $ = (id) => document.getElementById(id);
+let cards = loadCards();
+let expenses = loadExpenses();
+let settlements = loadSettlements();
+let view = 'inicio';
+let transactionPage = 1;
+let transactionPageSize = 10;
+let toastTimer;
+let settlementTarget = null;
+let pendingDelete = null;
+let settlementResetOnSave = null;
+
+function createId(prefix = 'item') { return crypto.randomUUID ? crypto.randomUUID() : `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+function loadCards() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(CARD_STORAGE_KEY) || '[]');
+    return Array.isArray(stored) ? stored.filter((item) => item && typeof item.id === 'string' && typeof item.name === 'string' && Number.isFinite(Number(item.limit)) && Number(item.limit) >= 0)
+      .map((item) => ({ ...item, dueDay: Number.isInteger(Number(item.dueDay)) && Number(item.dueDay) >= 1 && Number(item.dueDay) <= 31 ? Number(item.dueDay) : null })) : [];
+  } catch { return []; }
+}
+function loadExpenses() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return Array.isArray(stored) ? stored.filter(isValidExpense) : [];
+  } catch { return []; }
+}
+function loadSettlements() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(PAYMENT_STORAGE_KEY) || '[]');
+    return Array.isArray(stored) ? stored.filter((item) => item && typeof item.id === 'string' && typeof item.expenseId === 'string' && Number.isInteger(Number(item.installmentIndex)) && Number(item.amount) > 0) : [];
+  } catch { return []; }
+}
+function isValidExpense(item) {
+  return item && typeof item.id === 'string' && typeof item.description === 'string' && Number.isFinite(Number(item.amount)) && Number(item.amount) > 0 && Number.isInteger(Number(item.installments)) && Number(item.installments) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(item.firstDate);
+}
+function saveCards() { localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cards)); }
+function saveExpenses() { localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses)); }
+function saveSettlements() { localStorage.setItem(PAYMENT_STORAGE_KEY, JSON.stringify(settlements)); }
+function migrateLegacyCardLinks() {
+  let changed = false;
+  for (const expense of expenses) {
+    if (expense.payment !== 'Cartão' || expense.cardId) continue;
+    const oldName = String(expense.card || '').trim();
+    if (!oldName) continue;
+    let card = cards.find((item) => item.name.toLocaleLowerCase('pt-BR') === oldName.toLocaleLowerCase('pt-BR'));
+    if (!card) {
+      card = { id: createId('card'), name: oldName, bank: oldName, limit: 0 };
+      cards.push(card);
+    }
+    expense.cardId = card.id;
+    changed = true;
+  }
+  if (changed) { saveCards(); saveExpenses(); }
+}
+migrateLegacyCardLinks();
+function category(name) { return CATEGORY_DATA.find((item) => item.name === name) || CATEGORY_DATA.at(-1); }
+function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
+function dateFromKey(value) { const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day); }
+function localDateKey(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
+function dateLabel(date) { return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(date).replace('.', ''); }
+function monthLabel(value) { return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dateFromKey(`${value}-01`)); }
+function selectedMonth() { return $('month-picker').value || monthKey(new Date()); }
+function cardById(id) { return cards.find((item) => item.id === id); }
+function cardForExpense(expense) { return cardById(expense.cardId) || cards.find((item) => item.name === expense.card); }
+function chargeDate(expense, installmentIndex) {
+  return Core.installmentDate(expense.firstDate, installmentIndex);
+}
+function chargeAmount(expense, installmentIndex) {
+  return Core.installmentAmount(expense.amount, expense.installments, installmentIndex);
+}
+function settledFor(expenseId, installmentIndex) {
+  return settlements.filter((item) => item.expenseId === expenseId && Number(item.installmentIndex) === installmentIndex).reduce((sum, item) => sum + Number(item.amount), 0);
+}
+function chargeRemaining(expense, installmentIndex) { return Core.chargeRemaining(expense, installmentIndex, settlements); }
+function chargesForMonth(month, cardId = null) {
+  return Core.monthCharges(expenses, settlements, cardId, month);
+}
+function cardUsed(cardId) { return Core.cardUsed(expenses, settlements, cardId); }
+function setMonth(value) { $('month-picker').value = value; transactionPage = 1; render(); }
+function showToast(message) {
+  $('toast').textContent = message;
+  $('toast').classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $('toast').classList.remove('show'), 2800);
+}
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+}
+function expenseLabel(charge) {
+  const { expense, index } = charge;
+  const card = expense.payment === 'Cartão' ? cardForExpense(expense) : null;
+  const cardLabel = card ? ` · ${escapeHtml(card.name)}` : '';
+  return Number(expense.installments) > 1 ? `${index + 1}/${expense.installments} parcela${cardLabel}` : (expense.payment === 'Cartão' ? `${expense.cardMode || 'À vista'}${cardLabel}` : expense.payment);
+}
+function renderExpenseRow(charge, actions = false, categoryShare = null) {
+  const info = category(charge.expense.category);
+  const paymentCard = charge.expense.payment === 'Cartão' ? cardForExpense(charge.expense) : null;
+  const isPaid = charge.remaining <= 0;
+  const isOverdue = !isPaid && paymentCard?.dueDay && Core.isChargeOverdue(charge.date, paymentCard.dueDay, localDateKey());
+  const paymentStatus = isPaid ? '<span class="paid-tag">Liquidado</span>' : isOverdue ? '<span class="overdue-tag">Vencido</span>' : '';
+  const categoryShareMarkup = categoryShare === null ? '' : `<div class="category-share" role="img" aria-label="${escapeHtml(charge.expense.description)} corresponde a ${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria ${escapeHtml(charge.expense.category || 'Outros')}"><span class="category-share-track" aria-hidden="true"><i style="width:${categoryShare}%;background:${info.color}"></i></span><span class="category-share-label">${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria</span></div>`;
+  const settleButton = actions && charge.expense.payment === 'Cartão' && charge.remaining > 0
+    ? `<button class="row-settle-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Liquidar ${escapeHtml(charge.expense.description)}, parcela ${charge.index + 1}">Liquidar</button>` : '';
+  return `<div class="expense-row">
+    <span class="expense-emoji" aria-hidden="true">${info.icon}</span>
+    <div class="expense-name"><strong>${escapeHtml(charge.expense.description)}</strong><span>${escapeHtml(charge.expense.category)} · ${escapeHtml(expenseLabel(charge))}${charge.expense.notes ? ` · ${escapeHtml(charge.expense.notes)}` : ''} ${paymentStatus}</span>${categoryShareMarkup}</div>
+    ${actions ? `<span class="row-date">${dateLabel(charge.date)}</span><span class="row-payment">${escapeHtml(charge.expense.payment)}</span><strong class="expense-value">${currency.format(charge.remaining > 0 ? charge.remaining : charge.amount)}</strong><div class="row-actions">${settleButton}<button class="icon-button" aria-label="Editar ${escapeHtml(charge.expense.description)}" data-edit="${escapeHtml(charge.expense.id)}">✎</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(charge.expense.description)}" data-delete="${escapeHtml(charge.expense.id)}">×</button></div>` : `<strong class="expense-value">${currency.format(charge.amount)}</strong>`}
+  </div>`;
+}
+function renderOverview() {
+  const summary = Core.monthlyOverview(expenses, settlements, selectedMonth());
+  const { charges, total, pix, cash, card } = summary;
+  const average = Core.averageChargeSummary(charges);
+  $('month-total').textContent = currency.format(total);
+  $('entry-count').textContent = charges.length === 0 ? 'Nenhum gasto lançado' : `${charges.length} cobrança${charges.length === 1 ? '' : 's'} neste mês`;
+  $('average-charge').textContent = average.chargeCount ? currency.format(average.averageCharge) : '—';
+  $('average-charge-count').textContent = average.chargeCount ? `em ${average.chargeCount} cobrança${average.chargeCount === 1 ? '' : 's'}` : 'Sem cobranças neste mês';
+  $('pix-total').textContent = currency.format(pix);
+  $('cash-total').textContent = currency.format(cash);
+  $('card-total').textContent = currency.format(card);
+  $('pix-bar').style.width = total ? `${(pix / total) * 100}%` : '0%';
+  $('cash-bar').style.width = total ? `${(cash / total) * 100}%` : '0%';
+  $('card-bar').style.width = total ? `${(card / total) * 100}%` : '0%';
+  const pixShare = total ? Math.round((pix / total) * 100) : 0;
+  const cashShare = total ? Math.round((cash / total) * 100) : 0;
+  const cardShare = total ? Math.round((card / total) * 100) : 0;
+  $('pix-share').textContent = `${pixShare}%`;
+  $('cash-share').textContent = `${cashShare}%`;
+  $('card-share').textContent = `${cardShare}%`;
+  $('payment-foot').textContent = total ? `Distribuição dos ${currency.format(total)} gastos neste mês.` : 'Seus pagamentos aparecem aqui conforme você registra os gastos.';
+  const categoryTotals = Core.categoryBreakdown(charges).map((item) => ({ ...category(item.category), name: item.category, total: item.amount })).filter((item) => item.total > 0);
+  $('category-list').innerHTML = categoryTotals.length ? categoryTotals.map((item) => {
+    const share = total ? Math.round((item.total / total) * 100) : 0;
+    return `<div class="category-item"><div class="category-chart-meta"><span class="category-emoji" aria-hidden="true">${item.icon}</span><span class="category-name">${escapeHtml(item.name)}</span><strong class="category-amount">${currency.format(item.total)}</strong><span class="category-share">${share}%</span></div><div class="category-track"><i style="width:${total ? (item.total / total) * 100 : 0}%;background:${item.color}"></i></div></div>`;
+  }).join('') : '<p class="empty-note">Seus gastos vão aparecer por categoria aqui.</p>';
+  const recentLimit = Math.max(5, categoryTotals.length);
+  const recentCharges = [...charges].sort((a, b) => b.date - a.date
+    || expenses.indexOf(b.expense) - expenses.indexOf(a.expense)
+    || b.index - a.index);
+  $('recent-list').innerHTML = recentCharges.length ? recentCharges.slice(0, recentLimit).map((charge) => renderExpenseRow(charge)).join('') : '<p class="empty-note">Comece adicionando seu primeiro gasto.</p>';
+  renderDashboardCards();
+}
+function renderDashboardCards() {
+  if (!cards.length) {
+    $('dashboard-cards').innerHTML = '<p class="empty-note">Cadastre seus cartões para acompanhar limites e faturas.</p>';
+    return;
+  }
+  $('dashboard-cards').innerHTML = cards.map((card) => {
+    const used = cardUsed(card.id);
+    const limit = Number(card.limit) || 0;
+    const percent = limit ? Math.min(100, Math.max(0, used / limit * 100)) : 0;
+    const available = limit - used;
+    return `<article class="dashboard-card"><span class="card-chip" aria-hidden="true">▰</span><div class="dashboard-card-info"><strong>${escapeHtml(card.name)}</strong><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><strong class="dashboard-card-available">${currency.format(available)}<small> disponível</small></strong><div class="card-progress"><i style="width:${percent}%"></i></div></article>`;
+  }).join('');
+}
+function renderTransactions() {
+  const query = $('search-input').value.trim().toLocaleLowerCase('pt-BR');
+  const allCharges = Core.transactionCharges(expenses, settlements, selectedMonth());
+  const shareByCharge = new Map(Core.categoryChargeShares(allCharges).map((share) => [`${share.expenseId}::${share.installmentIndex}`, share.percent]));
+  const charges = allCharges.filter((charge) => {
+    const card = cardForExpense(charge.expense);
+    const haystack = `${charge.expense.description} ${charge.expense.category} ${charge.expense.payment} ${card?.name || ''} ${card?.bank || ''}`.toLocaleLowerCase('pt-BR');
+    return !query || haystack.includes(query);
+  });
+  const page = Core.paginate(charges, transactionPage, transactionPageSize);
+  transactionPage = page.page;
+  $('transactions-list').innerHTML = page.items.length ? page.items.map((charge) => renderExpenseRow(charge, true, shareByCharge.get(`${charge.expense.id}::${charge.index}`) ?? 0)).join('') : `<p class="empty-note">${query ? 'Nenhum gasto deste mês combina com essa busca.' : 'Ainda não há gastos neste mês.'}</p>`;
+  const firstItem = page.totalItems ? (page.page - 1) * page.pageSize + 1 : 0;
+  const lastItem = page.totalItems ? firstItem + page.items.length - 1 : 0;
+  $('transactions-count').textContent = page.totalItems ? `Exibindo ${firstItem}–${lastItem} de ${page.totalItems} lançamentos` : 'Nenhum lançamento neste mês';
+  $('page-indicator').textContent = `${page.page} / ${page.totalPages}`;
+  $('previous-page').disabled = page.page <= 1;
+  $('next-page').disabled = page.page >= page.totalPages;
+  $('page-size').value = String(transactionPageSize);
+}
+function cardMonthCharges(cardId, month = selectedMonth()) { return chargesForMonth(month, cardId).filter((charge) => charge.expense.payment === 'Cartão' && charge.remaining > 0); }
+function renderCardItem(card) {
+  const limit = Number(card.limit) || 0;
+  const used = cardUsed(card.id);
+  const available = limit - used;
+  const percentage = limit ? Math.min(100, Math.max(0, used / limit * 100)) : 0;
+  const monthlyCharges = chargesForMonth(selectedMonth(), card.id).filter((charge) => charge.expense.payment === 'Cartão');
+  const due = monthlyCharges.reduce((sum, charge) => sum + charge.remaining, 0);
+  const unpaid = monthlyCharges.filter((charge) => charge.remaining > 0);
+  const rows = monthlyCharges.length ? monthlyCharges.map((charge) => `<div class="bill-line"><div class="bill-description"><strong>${escapeHtml(charge.expense.description)}</strong><span>${charge.index + 1}/${charge.expense.installments} · ${dateLabel(charge.date)} · ${currency.format(charge.amount)}</span></div><strong>${charge.remaining <= 0 ? '<span class="paid-tag">Liquidado</span>' : currency.format(charge.remaining)}</strong>${charge.remaining > 0 ? `<button class="pay-charge-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}">Liquidar</button>` : ''}</div>`).join('') : '<p class="empty-note compact-empty">Nenhuma cobrança neste mês.</p>';
+  return `<article class="credit-card-card">
+    <div class="credit-card-top"><span class="card-chip" aria-hidden="true">▰</span><div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">✎</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">×</button></div></div>
+    <div class="limit-line"><span>Limite utilizado</span><strong>${currency.format(used)} <small>de ${currency.format(limit)}</small></strong></div>
+    <div class="card-progress large-progress"><i style="width:${percentage}%"></i></div>
+    <div class="limit-foot"><span>Disponível</span><strong class="${available < 0 ? 'over-limit' : ''}">${currency.format(available)}</strong></div>
+    <div class="bill-heading"><div><span>Fatura de ${escapeHtml(monthLabel(selectedMonth()))}</span><strong>${currency.format(due)}</strong></div><button class="add-button pay-bill-button" data-pay-bill="${escapeHtml(card.id)}" ${due <= 0 ? 'disabled' : ''}>Liquidar fatura</button></div>
+    <div class="bill-lines">${rows}</div>
+    ${unpaid.length ? `<p class="card-footnote">Cada liquidação libera do limite o valor pago. O restante em aberto continua comprometido.</p>` : ''}
+  </article>`;
+}
+function renderCards() {
+  $('cards-list').innerHTML = cards.length ? cards.map(renderCardItem).join('') : '<div class="cards-empty"><span class="empty-card-icon" aria-hidden="true">▰</span><h3>Cadastre seu primeiro cartão</h3><p>Informe o limite e vincule novas compras para acompanhar uso e faturas.</p><button class="add-button" data-create-card>＋ Adicionar cartão</button></div>';
+}
+function render() {
+  $('month-picker').setAttribute('aria-label', `Mês de referência: ${monthLabel(selectedMonth())}`);
+  const selectedMonthLabel = monthLabel(selectedMonth());
+  const selectedMonthTitle = selectedMonthLabel.charAt(0).toLocaleUpperCase('pt-BR') + selectedMonthLabel.slice(1);
+  $('month-long-label').textContent = selectedMonthTitle;
+  $('month-long-label').hidden = false;
+  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : 'Lançamentos';
+  $('new-expense-top').hidden = view === 'lancamentos';
+  document.querySelector('.app-shell').classList.toggle('transactions-active', view === 'lancamentos');
+  document.querySelector('.app-shell').classList.add('page-title-active');
+  $('date-greeting').textContent = `SEU RESUMO DE ${monthLabel(selectedMonth())}`;
+  $('page-heading').hidden = true;
+  $('overview-view').hidden = view !== 'inicio';
+  $('transactions-view').hidden = view !== 'lancamentos';
+  $('cards-view').hidden = view !== 'cartoes';
+  document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
+  renderOverview();
+  renderTransactions();
+  renderCards();
+}
+function populateCardSelect(select, excludeId = '') {
+  const eligible = cards.filter((card) => card.id !== excludeId);
+  select.innerHTML = eligible.length ? eligible.map((card) => `<option value="${escapeHtml(card.id)}">${escapeHtml(card.name)} · ${escapeHtml(card.bank)}</option>`).join('') : '<option value="">Cadastre um cartão primeiro</option>';
+}
+function openExpense(expense = null) {
+  $('expense-form').reset();
+  $('expense-id').value = expense?.id || '';
+  $('description').value = expense?.description || '';
+  $('amount').value = expense ? Number(expense.amount).toFixed(2) : '';
+  $('category').value = expense?.category || CATEGORY_DATA[0].name;
+  $('payment').value = expense?.payment || 'Pix';
+  $('card-mode').value = expense?.cardMode || (Number(expense?.installments) > 1 ? 'Parcelado' : 'À vista');
+  $('installments').value = String(expense?.installments || 2);
+  populateCardSelect($('card-select'));
+  $('card-select').value = expense?.cardId || cardForExpense(expense || {})?.id || cards[0]?.id || '';
+  $('first-date').value = expense?.firstDate || localDateKey();
+  $('notes').value = expense?.notes || '';
+  $('dialog-title').textContent = expense ? 'Editar gasto' : 'Adicionar gasto';
+  $('save-expense').textContent = expense ? 'Salvar alterações' : 'Salvar gasto';
+  updatePaymentFields();
+  $('expense-dialog').showModal();
+  $('description').focus();
+}
+function updatePaymentFields() {
+  const isCard = $('payment').value === 'Cartão';
+  const isInstallment = isCard && $('card-mode').value === 'Parcelado';
+  $('card-mode-wrap').hidden = !isCard;
+  $('card-details-row').hidden = !isCard;
+  $('installments-wrap').hidden = !isInstallment;
+  $('card-select').required = isCard;
+  $('card-select').disabled = isCard && cards.length === 0;
+  $('installment-hint').hidden = !isInstallment;
+  if (!isInstallment) return;
+  const amount = Math.max(0, Number($('amount').value) || 0);
+  const parts = Number($('installments').value) || 2;
+  $('installment-hint').textContent = amount ? `Serão lançadas ${parts} cobranças mensais de aproximadamente ${currency.format(amount / parts)}. O limite ficará comprometido pelo saldo total ainda em aberto.` : 'Informe o valor total para ver uma estimativa das parcelas.';
+}
+function submitExpense(event) {
+  event.preventDefault();
+  const payment = $('payment').value;
+  const cardId = payment === 'Cartão' ? $('card-select').value : '';
+  const chosenCard = cardById(cardId);
+  if (payment === 'Cartão' && !chosenCard) { showToast('Cadastre um cartão antes de lançar uma compra no crédito.'); return; }
+  const cardMode = payment === 'Cartão' ? $('card-mode').value : '';
+  const installments = payment === 'Cartão' && cardMode === 'Parcelado' ? Number($('installments').value) : 1;
+  const amount = Math.round(Number($('amount').value) * 100) / 100;
+  if (!(amount > 0)) { showToast('Informe um valor maior que zero.'); return; }
+  const expense = {
+    id: $('expense-id').value || createId('expense'), description: $('description').value.trim(), amount,
+    category: $('category').value, payment, cardId, card: chosenCard?.name || '', cardMode, installments,
+    firstDate: $('first-date').value, notes: $('notes').value.trim(), type: 'expense',
+  };
+  const existing = expenses.findIndex((item) => item.id === expense.id);
+  const resetsSettlements = existing >= 0 && settlementResetOnSave === expense.id;
+  if (existing >= 0 && settlements.some((item) => item.expenseId === expense.id) && !resetsSettlements) {
+    showToast('Confirme a edição de uma compra com pagamentos antes de salvar.');
+    return;
+  }
+  if (resetsSettlements) {
+    settlements = settlements.filter((item) => item.expenseId !== expense.id);
+    saveSettlements();
+    settlementResetOnSave = null;
+  }
+  if (existing >= 0) expenses[existing] = expense; else expenses.push(expense);
+  saveExpenses();
+  $('expense-dialog').close();
+  setMonth(monthKey(dateFromKey(expense.firstDate)));
+  showToast(resetsSettlements ? 'Gasto atualizado. Os pagamentos anteriores foram removidos.' : existing >= 0 ? 'Gasto atualizado.' : 'Gasto salvo.');
+}
+function openDeleteConfirmation({ eyebrow = 'CONFIRME A EXCLUSÃO', title, message, confirmLabel, confirmClass = 'danger-button', onConfirm }) {
+  $('confirm-dialog-eyebrow').textContent = eyebrow;
+  $('delete-dialog-title').textContent = title;
+  $('delete-dialog-message').textContent = message;
+  $('confirm-delete').textContent = confirmLabel;
+  $('confirm-delete').className = confirmClass;
+  pendingDelete = onConfirm;
+  $('delete-dialog').showModal();
+  $('cancel-delete').focus();
+}
+function confirmDelete() {
+  if (!pendingDelete) return;
+  const action = pendingDelete;
+  pendingDelete = null;
+  $('delete-dialog').close();
+  action();
+}
+function deleteExpense(id) {
+  const expense = expenses.find((item) => item.id === id);
+  if (!expense) return;
+  const linkedPayments = settlements.filter((item) => item.expenseId === id);
+  const charges = `${expense.installments} cobrança${expense.installments === 1 ? '' : 's'}`;
+  const paymentNotice = linkedPayments.length === 1 ? 'Também será removido 1 pagamento registrado.'
+    : linkedPayments.length > 1 ? `Também serão removidos ${linkedPayments.length} pagamentos registrados.` : '';
+  openDeleteConfirmation({
+    title: 'Excluir gasto?',
+    message: `“${expense.description}” e suas ${charges} serão removidas. ${paymentNotice} Essa ação não pode ser desfeita.`.replace(/\s+/g, ' '),
+    confirmLabel: 'Excluir gasto',
+    onConfirm: () => {
+      expenses = expenses.filter((item) => item.id !== id);
+      settlements = settlements.filter((item) => item.expenseId !== id);
+      saveExpenses();
+      saveSettlements();
+      render();
+      showToast('Gasto excluído.');
+    },
+  });
+}
+function requestExpenseEdit(expense) {
+  if (!expense) return;
+  const linkedPayments = settlements.filter((item) => item.expenseId === expense.id);
+  if (!linkedPayments.length) { openExpense(expense); return; }
+  openDeleteConfirmation({
+    eyebrow: 'CONFIRME A EDIÇÃO',
+    title: 'Editar compra liquidada?',
+    message: `A edição de “${expense.description}” removerá ${linkedPayments.length} pagamento${linkedPayments.length === 1 ? '' : 's'} vinculado${linkedPayments.length === 1 ? '' : 's'} e a compra voltará a ficar em aberto. Se você fechar o formulário sem salvar, os pagamentos serão mantidos.`,
+    confirmLabel: 'Editar compra',
+    confirmClass: 'add-button',
+    onConfirm: () => { settlementResetOnSave = expense.id; openExpense(expense); },
+  });
+}
+function openCardDialog(card = null) {
+  $('card-form').reset();
+  $('card-id').value = card?.id || '';
+  $('card-name').value = card?.name || '';
+  $('card-bank').value = card?.bank || '';
+  $('card-limit').value = card ? Number(card.limit).toFixed(2) : '';
+  $('card-due-day').value = card?.dueDay || '';
+  $('card-dialog-title').textContent = card ? 'Editar cartão' : 'Adicionar cartão';
+  $('save-card').textContent = card ? 'Salvar alterações' : 'Salvar cartão';
+  $('card-dialog').showModal();
+  $('card-name').focus();
+}
+function submitCard(event) {
+  event.preventDefault();
+  const name = $('card-name').value.trim();
+  const bank = $('card-bank').value.trim();
+  const limit = Math.round(Number($('card-limit').value) * 100) / 100;
+  const dueDay = Number($('card-due-day').value);
+  if (!name || !bank || !(limit > 0) || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) { showToast('Preencha nome, banco, limite e um dia de vencimento entre 1 e 31.'); return; }
+  const id = $('card-id').value || createId('card');
+  if (cards.some((card) => card.id !== id && card.name.toLocaleLowerCase('pt-BR') === name.toLocaleLowerCase('pt-BR'))) { showToast('Já existe um cartão com esse nome.'); return; }
+  const updated = { id, name, bank, limit, dueDay };
+  const index = cards.findIndex((card) => card.id === id);
+  if (index >= 0) cards[index] = updated; else cards.push(updated);
+  for (const expense of expenses) if (expense.cardId === id) expense.card = name;
+  saveCards(); saveExpenses();
+  $('card-dialog').close();
+  render();
+  showToast(index >= 0 ? 'Cartão atualizado.' : 'Cartão salvo.');
+}
+function deleteCard(id) {
+  const card = cardById(id);
+  if (!card) return;
+  if (expenses.some((expense) => expense.cardId === id) || settlements.some((payment) => payment.sourceCardId === id || payment.targetCardId === id)) { showToast('Este cartão está ligado a compras ou pagamentos e não pode ser excluído.'); return; }
+  openDeleteConfirmation({
+    title: 'Excluir cartão?',
+    message: `O cartão “${card.name}” será removido. Essa ação não pode ser desfeita.`,
+    confirmLabel: 'Excluir cartão',
+    onConfirm: () => {
+      cards = cards.filter((item) => item.id !== id);
+      saveCards(); render(); showToast('Cartão excluído.');
+    },
+  });
+}
+function startSettlement(charges) {
+  const payable = charges.filter((charge) => charge.remaining > 0);
+  if (!payable.length) { showToast('Não há cobranças em aberto para liquidar.'); return; }
+  const targetCardId = payable[0].expense.cardId;
+  if (payable.some((charge) => charge.expense.cardId !== targetCardId)) { showToast('Selecione cobranças de um mesmo cartão.'); return; }
+  settlementTarget = { cardId: targetCardId, month: selectedMonth(), charges: payable.map((charge) => ({ expenseId: charge.expense.id, installmentIndex: charge.index })) };
+  const total = payable.reduce((sum, charge) => sum + charge.remaining, 0);
+  $('settlement-summary').textContent = `${cardById(targetCardId)?.name || 'Cartão'} · ${monthLabel(selectedMonth())} · ${currency.format(total)}${payable.length === 1 ? ' nesta cobrança' : ` em ${payable.length} cobranças`}`;
+  populateCardSelect($('funding-card'), targetCardId);
+  updateSettlementMethod();
+  $('settlement-dialog').showModal();
+}
+function startSettlementForCharge(expenseId, installmentIndex) {
+  const expense = expenses.find((item) => item.id === expenseId);
+  if (!expense || expense.payment !== 'Cartão') return;
+  const charge = chargesForMonth(selectedMonth(), expense.cardId).filter((item) => item.expense.id === expenseId && item.index === Number(installmentIndex));
+  startSettlement(charge);
+}
+function updateSettlementMethod() {
+  const byCard = $('settlement-method').value === 'Cartão';
+  $('funding-card-wrap').hidden = !byCard;
+  $('funding-card-hint').hidden = !byCard;
+  $('funding-card').required = byCard;
+  $('funding-card').disabled = byCard && cards.filter((card) => card.id !== settlementTarget?.cardId).length === 0;
+}
+function confirmSettlement(event) {
+  event.preventDefault();
+  if (!settlementTarget) return;
+  const targetCard = cardById(settlementTarget.cardId);
+  const method = $('settlement-method').value;
+  const sourceCardId = method === 'Cartão' ? $('funding-card').value : '';
+  const sourceCard = cardById(sourceCardId);
+  if (method === 'Cartão' && (!sourceCard || sourceCard.id === targetCard?.id)) { showToast('Escolha outro cartão cadastrado para pagar esta fatura.'); return; }
+  const payable = settlementTarget.charges.map((item) => {
+    const expense = expenses.find((entry) => entry.id === item.expenseId);
+    const remaining = expense ? chargeRemaining(expense, item.installmentIndex) : 0;
+    return expense ? { ...item, expense, index: item.installmentIndex, amount: remaining, remaining } : null;
+  }).filter((item) => item && item.amount > 0);
+  const total = payable.reduce((sum, item) => sum + item.amount, 0);
+  if (!total) { $('settlement-dialog').close(); render(); showToast('Essas cobranças já foram liquidadas.'); return; }
+  const batchId = createId('payment');
+  const paidAt = localDateKey();
+  const allocations = Core.allocateFullPayment(payable);
+  settlements.push(...allocations.map((allocation) => ({
+    id: createId('allocation'), batchId, ...allocation,
+    targetCardId: settlementTarget.cardId, date: paidAt, month: settlementTarget.month, method, sourceCardId,
+  })));
+  if (method === 'Cartão') {
+    expenses.push({
+      id: createId('transfer'), description: `Pagamento da fatura ${targetCard?.name || 'do cartão'}`,
+      amount: total, category: 'Outros', payment: 'Cartão', cardId: sourceCard.id, card: sourceCard.name,
+      cardMode: 'À vista', installments: 1, firstDate: paidAt, notes: 'Pagamento de fatura com outro cartão', type: 'debt-transfer',
+    });
+    saveExpenses();
+  }
+  saveSettlements();
+  $('settlement-dialog').close();
+  settlementTarget = null;
+  render();
+  showToast(`Pagamento de ${currency.format(total)} registrado via ${method}.`);
+}
+function exportBackup() {
+  const blob = new Blob([JSON.stringify({ app: 'MeuGasto', version: 2, exportedAt: new Date().toISOString(), expenses, cards, settlements }, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `meugasto-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  showToast('Backup baixado.');
+}
+async function importBackup(file) {
+  try {
+    const parsed = JSON.parse(await file.text());
+    const incoming = Array.isArray(parsed) ? parsed : parsed.expenses;
+    const incomingCards = Array.isArray(parsed.cards) ? parsed.cards : [];
+    const incomingSettlements = Array.isArray(parsed.settlements) ? parsed.settlements : [];
+    if (!Array.isArray(incoming) || !incoming.every(isValidExpense) || !incomingCards.every((card) => card && typeof card.id === 'string' && Number.isFinite(Number(card.limit)))) throw new Error('invalid');
+    if ((expenses.length || cards.length) && !window.confirm('Importar este backup vai substituir gastos, cartões e pagamentos atuais neste navegador. Continuar?')) return;
+    expenses = incoming; cards = incomingCards; settlements = incomingSettlements;
+    migrateLegacyCardLinks();
+    saveExpenses(); saveCards(); saveSettlements(); render();
+    showToast('Backup importado.');
+  } catch { showToast('Não foi possível ler esse backup. Selecione um arquivo exportado pelo app.'); }
+  finally { $('import-file').value = ''; }
+}
+function initialize() {
+  $('sidebar-toggle').addEventListener('click', () => {
+    const collapsed = document.querySelector('.app-shell').classList.toggle('sidebar-collapsed');
+    $('sidebar-toggle').setAttribute('aria-expanded', String(!collapsed));
+    $('sidebar-toggle').setAttribute('aria-label', collapsed ? 'Abrir menu lateral' : 'Fechar menu lateral');
+    $('sidebar-toggle').title = collapsed ? 'Abrir menu lateral' : 'Fechar menu lateral';
+  });
+  $('month-picker').value = monthKey(new Date());
+  $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
+  $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
+  populateCardSelect($('card-select'));
+  document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; render(); }));
+  $('new-expense-top').addEventListener('click', () => openExpense());
+  $('new-expense').addEventListener('click', () => openExpense());
+  $('new-card').addEventListener('click', () => openCardDialog());
+  $('manage-cards').addEventListener('click', () => { view = 'cartoes'; render(); });
+  $('all-categories').addEventListener('click', () => { view = 'lancamentos'; render(); });
+  $('all-transactions').addEventListener('click', () => { view = 'lancamentos'; render(); });
+  $('prev-month').addEventListener('click', () => { const date = dateFromKey(`${selectedMonth()}-01`); date.setMonth(date.getMonth() - 1); transactionPage = 1; setMonth(monthKey(date)); });
+  $('next-month').addEventListener('click', () => { const date = dateFromKey(`${selectedMonth()}-01`); date.setMonth(date.getMonth() + 1); transactionPage = 1; setMonth(monthKey(date)); });
+  $('month-picker').addEventListener('change', () => { transactionPage = 1; render(); });
+  $('search-input').addEventListener('input', () => { transactionPage = 1; renderTransactions(); });
+  $('page-size').addEventListener('change', () => { transactionPageSize = Number($('page-size').value); transactionPage = 1; renderTransactions(); });
+  $('previous-page').addEventListener('click', () => { transactionPage -= 1; renderTransactions(); });
+  $('next-page').addEventListener('click', () => { transactionPage += 1; renderTransactions(); });
+  $('close-dialog').addEventListener('click', () => $('expense-dialog').close());
+  $('cancel-dialog').addEventListener('click', () => $('expense-dialog').close());
+  $('expense-dialog').addEventListener('close', () => { settlementResetOnSave = null; });
+  $('expense-form').addEventListener('submit', submitExpense);
+  $('payment').addEventListener('change', updatePaymentFields);
+  $('card-mode').addEventListener('change', updatePaymentFields);
+  $('installments').addEventListener('change', updatePaymentFields);
+  $('amount').addEventListener('input', updatePaymentFields);
+  $('transactions-list').addEventListener('click', (event) => {
+    const edit = event.target.closest('[data-edit]');
+    const remove = event.target.closest('[data-delete]');
+    const payCharge = event.target.closest('[data-pay-charge]');
+    if (edit) requestExpenseEdit(expenses.find((item) => item.id === edit.dataset.edit));
+    if (remove) deleteExpense(remove.dataset.delete);
+    if (payCharge) {
+      const [expenseId, installmentIndex] = payCharge.dataset.payCharge.split('::');
+      startSettlementForCharge(expenseId, installmentIndex);
+    }
+  });
+  $('cards-list').addEventListener('click', (event) => {
+    const edit = event.target.closest('[data-edit-card]');
+    const remove = event.target.closest('[data-delete-card]');
+    const payBill = event.target.closest('[data-pay-bill]');
+    const payCharge = event.target.closest('[data-pay-charge]');
+    const create = event.target.closest('[data-create-card]');
+    if (edit) openCardDialog(cardById(edit.dataset.editCard));
+    if (remove) deleteCard(remove.dataset.deleteCard);
+    if (payBill) startSettlement(cardMonthCharges(payBill.dataset.payBill));
+    if (payCharge) {
+      const [expenseId, installmentIndex] = payCharge.dataset.payCharge.split('::');
+      startSettlementForCharge(expenseId, installmentIndex);
+    }
+    if (create) openCardDialog();
+  });
+  $('card-form').addEventListener('submit', submitCard);
+  $('close-card-dialog').addEventListener('click', () => $('card-dialog').close());
+  $('cancel-card-dialog').addEventListener('click', () => $('card-dialog').close());
+  $('close-settlement-dialog').addEventListener('click', () => $('settlement-dialog').close());
+  $('cancel-settlement').addEventListener('click', () => $('settlement-dialog').close());
+  $('close-delete-dialog').addEventListener('click', () => $('delete-dialog').close());
+  $('cancel-delete').addEventListener('click', () => $('delete-dialog').close());
+  $('confirm-delete').addEventListener('click', confirmDelete);
+  $('delete-dialog').addEventListener('close', () => { pendingDelete = null; });
+  $('settlement-method').addEventListener('change', updateSettlementMethod);
+  $('settlement-form').addEventListener('submit', confirmSettlement);
+  $('export-button').addEventListener('click', exportBackup);
+  $('import-button').addEventListener('click', () => $('import-file').click());
+  $('import-file').addEventListener('change', (event) => event.target.files[0] && importBackup(event.target.files[0]));
+  render();
+}
+initialize();

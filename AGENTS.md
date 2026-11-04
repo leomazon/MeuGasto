@@ -1,0 +1,9 @@
+# Contributing to MeuGasto
+
+Use test-driven development for new features and bug fixes. First add or update automated tests that describe the expected behavior and confirm they fail for the missing behavior. Then implement the smallest change that makes them pass.
+
+Whenever a bug is found, add a regression test that reproduces it before fixing it. Choose a unit test, an end-to-end test, or both based on where the failure occurs, and keep the regression test in the repository so the bug does not return.
+
+Use Node's built-in test runner for core logic tests and Playwright for browser end-to-end tests under `tests/e2e/`. Keep both kinds of tests in the repository. Before finishing a change, run the complete automated suite with `npm test` and `npm run test:e2e`. Install development dependencies with `npm install` and the E2E browser with `npx playwright install chromium` when needed.
+
+For visual design and UI styling work, use the project-local `frontend-design` skill in `.agents/skills/frontend-design/SKILL.md` to guide the design decisions and visual review.

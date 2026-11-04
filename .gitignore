@@ -1,0 +1,17 @@
+# Local app data and exported personal backups
+backups/
+data/
+meugasto-backup-*.json
+*.sqlite
+*.sqlite3
+*.db
+
+# Local development files
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+playwright-report/
+test-results/
