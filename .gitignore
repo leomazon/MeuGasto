@@ -4,10 +4,12 @@ data/
 meugasto-backup-*.json
 *.sqlite
 *.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
 *.db
 
 # Local development files
-node_modules/
+node_modules
 .env
 .env.*
 !.env.example
@@ -15,3 +17,5 @@ node_modules/
 .DS_Store
 playwright-report/
 test-results/
+__pycache__/
+*.py[cod]

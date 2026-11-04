@@ -1,14 +1,14 @@
 # MeuGasto — app web pessoal
 
-Um MVP sem contas, senhas, banco de dados ou serviços externos. As despesas ficam no `localStorage` do navegador usado para abrir o app.
+Um app web pessoal, sem contas ou serviços externos. O app roda no próprio computador e guarda os dados em um banco SQLite local.
 
 ## Como iniciar
 
 1. Baixe e extraia esta pasta.
-2. No terminal, entre nela e execute `python3 -m http.server 8000` ou clique no atalho **MeuGasto**.
-3. Abra `http://localhost:8000` no navegador.
+2. No terminal, entre nela e execute `python3 server.py`, ou clique no atalho **MeuGasto**.
+3. Abra `http://127.0.0.1:8000` no navegador.
 
-Também pode hospedar os arquivos estáticos em um servidor web próprio. O app não precisa de build nem de dependências.
+O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app somente em `127.0.0.1`, sem expor o banco para a rede. Não é necessário fazer build nem instalar dependências para executar o app.
 
 ## O que está incluído
 
@@ -19,15 +19,17 @@ Também pode hospedar os arquivos estáticos em um servidor web próprio. O app 
 - Categorias com ícones, edição e exclusão de lançamentos.
 - Compras no cartão à vista ou parceladas. O app distribui o valor total em cobranças mensais; a última parcela ajusta a diferença de centavos.
 - Exportação e importação de backup em JSON.
+- Filtros de lançamentos por categoria e intervalo de valores.
+- Campos de dinheiro formatados automaticamente em reais.
 - Layout adaptado para celular e computador.
 
 ## Onde ficam os dados
 
-Os dados são salvos automaticamente no armazenamento local do perfil do navegador e permanecem lá quando você fecha e abre o app novamente no mesmo PC e endereço. Eles não são enviados a um servidor, e não é preciso exportar/importar a cada sessão. Limpar os dados do navegador pode apagá-los; use **Baixar backup** para guardar uma cópia ou transferir os dados para outro navegador ou dispositivo.
+Os dados ficam no arquivo `~/.local/share/meugasto/meugasto.sqlite3`, fora da pasta do projeto e do repositório Git. Na primeira execução, o app migra automaticamente lançamentos, cartões e pagamentos do `localStorage` do navegador, se já houver dados. Depois disso, o SQLite é a fonte principal, então os dados continuam disponíveis mesmo que o armazenamento do navegador seja limpo. Use **Baixar backup** para guardar uma cópia ou transferi-la para outro computador.
 
 ## Testes
 
-As regras financeiras têm testes automatizados com o test runner embutido no Node.js. Os fluxos de navegador usam Playwright. Na pasta do app, execute `npm test` e `npm run test:e2e`. Para preparar o ambiente E2E, execute `npm install` e `npx playwright install chromium`. Ao desenvolver novas funcionalidades ou corrigir defeitos, escreva primeiro um teste que descreva o comportamento esperado, confirme que ele falha e só então implemente a mudança.
+As regras financeiras têm testes no Node.js, a persistência SQLite usa `unittest` do Python, e os fluxos de navegador usam Playwright. Na pasta do app, execute `npm test` e `npm run test:e2e`. Para preparar o ambiente E2E, execute `npm install` e `npx playwright install chromium`. Ao desenvolver novas funcionalidades ou corrigir defeitos, escreva primeiro um teste que descreva o comportamento esperado, confirme que ele falha e só então implemente a mudança.
 
 ## Próximas evoluções possíveis
 

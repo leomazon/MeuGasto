@@ -16,6 +16,28 @@ const PAYMENT_STORAGE_KEY = 'meugasto-card-payments-v1';
 const Core = window.FinanceCore;
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const $ = (id) => document.getElementById(id);
+function parseCurrencyInput(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits ? Number(digits) / 100 : 0;
+}
+function formatCurrencyInput(input) {
+  const previous = input.value;
+  const cursor = input.selectionStart ?? previous.length;
+  const digitsBeforeCursor = previous.slice(0, cursor).replace(/\D/g, '').length;
+  const digits = previous.replace(/\D/g, '');
+  input.value = digits ? currency.format(Number(digits) / 100) : '';
+  let nextCursor = input.value.length;
+  if (digitsBeforeCursor === 0 && digits.length) {
+    nextCursor = Math.max(0, input.value.search(/\d/));
+  } else if (digitsBeforeCursor < digits.length) {
+    let seenDigits = 0;
+    for (let index = 0; index < input.value.length; index += 1) {
+      if (/\d/.test(input.value[index])) seenDigits += 1;
+      if (seenDigits >= digitsBeforeCursor) { nextCursor = index + 1; break; }
+    }
+  }
+  input.setSelectionRange(nextCursor, nextCursor);
+}
 let cards = loadCards();
 let expenses = loadExpenses();
 let settlements = loadSettlements();
@@ -26,6 +48,8 @@ let toastTimer;
 let settlementTarget = null;
 let pendingDelete = null;
 let settlementResetOnSave = null;
+let localDatabaseEnabled = false;
+let localDatabaseQueue = Promise.resolve();
 
 function createId(prefix = 'item') { return crypto.randomUUID ? crypto.randomUUID() : `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
 function loadCards() {
@@ -50,9 +74,59 @@ function loadSettlements() {
 function isValidExpense(item) {
   return item && typeof item.id === 'string' && typeof item.description === 'string' && Number.isFinite(Number(item.amount)) && Number(item.amount) > 0 && Number.isInteger(Number(item.installments)) && Number(item.installments) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(item.firstDate);
 }
-function saveCards() { localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cards)); }
-function saveExpenses() { localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses)); }
-function saveSettlements() { localStorage.setItem(PAYMENT_STORAGE_KEY, JSON.stringify(settlements)); }
+function saveBrowserCache() {
+  localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cards));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+  localStorage.setItem(PAYMENT_STORAGE_KEY, JSON.stringify(settlements));
+}
+function clearBrowserCache() {
+  localStorage.removeItem(CARD_STORAGE_KEY);
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(PAYMENT_STORAGE_KEY);
+}
+function persistLocalDatabase() {
+  if (!localDatabaseEnabled) return Promise.resolve();
+  const state = JSON.stringify({ expenses, cards, settlements });
+  localDatabaseQueue = localDatabaseQueue.catch(() => {}).then(async () => {
+    const response = await fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: state,
+      keepalive: true,
+    });
+    if (!response.ok) throw new Error('save failed');
+  }).catch(() => {
+    localDatabaseEnabled = false;
+    saveBrowserCache();
+    showToast('Não foi possível atualizar o banco local. A cópia do navegador foi mantida.');
+  });
+  return localDatabaseQueue;
+}
+function saveCards() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cards)); }
+function saveExpenses() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses)); }
+function saveSettlements() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(PAYMENT_STORAGE_KEY, JSON.stringify(settlements)); }
+async function restoreLocalDatabase() {
+  try {
+    const response = await fetch('/api/state');
+    if (!response.ok) return;
+    const { initialized, state } = await response.json();
+    localDatabaseEnabled = true;
+    if (initialized) {
+      cards = state.cards.filter((item) => item && typeof item.id === 'string' && typeof item.name === 'string' && Number.isFinite(Number(item.limit)) && Number(item.limit) >= 0)
+        .map((item) => ({ ...item, dueDay: Number.isInteger(Number(item.dueDay)) && Number(item.dueDay) >= 1 && Number(item.dueDay) <= 31 ? Number(item.dueDay) : null }));
+      expenses = state.expenses.filter(isValidExpense);
+      settlements = state.settlements.filter((item) => item && typeof item.id === 'string' && typeof item.expenseId === 'string' && Number.isInteger(Number(item.installmentIndex)) && Number(item.amount) > 0);
+      clearBrowserCache();
+      migrateLegacyCardLinks();
+      render();
+    } else {
+      await persistLocalDatabase();
+      if (localDatabaseEnabled) clearBrowserCache();
+    }
+  } catch {
+    localDatabaseEnabled = false;
+  }
+}
 function migrateLegacyCardLinks() {
   let changed = false;
   for (const expense of expenses) {
@@ -174,14 +248,20 @@ function renderTransactions() {
   const query = $('search-input').value.trim().toLocaleLowerCase('pt-BR');
   const allCharges = Core.transactionCharges(expenses, settlements, selectedMonth());
   const shareByCharge = new Map(Core.categoryChargeShares(allCharges).map((share) => [`${share.expenseId}::${share.installmentIndex}`, share.percent]));
-  const charges = allCharges.filter((charge) => {
+  const searchedCharges = allCharges.filter((charge) => {
     const card = cardForExpense(charge.expense);
     const haystack = `${charge.expense.description} ${charge.expense.category} ${charge.expense.payment} ${card?.name || ''} ${card?.bank || ''}`.toLocaleLowerCase('pt-BR');
     return !query || haystack.includes(query);
   });
+  const charges = Core.filterTransactionCharges(searchedCharges, {
+    category: $('category-filter').value,
+    minAmount: $('amount-min').value.trim() ? parseCurrencyInput($('amount-min').value) : null,
+    maxAmount: $('amount-max').value.trim() ? parseCurrencyInput($('amount-max').value) : null,
+  });
   const page = Core.paginate(charges, transactionPage, transactionPageSize);
   transactionPage = page.page;
-  $('transactions-list').innerHTML = page.items.length ? page.items.map((charge) => renderExpenseRow(charge, true, shareByCharge.get(`${charge.expense.id}::${charge.index}`) ?? 0)).join('') : `<p class="empty-note">${query ? 'Nenhum gasto deste mês combina com essa busca.' : 'Ainda não há gastos neste mês.'}</p>`;
+  const hasFilters = query || $('category-filter').value || $('amount-min').value || $('amount-max').value;
+  $('transactions-list').innerHTML = page.items.length ? page.items.map((charge) => renderExpenseRow(charge, true, shareByCharge.get(`${charge.expense.id}::${charge.index}`) ?? 0)).join('') : `<p class="empty-note">${hasFilters ? 'Nenhum lançamento deste mês combina com a busca e os filtros.' : 'Ainda não há gastos neste mês.'}</p>`;
   const firstItem = page.totalItems ? (page.page - 1) * page.pageSize + 1 : 0;
   const lastItem = page.totalItems ? firstItem + page.items.length - 1 : 0;
   $('transactions-count').textContent = page.totalItems ? `Exibindo ${firstItem}–${lastItem} de ${page.totalItems} lançamentos` : 'Nenhum lançamento neste mês';
@@ -241,7 +321,7 @@ function openExpense(expense = null) {
   $('expense-form').reset();
   $('expense-id').value = expense?.id || '';
   $('description').value = expense?.description || '';
-  $('amount').value = expense ? Number(expense.amount).toFixed(2) : '';
+  $('amount').value = expense ? currency.format(Number(expense.amount)) : '';
   $('category').value = expense?.category || CATEGORY_DATA[0].name;
   $('payment').value = expense?.payment || 'Pix';
   $('card-mode').value = expense?.cardMode || (Number(expense?.installments) > 1 ? 'Parcelado' : 'À vista');
@@ -266,7 +346,7 @@ function updatePaymentFields() {
   $('card-select').disabled = isCard && cards.length === 0;
   $('installment-hint').hidden = !isInstallment;
   if (!isInstallment) return;
-  const amount = Math.max(0, Number($('amount').value) || 0);
+  const amount = parseCurrencyInput($('amount').value);
   const parts = Number($('installments').value) || 2;
   $('installment-hint').textContent = amount ? `Serão lançadas ${parts} cobranças mensais de aproximadamente ${currency.format(amount / parts)}. O limite ficará comprometido pelo saldo total ainda em aberto.` : 'Informe o valor total para ver uma estimativa das parcelas.';
 }
@@ -278,7 +358,7 @@ function submitExpense(event) {
   if (payment === 'Cartão' && !chosenCard) { showToast('Cadastre um cartão antes de lançar uma compra no crédito.'); return; }
   const cardMode = payment === 'Cartão' ? $('card-mode').value : '';
   const installments = payment === 'Cartão' && cardMode === 'Parcelado' ? Number($('installments').value) : 1;
-  const amount = Math.round(Number($('amount').value) * 100) / 100;
+  const amount = Math.round(parseCurrencyInput($('amount').value) * 100) / 100;
   if (!(amount > 0)) { showToast('Informe um valor maior que zero.'); return; }
   const expense = {
     id: $('expense-id').value || createId('expense'), description: $('description').value.trim(), amount,
@@ -358,7 +438,7 @@ function openCardDialog(card = null) {
   $('card-id').value = card?.id || '';
   $('card-name').value = card?.name || '';
   $('card-bank').value = card?.bank || '';
-  $('card-limit').value = card ? Number(card.limit).toFixed(2) : '';
+  $('card-limit').value = card ? currency.format(Number(card.limit)) : '';
   $('card-due-day').value = card?.dueDay || '';
   $('card-dialog-title').textContent = card ? 'Editar cartão' : 'Adicionar cartão';
   $('save-card').textContent = card ? 'Salvar alterações' : 'Salvar cartão';
@@ -369,7 +449,7 @@ function submitCard(event) {
   event.preventDefault();
   const name = $('card-name').value.trim();
   const bank = $('card-bank').value.trim();
-  const limit = Math.round(Number($('card-limit').value) * 100) / 100;
+  const limit = Math.round(parseCurrencyInput($('card-limit').value) * 100) / 100;
   const dueDay = Number($('card-due-day').value);
   if (!name || !bank || !(limit > 0) || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) { showToast('Preencha nome, banco, limite e um dia de vencimento entre 1 e 31.'); return; }
   const id = $('card-id').value || createId('card');
@@ -491,6 +571,7 @@ function initialize() {
   });
   $('month-picker').value = monthKey(new Date());
   $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
+  $('category-filter').innerHTML = '<option value="">Todas as categorias</option>' + CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${item.icon} ${escapeHtml(item.name)}</option>`).join('');
   $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
   populateCardSelect($('card-select'));
   document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; render(); }));
@@ -504,6 +585,20 @@ function initialize() {
   $('next-month').addEventListener('click', () => { const date = dateFromKey(`${selectedMonth()}-01`); date.setMonth(date.getMonth() + 1); transactionPage = 1; setMonth(monthKey(date)); });
   $('month-picker').addEventListener('change', () => { transactionPage = 1; render(); });
   $('search-input').addEventListener('input', () => { transactionPage = 1; renderTransactions(); });
+  $('category-filter').addEventListener('change', () => { transactionPage = 1; renderTransactions(); });
+  for (const id of ['amount-min', 'amount-max']) $(id).addEventListener('input', (event) => {
+    formatCurrencyInput(event.currentTarget);
+    transactionPage = 1;
+    renderTransactions();
+  });
+  $('clear-filters').addEventListener('click', () => {
+    $('search-input').value = '';
+    $('category-filter').value = '';
+    $('amount-min').value = '';
+    $('amount-max').value = '';
+    transactionPage = 1;
+    renderTransactions();
+  });
   $('page-size').addEventListener('change', () => { transactionPageSize = Number($('page-size').value); transactionPage = 1; renderTransactions(); });
   $('previous-page').addEventListener('click', () => { transactionPage -= 1; renderTransactions(); });
   $('next-page').addEventListener('click', () => { transactionPage += 1; renderTransactions(); });
@@ -514,7 +609,8 @@ function initialize() {
   $('payment').addEventListener('change', updatePaymentFields);
   $('card-mode').addEventListener('change', updatePaymentFields);
   $('installments').addEventListener('change', updatePaymentFields);
-  $('amount').addEventListener('input', updatePaymentFields);
+  $('amount').addEventListener('input', (event) => { formatCurrencyInput(event.currentTarget); updatePaymentFields(); });
+  $('card-limit').addEventListener('input', (event) => formatCurrencyInput(event.currentTarget));
   $('transactions-list').addEventListener('click', (event) => {
     const edit = event.target.closest('[data-edit]');
     const remove = event.target.closest('[data-delete]');
@@ -556,5 +652,6 @@ function initialize() {
   $('import-button').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', (event) => event.target.files[0] && importBackup(event.target.files[0]));
   render();
+  restoreLocalDatabase();
 }
 initialize();

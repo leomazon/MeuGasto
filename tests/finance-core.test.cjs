@@ -123,3 +123,14 @@ test('calculates each monthly charge share within its own category', () => {
     { expenseId: 'health', installmentIndex: 0, percent: 100 },
   ]);
 });
+
+test('filters monthly transaction charges by category and inclusive amount range', () => {
+  const charges = [
+    { expense: { id: 'low-food', category: 'Alimentação' }, amount: 10 },
+    { expense: { id: 'mid-food', category: 'Alimentação' }, amount: 50 },
+    { expense: { id: 'mid-home', category: 'Moradia' }, amount: 40 },
+    { expense: { id: 'high-food', category: 'Alimentação' }, amount: 100 },
+  ];
+  assert.deepEqual(Core.filterTransactionCharges(charges, { category: 'Alimentação', minAmount: 10, maxAmount: 100 }).map((charge) => charge.expense.id), ['low-food', 'mid-food', 'high-food']);
+  assert.deepEqual(Core.filterTransactionCharges(charges, { category: '', minAmount: 40, maxAmount: 50 }).map((charge) => charge.expense.id), ['mid-food', 'mid-home']);
+});

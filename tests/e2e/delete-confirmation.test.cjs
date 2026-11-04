@@ -202,7 +202,7 @@ test('adds a cash purchase and shows cash separately beside Pix and card in the 
   await page.getByRole('button', { name: 'Novo gasto' }).click();
   const dialog = page.locator('#expense-dialog');
   await dialog.locator('#description').fill('Compra em dinheiro');
-  await dialog.locator('#amount').fill('12.50');
+  await dialog.locator('#amount').fill('12,50');
   await dialog.locator('#payment').selectOption('Dinheiro');
   await dialog.locator('#first-date').fill(await page.evaluate(() => {
     const today = new Date();

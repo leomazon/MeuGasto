@@ -108,6 +108,17 @@
     const start = (page - 1) * pageSize;
     return { items: items.slice(start, start + pageSize), page, pageSize, totalItems, totalPages };
   }
+  function filterTransactionCharges(charges, { category = '', minAmount = null, maxAmount = null } = {}) {
+    const minimum = minAmount === null || minAmount === '' ? null : cents(minAmount);
+    const maximum = maxAmount === null || maxAmount === '' ? null : cents(maxAmount);
+    return charges.filter((charge) => {
+      const amount = cents(charge.amount);
+      const chargeCategory = charge.expense.category || 'Outros';
+      return (!category || chargeCategory === category)
+        && (minimum === null || amount >= minimum)
+        && (maximum === null || amount <= maximum);
+    });
+  }
   function cardUsed(expenses, payments, cardId) {
     const usedCents = expenses.filter((expense) => expense.payment === 'Cartão' && expense.cardId === cardId)
       .reduce((total, expense) => total + Array.from({ length: Number(expense.installments) }, (_, index) => Math.round(chargeRemaining(expense, index, payments) * 100)).reduce((sum, amount) => sum + amount, 0), 0);
@@ -135,6 +146,7 @@
     categoryChargeShares,
     averageChargeSummary,
     paginate,
+    filterTransactionCharges,
     allocateFullPayment,
     availableLimit,
   };
