@@ -63,14 +63,12 @@
 
         <section class="overview-view" id="overview-view">
           <section class="balance-panel" aria-labelledby="balance-title">
-            <div class="section-title-row"><div><h2 id="balance-title">Saldo previsto</h2><p class="balance-note">Receitas menos despesas do mês, incluindo registros fixos previstos. Sem saldo anterior.</p></div><button class="text-button" id="manage-income">Ver lançamentos ↗</button></div>
+            <div class="section-title-row"><div class="balance-heading"><h2 id="balance-title">Saldo previsto</h2><button class="help-tip" type="button" aria-label="Sobre o saldo previsto" aria-describedby="projected-tooltip"><span aria-hidden="true">?</span><span class="tooltip-copy" id="projected-tooltip" role="tooltip">Receitas menos despesas previstas do mês, incluindo registros fixos e parcelas de cartão. Não considera saldo anterior; as cobranças do cartão entram mesmo quando a fatura já foi paga.</span></button></div><button class="text-button" id="manage-income">Ver lançamentos ↗</button></div>
             <div class="balance-metrics"><div><span>Receitas do mês</span><strong id="income-total" class="income-value">R$ 0,00</strong></div><div><span>Despesas do mês</span><strong id="balance-expenses">R$ 0,00</strong></div><div class="net-balance"><span>Saldo previsto</span><strong id="month-balance">R$ 0,00</strong></div></div>
-            <p class="balance-note">As despesas incluem Pix, dinheiro e as parcelas de cartão deste mês, mesmo quando já liquidadas.</p>
           </section>
           <section class="balance-panel actual-panel" aria-labelledby="actual-title">
-            <div class="section-title-row"><div><h2 id="actual-title">Realizado no mês</h2><p class="balance-note">Entradas e saídas confirmadas, pela data do recebimento ou pagamento. Sem saldo anterior.</p></div></div>
+            <div class="section-title-row"><div class="balance-heading"><h2 id="actual-title">Realizado no mês</h2><button class="help-tip" type="button" aria-label="Sobre o saldo realizado" aria-describedby="actual-tooltip"><span aria-hidden="true">?</span><span class="tooltip-copy" id="actual-tooltip" role="tooltip">Recebimentos e pagamentos confirmados, pela data em que ocorreram. Compras no cartão entram quando a fatura é paga; pagar uma fatura com outro cartão só transfere a dívida. Não considera saldo anterior.</span></button></div></div>
             <div class="balance-metrics"><div><span>Recebido</span><strong id="actual-income" class="income-value">R$ 0,00</strong></div><div><span>Pago</span><strong id="actual-expenses">R$ 0,00</strong></div><div class="net-balance"><span>Saldo realizado</span><strong id="actual-balance">R$ 0,00</strong></div></div>
-            <p class="balance-note">Compras no cartão entram quando a fatura é paga. Pagar com outro cartão transfere a dívida e não conta como saída de dinheiro.</p>
           </section>
           <div class="summary-row">
             <article class="total-panel">

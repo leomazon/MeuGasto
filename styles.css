@@ -366,3 +366,11 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .card-bills-label{margin:0 0 10px}
 #overview-view:not([hidden]),#transactions-view:not([hidden]),#cards-view:not([hidden]),#analytics-view:not([hidden]){animation:view-arrive .32s cubic-bezier(.2,.7,.25,1) both}
 @media(max-width:760px){.analytics-view{padding-top:12px}.analysis-link-row{align-items:flex-start;flex-direction:column;gap:8px}.overview-recent{margin-top:12px}.cards-view .cards-heading{align-items:flex-start}}
+
+
+.balance-heading{display:flex;align-items:center;gap:9px}
+.help-tip{position:relative;display:grid;place-items:center;width:23px;height:23px;flex:0 0 23px;padding:0;border:1px solid #d8cdef;border-radius:50%;background:#f7f3ff;color:#6541c8;font-size:13px;font-weight:700;line-height:1}
+.help-tip:hover,.help-tip:focus-visible{background:#6541c8;color:#fff}
+.tooltip-copy{position:absolute;z-index:8;top:calc(100% + 10px);left:0;width:min(330px,calc(100vw - 56px));padding:12px 14px;border:1px solid #e5def1;border-radius:10px;background:#fff;color:var(--ink);font-size:13px;font-weight:500;line-height:1.55;text-align:left;box-shadow:0 8px 24px rgba(33,20,68,.14);opacity:0;visibility:hidden;transform:translateY(-3px);transition:opacity .15s ease,transform .15s ease,visibility .15s}
+.help-tip:hover .tooltip-copy,.help-tip:focus-visible .tooltip-copy{opacity:1;visibility:visible;transform:translateY(0)}
+@media(max-width:760px){.tooltip-copy{left:-4px}}
