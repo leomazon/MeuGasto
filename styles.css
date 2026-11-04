@@ -377,8 +377,8 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 
 /* A small in-app calendar keeps date selection consistent across browsers. */
 .date-picker-control{position:relative;min-width:0}
-.field .date-picker-control input{width:100%;padding-right:84px}
-.date-picker-trigger{position:absolute;z-index:2;right:5px;top:4px;display:flex;align-items:center;justify-content:flex-end;width:78px;height:32px;padding:0;border:0;border-radius:8px;background:#fff;color:#6a5c83}
+.field .date-picker-control input{width:100%;padding-right:46px}
+.date-picker-trigger{position:absolute;z-index:2;right:5px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:flex-end;width:78px;height:32px;padding:0;border:0;border-radius:8px;background:#fff;color:#6a5c83}
 .date-picker-trigger .material-icons{display:grid;place-items:center;width:34px;height:32px;border-radius:8px;background:#f5f2fb}
 .date-picker-trigger:hover .material-icons,.date-picker-trigger[aria-expanded="true"] .material-icons{background:#ece6ff;color:#6541c8}
 .date-picker-trigger svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}

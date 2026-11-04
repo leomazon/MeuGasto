@@ -46,8 +46,19 @@ test('keeps category option labels clean and hides the native calendar control',
     'Educação', 'Compras', 'Assinaturas', 'Contas', 'Outros',
   ]);
   assert.equal(await page.locator('.date-picker-control .date-picker-trigger').count(), 1);
-  assert.equal(await page.locator('#first-date').evaluate(input =>
-    getComputedStyle(input, '::-webkit-calendar-picker-indicator').display), 'none');
+  const dateControl = await page.locator('#first-date').evaluate(input => {
+    const icon = input.closest('.date-picker-control').querySelector('.date-picker-trigger');
+    const inputRect = input.getBoundingClientRect();
+    const iconRect = icon.getBoundingClientRect();
+    return {
+      nativeIconDisplay: getComputedStyle(input, '::-webkit-calendar-picker-indicator').display,
+      nativeIconOpacity: getComputedStyle(input, '::-webkit-calendar-picker-indicator').opacity,
+      verticalCenterOffset: Math.abs((inputRect.top + inputRect.height / 2) - (iconRect.top + iconRect.height / 2)),
+    };
+  });
+  assert.equal(dateControl.nativeIconDisplay, 'none');
+  assert.equal(dateControl.nativeIconOpacity, '0');
+  assert.ok(dateControl.verticalCenterOffset <= 1);
 });
 
 
