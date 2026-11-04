@@ -510,7 +510,6 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .bank-badge-selected .material-icons{font-size:19px}
 .bank-badge-option-icon .material-icons{font-size:18px}
 
-#card-dialog.expense-dialog{width:min(700px,calc(100vw - 36px));min-height:min(640px,calc(100vh - 32px));max-height:calc(100vh - 32px)}
 .bank-picker-trigger.is-placeholder{grid-template-columns:minmax(0,1fr) 20px}
 .bank-picker-trigger.is-placeholder .bank-badge-selected{display:none}
-@media(max-width:760px){#card-dialog.expense-dialog{width:calc(100vw - 28px);min-height:min(620px,calc(100vh - 24px));max-height:calc(100vh - 24px)}}
+.bank-picker-options.opens-up{top:auto;bottom:calc(100% + 5px)}
