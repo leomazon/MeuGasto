@@ -374,3 +374,5 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .tooltip-copy{position:absolute;z-index:8;top:calc(100% + 10px);left:0;width:min(330px,calc(100vw - 56px));padding:12px 14px;border:1px solid #e5def1;border-radius:10px;background:#fff;color:var(--ink);font-size:13px;font-weight:500;line-height:1.55;text-align:left;box-shadow:0 8px 24px rgba(33,20,68,.14);opacity:0;visibility:hidden;transform:translateY(-3px);transition:opacity .15s ease,transform .15s ease,visibility .15s}
 .help-tip:hover .tooltip-copy,.help-tip:focus-visible .tooltip-copy{opacity:1;visibility:visible;transform:translateY(0)}
 @media(max-width:760px){.tooltip-copy{left:-4px}}
+
+.nav-item svg{width:20px;height:20px;flex:0 0 20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
