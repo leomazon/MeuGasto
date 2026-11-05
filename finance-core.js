@@ -137,7 +137,7 @@
     }
     return {income:income/100,expenses:expenses/100,balance:(income-expenses)/100};
   }
-  function accountBalances(accounts, entries, payments, transfers, asOf) {
+  function accountBalances(accounts, entries, payments, transfers, asOf, reconciliations = []) {
     const cutoff = dateKey(asOf);
     const balances = new Map(accounts.map(account => [String(account.id), Math.round(Number(account.openingBalance || 0) * 100)]));
     const openingDates = new Map(accounts.map(account => [String(account.id), dateKey(account.openingDate)]));
@@ -176,6 +176,10 @@
       if (!(amount > 0) || transfer.fromAccountId === transfer.toAccountId) continue;
       apply(transfer.fromAccountId, transfer.date, -amount);
       apply(transfer.toAccountId, transfer.date, amount);
+    }
+    for (const reconciliation of reconciliations) {
+      const amount = Math.round(Number(reconciliation.adjustment) * 100);
+      if (Number.isFinite(amount)) apply(reconciliation.accountId, reconciliation.date, amount);
     }
     return accounts.map(account => ({ ...account, balance: balances.get(String(account.id)) / 100 }));
   }

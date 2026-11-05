@@ -138,6 +138,10 @@
             <div><span id="accounts-total-title">Saldo total nas contas</span><strong id="accounts-total-balance">R$ 0,00</strong><small id="accounts-total-caption">Cadastre contas para começar a acompanhar seus saldos.</small></div>
           </section>
           <div id="account-list" class="account-list cards-list"></div>
+          <section class="account-reconciliations-panel" aria-labelledby="reconciliations-title">
+            <div class="section-title-row"><div><h2 id="reconciliations-title">Histórico de conferências</h2><p class="account-section-copy">Veja os saldos comparados e os ajustes aplicados.</p></div></div>
+            <div id="reconciliation-list" class="reconciliation-list"></div>
+          </section>
           <section class="account-transfers-panel" aria-labelledby="transfers-title">
             <div class="section-title-row"><div><h2 id="transfers-title">Transferências entre contas</h2><p class="account-section-copy">Movem saldo entre suas contas sem alterar receitas ou despesas.</p></div></div>
             <div id="transfer-list" class="transfer-list"></div>
@@ -325,6 +329,20 @@
         <label class="field full-field">Observação <span class="optional">opcional</span><input id="transfer-notes" maxlength="100" placeholder="Ex.: Reserva do mês" /></label>
         <p class="account-form-hint">A transferência altera os saldos das duas contas, sem aparecer como receita ou despesa.</p>
         <div class="dialog-actions"><button class="cancel-button" type="button" data-close="transfer-dialog">Cancelar</button><button class="add-button" type="submit">Salvar transferência</button></div>
+      </form>
+    </dialog>
+    <dialog id="reconciliation-dialog" class="expense-dialog reconciliation-dialog" aria-labelledby="reconciliation-dialog-title">
+      <form id="reconciliation-form" novalidate>
+        <div class="dialog-heading"><div><p class="eyebrow">CONFERÊNCIA DE CONTA</p><h2 id="reconciliation-dialog-title">Conferir saldo</h2></div><button class="close-button" type="button" data-close="reconciliation-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
+        <p class="settlement-summary" id="reconciliation-account-name"></p>
+        <label class="field full-field">Data do saldo no banco<input id="reconciliation-date" type="date" required /></label>
+        <label class="field full-field">Saldo informado no extrato<input id="reconciliation-actual" class="currency-input" type="text" inputmode="decimal" autocomplete="off" required placeholder="R$ 0,00" /></label>
+        <div class="reconciliation-preview" aria-live="polite">
+          <div><span>Saldo calculado na data</span><strong id="reconciliation-expected">—</strong></div>
+          <div><span>Diferença a ajustar</span><strong id="reconciliation-adjustment" class="reconciliation-adjustment">—</strong></div>
+          <p id="reconciliation-preview-note">Informe o saldo mostrado no banco para calcular a diferença.</p>
+        </div>
+        <div class="dialog-actions"><button class="cancel-button" type="button" data-close="reconciliation-dialog">Cancelar</button><button class="add-button" type="submit">Registrar ajuste</button></div>
       </form>
     </dialog>
     <dialog id="card-dialog" class="expense-dialog">

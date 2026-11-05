@@ -215,6 +215,7 @@ function setupEnhancements() {
   setupDatePicker('realization-date');
   setupDatePicker('account-opening-date');
   setupDatePicker('transfer-date');
+  setupDatePicker('reconciliation-date');
   const smallScreen=matchMedia('(max-width:760px)');
   setSidebarCollapsed(smallScreen.matches);
   smallScreen.addEventListener('change',event=>setSidebarCollapsed(event.matches));
@@ -292,12 +293,13 @@ function renderDatePicker(input, month) {
   const start=new Date(first.getFullYear(),first.getMonth(),1-first.getDay());
   const selected=input.value;
   const today=localDateKey();
+  const min=input.getAttribute('min') || '';
   const max=input.getAttribute('max') || '';
   grid.innerHTML=Array.from({length:42},(_,index)=>{
     const date=new Date(start.getFullYear(),start.getMonth(),start.getDate()+index);
     const key=localDateKey(date);
     const outside=date.getMonth()!==month.getMonth();
-    const disabled=(Boolean(max) && key>max);
+    const disabled=(Boolean(min) && key<min) || (Boolean(max) && key>max);
     return `<button type="button" class="date-picker-day${outside ? ' outside-month' : ''}${key===today ? ' today' : ''}" role="gridcell" aria-label="${escapeHtml(calendarDateLabel(date))}" aria-selected="${String(key===selected)}" ${key===selected ? 'aria-current="date"' : ''} ${disabled ? 'disabled' : ''} data-date="${key}">${date.getDate()}</button>`;
   }).join('');
 }
@@ -363,7 +365,7 @@ function setupDatePicker(inputId) {
     }
     if (event.target.closest('.date-picker-today')) {
       const today=localDateKey();
-      if (!(input.getAttribute('max') || '') || today<=input.getAttribute('max')) { input.value=today;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));close();input.focus(); }
+      if ((!(input.getAttribute('min') || '') || today>=input.getAttribute('min')) && (!(input.getAttribute('max') || '') || today<=input.getAttribute('max'))) { input.value=today;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));close();input.focus(); }
     }
   });
   input.addEventListener('input',()=>{if(!isOpen())return;const parts=input.value.split('-').map(Number);if(parts.length===3&&validCalendarDate(input.value)){shownMonth=new Date(parts[0],parts[1]-1,1);renderDatePicker(input,shownMonth);}});

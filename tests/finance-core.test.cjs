@@ -116,6 +116,24 @@ test('uses the opening date to exclude earlier activity and ignores records with
   assert.deepEqual(Core.accountBalances(accounts, entries, [], [], '2026-11-30').map(({ balance }) => balance), [125]);
 });
 
+test('applies dated reconciliation adjustments to account balances without rewriting transactions', () => {
+  const accounts = [{ id: 'checking', openingBalance: 1000, openingDate: '2026-11-01' }];
+  const entries = [
+    { id: 'salary', type: 'income', amount: 100, installments: 1, firstDate: '2026-11-02', payment: 'Pix', accountId: 'checking', status: 'realized' },
+    { id: 'rent', type: 'expense', amount: 200, installments: 1, firstDate: '2026-11-03', payment: 'Pix', accountId: 'checking', status: 'realized' },
+  ];
+  const reconciliations = [
+    { id: 'check-1', accountId: 'checking', date: '2026-11-05', expectedBalance: 900, actualBalance: 875, adjustment: -25 },
+    { id: 'check-2', accountId: 'checking', date: '2026-11-05', expectedBalance: 875, actualBalance: 865, adjustment: -10 },
+    { id: 'check-future', accountId: 'checking', date: '2026-12-01', expectedBalance: 865, actualBalance: 900, adjustment: 35 },
+  ];
+
+  assert.equal(Core.accountBalances(accounts, entries, [], [], '2026-11-04', reconciliations)[0].balance, 900);
+  assert.equal(Core.accountBalances(accounts, entries, [], [], '2026-11-30', reconciliations)[0].balance, 865);
+  assert.equal(Core.accountBalances(accounts, entries, [], [], '2026-12-02', reconciliations)[0].balance, 900);
+  assert.deepEqual(Core.monthlyBalance(entries, [], '2026-11'), { income: 100, expenses: 200, balance: -100 });
+});
+
 test('paginates monthly charges with a selected page size and clamps an out-of-range page', () => {
   const charges = Array.from({ length: 26 }, (_, id) => id);
   assert.deepEqual(Core.paginate(charges, 2, 10), { items: Array.from({ length: 10 }, (_, id) => id + 10), page: 2, pageSize: 10, totalItems: 26, totalPages: 3 });

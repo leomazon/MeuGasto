@@ -143,7 +143,7 @@ test('saves accounts and internal transfers in SQLite and restores their balance
     const date = new Date();
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   });
-  const empty = { expenses: [], cards: [], settlements: [], budgets: [], accounts: [], transfers: [] };
+  const empty = { expenses: [], cards: [], settlements: [], budgets: [], accounts: [], transfers: [], reconciliations: [] };
   assert.equal((await fetch(`${appUrl}/api/state`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(empty) })).status, 200);
   await page.goto(appUrl);
   await page.evaluate(() => localStorage.clear());
@@ -166,17 +166,23 @@ test('saves accounts and internal transfers in SQLite and restores their balance
   await transfer.locator('#transfer-date').fill(today);
   await transfer.getByRole('button', { name: 'Salvar transferência', exact: true }).click();
 
+  await page.locator('#account-list').getByRole('button', { name: 'Conferir saldo' }).first().click();
+  const reconciliation = page.locator('#reconciliation-dialog');
+  await reconciliation.locator('#reconciliation-actual').fill('17000');
+  await reconciliation.getByRole('button', { name: 'Registrar ajuste', exact: true }).click();
+
   await page.waitForFunction(async () => {
     const state = (await (await fetch('/api/state')).json()).state;
-    return state.accounts?.length === 2 && state.transfers?.length === 1;
+    return state.accounts?.length === 2 && state.transfers?.length === 1 && state.reconciliations?.length === 1;
   });
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.getByRole('button', { name: 'Contas', exact: true }).click();
-  assert.equal((await page.locator('#accounts-total-balance').innerText()).replace(/\s/g, ' '), 'R$ 230,00');
+  assert.equal((await page.locator('#accounts-total-balance').innerText()).replace(/\s/g, ' '), 'R$ 225,00');
   const persisted = (await (await fetch(`${appUrl}/api/state`)).json()).state;
   assert.equal(persisted.accounts.length, 2);
   assert.equal(persisted.transfers.length, 1);
+  assert.equal(persisted.reconciliations.length, 1);
 });
 
 test('rejects malformed backup restore requests without changing saved data', async () => {
