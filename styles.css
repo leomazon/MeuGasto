@@ -185,7 +185,7 @@
 .month-picker-display{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
 .month-control input{height:24px}
 .month-long-label{color:var(--muted);font-size:11px;font-weight:600;line-height:1.1;white-space:nowrap}
-.transactions-toolbar{display:flex;justify-content:flex-end;align-items:center;gap:14px;margin:21px 0 19px}
+.transactions-toolbar{display:flex;justify-content:flex-end;align-items:center;gap:14px;margin:12px 0 17px}
 .transactions-toolbar .search-box{width:300px;height:47px;min-width:260px;padding:0 14px;font-size:15.5px}
 .transactions-toolbar .search-box input{min-width:0;font-size:15.5px}
 @media(max-width:760px){
