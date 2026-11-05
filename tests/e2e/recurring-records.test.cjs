@@ -58,6 +58,7 @@ test('repeats fixed income and expense monthly and stops future repetition witho
   }
   await page.getByRole('button',{name:'Próximo mês',exact:true}).click();
   assert.equal(await page.locator('#transactions-list .expense-row').count(),2);
+  assert.deepEqual(await page.locator('#transactions-list .fixed-tag .material-icons').allTextContents(),['push_pin','push_pin']);
   await page.reload();
   await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
   await page.getByRole('button',{name:'Próximo mês',exact:true}).click();
