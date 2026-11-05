@@ -29,6 +29,9 @@ const OTHER_BANK_VALUE = '__other__';
 const STORAGE_KEY = 'meu-financeiro-v1'; // Keep the existing key so current expenses stay available.
 const CARD_STORAGE_KEY = 'meugasto-cards-v1';
 const PAYMENT_STORAGE_KEY = 'meugasto-card-payments-v1';
+const ACCOUNT_STORAGE_KEY = 'meugasto-accounts-v1';
+const TRANSFER_STORAGE_KEY = 'meugasto-transfers-v1';
+const ACCOUNT_KINDS = { checking: 'Conta corrente', savings: 'Poupança', cash: 'Dinheiro', other: 'Outra conta' };
 const Core = window.FinanceCore;
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const $ = (id) => document.getElementById(id);
@@ -58,6 +61,8 @@ let cards = loadCards();
 let expenses = loadExpenses();
 let settlements = loadSettlements();
 let budgets = loadBudgets();
+let accounts = loadAccounts();
+let transfers = loadTransfers();
 let view = 'inicio';
 let currentFinancialAlerts = [];
 let transactionPage = 1;
@@ -91,6 +96,24 @@ function loadSettlements() {
     return Array.isArray(stored) ? stored.filter((item) => item && typeof item.id === 'string' && typeof item.expenseId === 'string' && Number.isInteger(Number(item.installmentIndex)) && Number(item.amount) > 0) : [];
   } catch { return []; }
 }
+function validAccount(item) {
+  return item && typeof item.id === 'string' && typeof item.name === 'string' && item.name.trim().length > 0
+    && Object.hasOwn(ACCOUNT_KINDS, item.kind) && Number.isFinite(Number(item.openingBalance)) && Number(item.openingBalance) >= 0
+    && /^\d{4}-\d{2}-\d{2}$/.test(item.openingDate || '');
+}
+function loadAccounts() {
+  try { const stored = JSON.parse(localStorage.getItem(ACCOUNT_STORAGE_KEY) || '[]'); return Array.isArray(stored) ? stored.filter(validAccount) : []; }
+  catch { return []; }
+}
+function validTransfer(item) {
+  return item && typeof item.id === 'string' && typeof item.fromAccountId === 'string' && typeof item.toAccountId === 'string'
+    && item.fromAccountId !== item.toAccountId && Number.isFinite(Number(item.amount)) && Number(item.amount) > 0
+    && /^\d{4}-\d{2}-\d{2}$/.test(item.date || '');
+}
+function loadTransfers() {
+  try { const stored = JSON.parse(localStorage.getItem(TRANSFER_STORAGE_KEY) || '[]'); return Array.isArray(stored) ? stored.filter(validTransfer) : []; }
+  catch { return []; }
+}
 function isValidExpense(item) {
   return item && typeof item.id === 'string' && typeof item.description === 'string' && Number.isFinite(Number(item.amount)) && Number(item.amount) > 0 && Number.isInteger(Number(item.installments)) && Number(item.installments) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(item.firstDate);
 }
@@ -99,16 +122,20 @@ function saveBrowserCache() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
   localStorage.setItem(PAYMENT_STORAGE_KEY, JSON.stringify(settlements));
   localStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(budgets));
+  localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(accounts));
+  localStorage.setItem(TRANSFER_STORAGE_KEY, JSON.stringify(transfers));
 }
 function clearBrowserCache() {
   localStorage.removeItem(CARD_STORAGE_KEY);
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(PAYMENT_STORAGE_KEY);
   localStorage.removeItem(BUDGET_STORAGE_KEY);
+  localStorage.removeItem(ACCOUNT_STORAGE_KEY);
+  localStorage.removeItem(TRANSFER_STORAGE_KEY);
 }
 function persistLocalDatabase() {
   if (!localDatabaseEnabled) return Promise.resolve();
-  const state = JSON.stringify({ expenses, cards, settlements, budgets });
+  const state = JSON.stringify({ expenses, cards, settlements, budgets, accounts, transfers });
   localDatabaseQueue = localDatabaseQueue.catch(() => {}).then(async () => {
     const response = await fetch('/api/state', {
       method: 'PUT',
@@ -127,6 +154,8 @@ function persistLocalDatabase() {
 function saveCards() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cards)); }
 function saveExpenses() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses)); }
 function saveSettlements() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(PAYMENT_STORAGE_KEY, JSON.stringify(settlements)); }
+function saveAccounts() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(accounts)); }
+function saveTransfers() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(TRANSFER_STORAGE_KEY, JSON.stringify(transfers)); }
 async function restoreLocalDatabase() {
   try {
     const response = await fetch('/api/state');
@@ -139,6 +168,8 @@ async function restoreLocalDatabase() {
       expenses = state.expenses.filter(isValidExpense);
       settlements = state.settlements.filter((item) => item && typeof item.id === 'string' && typeof item.expenseId === 'string' && Number.isInteger(Number(item.installmentIndex)) && Number(item.amount) > 0);
       budgets = Array.isArray(state.budgets) ? state.budgets.filter(validBudget) : [];
+      accounts = Array.isArray(state.accounts) ? state.accounts.filter(validAccount) : [];
+      transfers = Array.isArray(state.transfers) ? state.transfers.filter(validTransfer) : [];
       clearBrowserCache();
       migrateLegacyCardLinks();
       render();
@@ -193,7 +224,21 @@ function updateCategoryFilter() {
   $('category-filter').value = [...$('category-filter').options].some(option => option.value === selected) ? selected : '';
 }
 function recordPaymentMethods(type) {
-  return type === 'income' ? ['Transferência', 'Pix', 'Dinheiro'] : ['Pix', 'Dinheiro', 'Cartão'];
+  return type === 'income' ? ['Transferência', 'Pix', 'Dinheiro'] : ['Pix', 'Transferência', 'Dinheiro', 'Cartão'];
+}
+function accountById(id) { return accounts.find(account => account.id === id) || null; }
+function populateAccountSelect(select, selectedId = '') {
+  if (!select) return;
+  select.innerHTML = `<option value="">Selecione uma conta</option>${accounts.map(account => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)}</option>`).join('')}`;
+  select.value = accounts.some(account => account.id === selectedId) ? selectedId : '';
+}
+function updateRecordAccountField(selectedId) {
+  const select = $('record-account');
+  const current = selectedId === undefined ? select.value : selectedId;
+  const visible = $('payment').value !== 'Cartão' && accounts.length > 0;
+  $('record-account-wrap').hidden = !visible;
+  select.required = visible;
+  populateAccountSelect(select, current);
 }
 function updatePaymentFilter() {
   const type = $('type-filter').value;
@@ -668,6 +713,10 @@ function renderExpenseRow(charge, actions = false, categoryShare = null) {
   const income = charge.expense.type === 'income';
   const info = category(charge.expense.category, income ? 'income' : 'expense');
   const paymentCard = charge.expense.payment === 'Cartão' ? cardForExpense(charge.expense) : null;
+  const accountId = charge.expense.payment === 'Cartão'
+    ? settlements.find(payment => payment.expenseId === charge.expense.id && Number(payment.installmentIndex) === charge.index && payment.accountId)?.accountId
+    : charge.expense.accountId;
+  const linkedAccount = accountById(accountId);
   const cashStatus = realizationMarkup(charge, actions);
   const isPaid = charge.expense.payment === 'Cartão' ? charge.remaining <= 0 : cashStatus.paid;
   const isOverdue = !isPaid && paymentCard?.dueDay && Core.isChargeOverdue(charge.date, paymentCard.dueDay, localDateKey());
@@ -678,7 +727,7 @@ function renderExpenseRow(charge, actions = false, categoryShare = null) {
     ? `<button class="row-settle-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Liquidar ${escapeHtml(charge.expense.description)}, ${charge.expense.recurring === true ? monthLabel(monthKey(charge.date)) : `parcela ${charge.index + 1}`}">Liquidar</button>` : charge.expense.payment !== 'Cartão' ? cashStatus.button : '';
   return `<div class="expense-row">
     ${categoryIcon(info, 'expense-emoji')}
-    <div class="expense-name"><strong>${escapeHtml(charge.expense.description)}</strong><span>${escapeHtml(charge.expense.category)} · ${escapeHtml(expenseLabel(charge))}${charge.expense.notes ? ` · ${escapeHtml(charge.expense.notes)}` : ''} ${fixedStatus} ${paymentStatus}</span>${categoryShareMarkup}</div>
+    <div class="expense-name"><strong>${escapeHtml(charge.expense.description)}</strong><span>${escapeHtml(charge.expense.category)} · ${escapeHtml(expenseLabel(charge))}${linkedAccount ? ` · ${escapeHtml(linkedAccount.name)}` : ''}${charge.expense.notes ? ` · ${escapeHtml(charge.expense.notes)}` : ''} ${fixedStatus} ${paymentStatus}</span>${categoryShareMarkup}</div>
     ${actions ? `<span class="row-date">${dateLabel(charge.date)}</span><span class="row-payment"><span class="record-kind ${income ? 'income-kind' : 'expense-kind'}">${income ? 'Receita' : 'Despesa'}</span><small>${escapeHtml(charge.expense.payment)}</small></span><strong class="expense-value ${income ? 'income-value' : ''}">${currency.format(charge.remaining > 0 ? charge.remaining : charge.amount)}</strong><div class="row-actions">${settleButton}<button class="icon-button" aria-label="Editar ${escapeHtml(charge.expense.description)}" data-edit="${escapeHtml(charge.expense.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(charge.expense.description)}" data-delete="${escapeHtml(charge.expense.id)}">${materialIcon('close')}</button></div>` : `<strong class="expense-value">${currency.format(charge.amount)}</strong>`}
   </div>`;
 }
@@ -910,6 +959,106 @@ function renderCardItem(card) {
 function renderCards() {
   $('cards-list').innerHTML = cards.length ? cards.map(renderCardItem).join('') : `<div class="cards-empty">${materialIcon('credit_card', 'empty-card-icon')}<h3>Cadastre seu primeiro cartão</h3><p>Informe o limite e vincule novas compras para acompanhar uso e faturas.</p><button class="add-button" data-create-card>${materialIcon('add')} Adicionar cartão</button></div>`;
 }
+function accountInUse(id) {
+  return expenses.some(entry => entry.accountId === id || Object.values(entry.overrides || {}).some(override => override?.accountId === id))
+    || settlements.some(payment => payment.accountId === id)
+    || transfers.some(transfer => transfer.fromAccountId === id || transfer.toAccountId === id);
+}
+function accountIcon(kind) {
+  return ({ checking: 'account_balance', savings: 'savings', cash: 'payments', other: 'account_balance_wallet' })[kind] || 'account_balance_wallet';
+}
+function renderAccountCard(account) {
+  const locked = accountInUse(account.id);
+  return `<article class="account-card" data-account-id="${escapeHtml(account.id)}" data-kind="${escapeHtml(account.kind)}">
+    <div class="account-card-heading"><span class="account-type-icon material-icons" aria-hidden="true">${accountIcon(account.kind)}</span><div class="account-card-title"><h3>${escapeHtml(account.name)}</h3><span>${escapeHtml(ACCOUNT_KINDS[account.kind])}</span></div><div class="card-actions"><button class="icon-button" type="button" aria-label="Editar ${escapeHtml(account.name)}" data-edit-account="${escapeHtml(account.id)}">${materialIcon('edit')}</button><button class="icon-button delete" type="button" aria-label="Excluir ${escapeHtml(account.name)}" data-delete-account="${escapeHtml(account.id)}" ${locked ? 'disabled title="Há lançamentos ou transferências vinculados"' : ''}>${materialIcon('close')}</button></div></div>
+    <div class="account-balance-panel"><div class="account-balance-row"><span>Saldo atual</span><strong class="account-balance${account.balance < 0 ? ' negative-balance' : ''}">${currency.format(account.balance)}</strong></div>
+    <div class="account-opening-row"><span>Saldo inicial <strong>${currency.format(account.openingBalance)}</strong></span><small>Desde ${escapeHtml(dateLabel(dateFromKey(account.openingDate)))}</small></div></div>
+  </article>`;
+}
+function renderAccountView() {
+  const accountBalances = Core.accountBalances(accounts, expenses, settlements, transfers, localDateKey());
+  const totalCents = accountBalances.reduce((sum, account) => sum + Math.round(account.balance * 100), 0);
+  $('accounts-total-balance').textContent = currency.format(totalCents / 100);
+  $('accounts-total-caption').textContent = accounts.length
+    ? `${accounts.length} ${accounts.length === 1 ? 'conta cadastrada' : 'contas cadastradas'} · saldo inicial e movimentações vinculadas`
+    : 'Cadastre contas para começar a acompanhar seus saldos.';
+  $('account-list').innerHTML = accountBalances.length
+    ? accountBalances.map(renderAccountCard).join('')
+    : `<div class="cards-empty account-empty">${materialIcon('account_balance_wallet', 'empty-card-icon')}<h3>Adicione sua primeira conta</h3><p>Informe o saldo atual e acompanhe entradas, saídas e transferências em um só lugar.</p><button class="add-button" type="button" data-account-add>${materialIcon('add')} Adicionar conta</button></div>`;
+  $('new-transfer').disabled = accounts.length < 2;
+  const names = new Map(accounts.map(account => [account.id, account.name]));
+  const sortedTransfers = [...transfers].sort((a, b) => b.date.localeCompare(a.date));
+  $('transfer-list').innerHTML = sortedTransfers.length ? sortedTransfers.map(transfer => `<div class="transfer-row" data-transfer-id="${escapeHtml(transfer.id)}"><span class="material-icons transfer-row-icon" aria-hidden="true">swap_horiz</span><div class="transfer-row-description"><strong>${escapeHtml(names.get(transfer.fromAccountId) || 'Conta removida')} <span>para</span> ${escapeHtml(names.get(transfer.toAccountId) || 'Conta removida')}</strong><small>${escapeHtml(dateLabel(dateFromKey(transfer.date)))}${transfer.notes ? ` · ${escapeHtml(transfer.notes)}` : ''}</small></div><strong class="transfer-row-amount">${currency.format(transfer.amount)}</strong><div class="card-actions"><button class="icon-button" type="button" aria-label="Editar transferência" data-edit-transfer="${escapeHtml(transfer.id)}">${materialIcon('edit')}</button><button class="icon-button delete" type="button" aria-label="Excluir transferência" data-delete-transfer="${escapeHtml(transfer.id)}">${materialIcon('close')}</button></div></div>`).join('') : '<p class="empty-note account-transfer-empty">Nenhuma transferência entre contas registrada.</p>';
+}
+function openAccountDialog(account = null) {
+  $('account-form').reset();
+  $('account-id').value = account?.id || '';
+  $('account-name').value = account?.name || '';
+  $('account-kind').value = account?.kind || 'checking';
+  $('account-opening-balance').value = account ? currency.format(Number(account.openingBalance)) : '';
+  $('account-opening-date').value = account?.openingDate || localDateKey();
+  $('account-opening-date').max = localDateKey();
+  $('account-dialog-title').textContent = account ? 'Editar conta' : 'Adicionar conta';
+  clearFormValidation($('account-form'));
+  $('account-dialog').showModal();
+  $('account-name').focus();
+}
+function submitAccount(event) {
+  event.preventDefault();
+  const id = $('account-id').value, name = $('account-name').value.trim();
+  const openingBalance = Math.round(parseCurrencyInput($('account-opening-balance').value) * 100) / 100;
+  const openingDate = $('account-opening-date').value, kind = $('account-kind').value;
+  if (!name) { setFieldValidationError($('account-name'), 'Informe um nome para esta conta.'); return; }
+  if (accounts.some(account => account.name.toLocaleLowerCase('pt-BR') === name.toLocaleLowerCase('pt-BR') && account.id !== id)) { setFieldValidationError($('account-name'), 'Já existe uma conta com esse nome.'); return; }
+  if (!Number.isFinite(openingBalance) || openingBalance < 0) { setFieldValidationError($('account-opening-balance'), 'Informe um saldo inicial igual ou maior que zero.'); return; }
+  if (!validCalendarDate(openingDate) || openingDate > localDateKey()) { setFieldValidationError($('account-opening-date'), 'A data do saldo inicial deve ser válida e não pode ser futura.'); return; }
+  const account = { id: id || createId('account'), name, kind, openingBalance, openingDate };
+  if (!validAccount(account)) { showToast('Confira os dados da conta e tente novamente.', 'error'); return; }
+  if (id) accounts = accounts.map(item => item.id === id ? account : item); else accounts.push(account);
+  saveAccounts(); $('account-dialog').close(); render(); showToast(id ? 'Conta atualizada.' : 'Conta adicionada.', 'success');
+}
+function openTransferDialog(transfer = null) {
+  if (accounts.length < 2) { showToast('Cadastre duas contas para fazer uma transferência.', 'info'); return; }
+  $('transfer-form').reset();
+  $('transfer-id').value = transfer?.id || '';
+  populateAccountSelect($('transfer-from'), transfer?.fromAccountId || accounts[0].id);
+  populateAccountSelect($('transfer-to'), transfer?.toAccountId || accounts[1].id);
+  $('transfer-amount').value = transfer ? currency.format(Number(transfer.amount)) : '';
+  $('transfer-date').value = transfer?.date || localDateKey();
+  $('transfer-date').max = localDateKey();
+  $('transfer-notes').value = transfer?.notes || '';
+  $('transfer-dialog-title').textContent = transfer ? 'Editar transferência' : 'Nova transferência';
+  clearFormValidation($('transfer-form'));
+  $('transfer-dialog').showModal();
+}
+function submitTransfer(event) {
+  event.preventDefault();
+  const id = $('transfer-id').value, fromAccountId = $('transfer-from').value, toAccountId = $('transfer-to').value;
+  const amount = Math.round(parseCurrencyInput($('transfer-amount').value) * 100) / 100;
+  const date = $('transfer-date').value;
+  if (!accountById(fromAccountId)) { setFieldValidationError($('transfer-from'), 'Selecione a conta de origem.'); return; }
+  if (!accountById(toAccountId)) { setFieldValidationError($('transfer-to'), 'Selecione a conta de destino.'); return; }
+  if (fromAccountId === toAccountId) { setFieldValidationError($('transfer-to'), 'Escolha uma conta diferente da origem.'); return; }
+  if (!(amount > 0)) { setFieldValidationError($('transfer-amount'), 'Informe um valor maior que zero.'); return; }
+  if (!validCalendarDate(date) || date > localDateKey()) { setFieldValidationError($('transfer-date'), 'A data deve ser válida e não pode ser futura.'); return; }
+  const startDate = [accountById(fromAccountId).openingDate, accountById(toAccountId).openingDate].sort().at(-1);
+  if (date < startDate) { setFieldValidationError($('transfer-date'), 'A transferência deve ocorrer depois da data inicial das duas contas.'); return; }
+  const transfer = { id: id || createId('transfer'), fromAccountId, toAccountId, amount, date, notes: $('transfer-notes').value.trim() };
+  if (!validTransfer(transfer)) { showToast('Confira os dados da transferência e tente novamente.', 'error'); return; }
+  if (id) transfers = transfers.map(item => item.id === id ? transfer : item); else transfers.push(transfer);
+  saveTransfers(); $('transfer-dialog').close(); render(); showToast(id ? 'Transferência atualizada.' : 'Transferência registrada.', 'success');
+}
+function deleteAccount(id) {
+  const account = accountById(id);
+  if (!account) return;
+  if (accountInUse(id)) { showToast('Esta conta ainda está vinculada a lançamentos ou transferências.', 'error'); return; }
+  openDeleteConfirmation({ title: 'Excluir conta?', message: `A conta “${account.name}” e seu saldo inicial serão removidos.`, confirmLabel: 'Excluir conta', onConfirm: () => { accounts = accounts.filter(item => item.id !== id); saveAccounts(); render(); showToast('Conta excluída.', 'success'); } });
+}
+function deleteTransfer(id) {
+  const transfer = transfers.find(item => item.id === id);
+  if (!transfer) return;
+  openDeleteConfirmation({ title: 'Excluir transferência?', message: 'Os saldos das contas serão recalculados. Essa ação não pode ser desfeita.', confirmLabel: 'Excluir transferência', onConfirm: () => { transfers = transfers.filter(item => item.id !== id); saveTransfers(); render(); showToast('Transferência excluída.', 'success'); } });
+}
 function alertDateLabel(value) { return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'short'}).format(dateFromKey(value)).replace('.',''); }
 function renderAlertItem(alert,index) {
   const isBudget=alert.kind==='budget-exceeded', isCard=alert.kind.startsWith('card-'), isIncome=alert.kind.startsWith('income-');
@@ -983,9 +1132,10 @@ function render() {
   const selectedMonthTitle = selectedMonthLabel.charAt(0).toLocaleUpperCase('pt-BR') + selectedMonthLabel.slice(1);
   $('month-long-label').textContent = selectedMonthTitle;
   $('month-long-label').hidden = false;
-  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : view === 'orcamentos' ? 'Orçamentos' : view === 'analises' ? 'Análises' : view === 'alertas' ? 'Alertas' : 'Lançamentos';
+  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : view === 'orcamentos' ? 'Orçamentos' : view === 'contas' ? 'Contas e carteiras' : view === 'analises' ? 'Análises' : view === 'alertas' ? 'Alertas' : 'Lançamentos';
   document.querySelector('.app-shell').classList.toggle('transactions-active', view === 'lancamentos');
   document.querySelector('.app-shell').classList.add('page-title-active');
+  document.querySelector('.topbar .month-control').hidden = view === 'contas';
   $('date-greeting').textContent = `SEU RESUMO DE ${monthLabel(selectedMonth())}`;
   $('page-heading').hidden = true;
   $('overview-view').hidden = view !== 'inicio';
@@ -994,6 +1144,7 @@ function render() {
   $('cards-view').hidden = view !== 'cartoes';
   $('budget-view').hidden = view !== 'orcamentos';
   $('alerts-view').hidden = view !== 'alertas';
+  $('accounts-view').hidden = view !== 'contas';
   document.querySelectorAll('[data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
   const paymentsActive=view==='cartoes'||view==='orcamentos';
   $('payments-nav').classList.toggle('has-active-view',paymentsActive);
@@ -1002,6 +1153,7 @@ function render() {
   updateCategoryFilter(); updatePaymentFilter();
   renderTransactions();
   renderCards();
+  renderAccountView();
   renderAlerts();
 }
 function activateViewTab(tab, moveFocus = false) {
@@ -1069,6 +1221,7 @@ function openExpense(expense = null, scope = 'series') {
   $('recurring-record').checked = expense?.recurring === true && (!expense.recurringUntil || expense.recurringUntil > selectedMonth());
   updateRecordType(expense?.category || '');
   $('payment').value = expense?.payment || 'Pix';
+  updateRecordAccountField(expense?.accountId || (expense ? '' : accounts[0]?.id || ''));
   $('card-mode').value = expense?.cardMode || (Number(expense?.installments) > 1 ? 'Parcelado' : 'À vista');
   $('installments').value = String(expense?.installments || 2);
   populateCardSelect($('card-select'));
@@ -1103,6 +1256,7 @@ function updatePaymentFields() {
   $('card-select').disabled = isCard && cards.length === 0;
   $('card-select-trigger').disabled = isCard && cards.length === 0;
   syncCardPicker();
+  updateRecordAccountField();
   $('installment-hint').hidden = !isInstallment;
   updateRecordStatus();
   if ($('edit-scope').value === 'month' && existing?.recurring) $('recurring-hint').textContent = `Somente ${monthLabel(selectedMonth())} será alterado. Os demais meses e seus pagamentos serão preservados.`;
@@ -1125,20 +1279,25 @@ function submitExpense(event) {
   const type = recordType();
   const payment = $('payment').value;
   const cardId = payment === 'Cartão' ? $('card-select').value : '';
+  const accountId = payment === 'Cartão' ? '' : accounts.length ? $('record-account').value : previous?.accountId || '';
   const chosenCard = cardById(cardId);
   if (payment === 'Cartão' && !chosenCard) {
     setFieldValidationError(cards.length ? $('card-select') : $('payment'), cards.length ? FIELD_ERROR_MESSAGES['card-select'] : 'Cadastre um cartão antes de registrar uma compra no crédito.');
+    return;
+  }
+  if (payment !== 'Cartão' && accounts.length && !accountById(accountId)) {
+    setFieldValidationError($('record-account'), 'Selecione a conta ou carteira deste lançamento.');
     return;
   }
   const cardMode = payment === 'Cartão' ? recurring ? 'À vista' : $('card-mode').value : '';
   const installments = payment === 'Cartão' && cardMode === 'Parcelado' ? Number($('installments').value) : 1;
   const amount = Math.round(parseCurrencyInput($('amount').value) * 100) / 100;
   if (!(amount > 0)) { setFieldValidationError($('amount'), FIELD_ERROR_MESSAGES.amount); return; }
-  if (previous?.recurring === true && $('edit-scope').value === 'month') { submitMonthlyOverride(previous, amount, chosenCard); return; }
+  if (previous?.recurring === true && $('edit-scope').value === 'month') { submitMonthlyOverride(previous, amount, chosenCard, accountId); return; }
   const expense = {
     ...previous,
     id: $('expense-id').value || createId('expense'), description: $('description').value.trim(), amount,
-    category: $('category').value, payment, cardId, card: chosenCard?.name || '', cardMode, installments,
+    category: $('category').value, payment, cardId, card: chosenCard?.name || '', accountId, cardMode, installments,
     firstDate: $('first-date').value, notes: $('notes').value.trim(), type, recurring, status: payment==='Cartão' ? 'planned' : previous?.recurring === true ? previous.status || 'planned' : $('record-status').value, recurringUntil,
   };
   if (!expense.description) { setFieldValidationError($('description'), FIELD_ERROR_MESSAGES.description); return; }
@@ -1147,7 +1306,7 @@ function submitExpense(event) {
   if (previous?.recurring === true && recurringUntil && settlements.some(payment => payment.expenseId === previous.id && monthKey(Core.installmentDate(previous.firstDate, Number(payment.installmentIndex))) > recurringUntil)) { showToast('Há liquidações posteriores a esse mês. Encerre a repetição no último mês já liquidado ou depois dele.', 'error'); return; }
   const existing = expenses.findIndex((item) => item.id === expense.id);
   const authorizedEdit = existing >= 0 && settlementResetOnSave === expense.id;
-  const financialState = entry => JSON.stringify([Math.round(Number(entry.amount) * 100), entry.firstDate, entry.payment, entry.cardId || '', entry.type || 'expense', Number(entry.installments) || 1, entry.recurring === true]);
+  const financialState = entry => JSON.stringify([Math.round(Number(entry.amount) * 100), entry.firstDate, entry.payment, entry.cardId || '', entry.accountId || '', entry.type || 'expense', Number(entry.installments) || 1, entry.recurring === true]);
   const financialChange = previous && financialState(previous) !== financialState(expense);
   const resetsSettlements = authorizedEdit && (!previous?.recurring || financialChange);
   if (existing >= 0 && settlements.some((item) => item.expenseId === expense.id) && !authorizedEdit) {
@@ -1284,6 +1443,8 @@ function startSettlement(charges) {
   const total = payable.reduce((sum, charge) => sum + charge.remaining, 0);
   $('settlement-summary').textContent = `${cardById(targetCardId)?.name || 'Cartão'} · ${monthLabel(selectedMonth())} · ${currency.format(total)}${payable.length === 1 ? ' nesta cobrança' : ` em ${payable.length} cobranças`}`;
   populateCardSelect($('funding-card'), targetCardId);
+  const linkedAccounts = [...new Set(payable.map(charge => charge.expense.accountId).filter(id => accountById(id)))];
+  populateAccountSelect($('settlement-account'), linkedAccounts.length === 1 ? linkedAccounts[0] : accounts[0]?.id || '');
   updateSettlementMethod();
   $('settlement-dialog').showModal();
 }
@@ -1301,6 +1462,8 @@ function updateSettlementMethod() {
   $('funding-card-hint').hidden = !byCard;
   $('funding-card').required = byCard;
   $('funding-card').disabled = byCard && cards.filter((card) => card.id !== settlementTarget?.cardId).length === 0;
+  $('settlement-account-wrap').hidden = byCard || accounts.length === 0;
+  $('settlement-account').required = !byCard && accounts.length > 0;
 }
 function confirmSettlement(event) {
   event.preventDefault();
@@ -1308,7 +1471,9 @@ function confirmSettlement(event) {
   const targetCard = cardById(settlementTarget.cardId);
   const method = $('settlement-method').value;
   const sourceCardId = method === 'Cartão' ? $('funding-card').value : '';
+  const accountId = method !== 'Cartão' && accounts.length ? $('settlement-account').value : '';
   const sourceCard = cardById(sourceCardId);
+  if (method !== 'Cartão' && accounts.length && !accountById(accountId)) { setFieldValidationError($('settlement-account'), 'Selecione a conta ou carteira usada para pagar a fatura.'); return; }
   if (method === 'Cartão' && !sourceCard) {
     const hasOtherCard = cards.some((card) => card.id !== targetCard?.id);
     setFieldValidationError(hasOtherCard ? $('funding-card') : $('settlement-method'), hasOtherCard ? FIELD_ERROR_MESSAGES['funding-card'] : 'Cadastre outro cartão antes de escolher essa forma de pagamento.');
@@ -1328,7 +1493,7 @@ function confirmSettlement(event) {
   const allocations = Core.allocateFullPayment(payable);
   settlements.push(...allocations.map((allocation) => ({
     id: createId('allocation'), batchId, ...allocation,
-    targetCardId: settlementTarget.cardId, date: paidAt, month: settlementTarget.month, method, sourceCardId,
+    targetCardId: settlementTarget.cardId, date: paidAt, month: settlementTarget.month, method, sourceCardId, accountId,
   })));
   if (method === 'Cartão') {
     expenses.push({
@@ -1345,7 +1510,7 @@ function confirmSettlement(event) {
   showToast(`Pagamento de ${currency.format(total)} registrado via ${method}.`, 'success');
 }
 function exportBackup() {
-  const blob = new Blob([JSON.stringify({ app: 'MeuGasto', version: 3, exportedAt: new Date().toISOString(), expenses, cards, settlements, budgets }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'MeuGasto', version: 4, exportedAt: new Date().toISOString(), expenses, cards, settlements, budgets, accounts, transfers }, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = `meugasto-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1359,13 +1524,15 @@ async function importBackup(file) {
     const incoming = Array.isArray(parsed) ? parsed : parsed.expenses;
     const incomingCards = Array.isArray(parsed.cards) ? parsed.cards : [];
     const incomingSettlements = Array.isArray(parsed.settlements) ? parsed.settlements : [];
-    if (!Array.isArray(incoming) || !incoming.every(isValidExpense) || !incomingCards.every((card) => card && typeof card.id === 'string' && Number.isFinite(Number(card.limit)))) throw new Error('invalid');
-    if ((expenses.length || cards.length) && !window.confirm('Importar este backup vai substituir registros, cartões e pagamentos salvos neste PC. Continuar?')) return;
+    const incomingAccounts = Array.isArray(parsed.accounts) ? parsed.accounts : [];
+    const incomingTransfers = Array.isArray(parsed.transfers) ? parsed.transfers : [];
+    if (!Array.isArray(incoming) || !incoming.every(isValidExpense) || !incomingCards.every((card) => card && typeof card.id === 'string' && Number.isFinite(Number(card.limit))) || !incomingAccounts.every(validAccount) || !incomingTransfers.every(validTransfer)) throw new Error('invalid');
+    if ((expenses.length || cards.length || accounts.length || transfers.length) && !window.confirm('Importar este backup vai substituir registros, cartões, contas e pagamentos salvos neste PC. Continuar?')) return;
     if (parsed.budgets !== undefined && (!Array.isArray(parsed.budgets) || !parsed.budgets.every(validBudget))) throw new Error('invalid');
-    expenses = incoming; cards = incomingCards; settlements = incomingSettlements; budgets = parsed.budgets || [];
+    expenses = incoming; cards = incomingCards; settlements = incomingSettlements; budgets = parsed.budgets || []; accounts = incomingAccounts; transfers = incomingTransfers;
     saveBudgets();
     migrateLegacyCardLinks();
-    saveExpenses(); saveCards(); saveSettlements(); render();
+    saveExpenses(); saveCards(); saveSettlements(); saveAccounts(); saveTransfers(); render();
     showToast('Backup importado.', 'success');
   } catch { showToast('Não foi possível importar esse arquivo. Confira se ele foi exportado pelo MeuGasto e tente novamente.', 'error'); }
   finally { $('import-file').value = ''; }
@@ -1388,6 +1555,8 @@ function initialize() {
   populateCardSelect($('card-select'));
   document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; if (view==='cartoes'||view==='orcamentos') setPaymentsMenuExpanded(true); render(); }));
   $('new-expense').addEventListener('click', () => openExpense());
+  $('new-account').addEventListener('click', () => openAccountDialog());
+  $('new-transfer').addEventListener('click', () => openTransferDialog());
   $('manage-income').addEventListener('click', () => { view = 'lancamentos'; $('clear-filters').click(); render(); });
   document.querySelectorAll('input[name="record-type"]').forEach(input => input.addEventListener('change', () => updateRecordType()));
   $('new-card').addEventListener('click', () => openCardDialog());
@@ -1427,12 +1596,27 @@ function initialize() {
   $('cancel-dialog').addEventListener('click', () => $('expense-dialog').close());
   $('expense-dialog').addEventListener('close', () => { settlementResetOnSave = null; });
   $('expense-form').addEventListener('submit', submitExpense);
+  $('account-form').addEventListener('submit', submitAccount);
+  $('transfer-form').addEventListener('submit', submitTransfer);
   $('payment').addEventListener('change', updatePaymentFields);
   $('recurring-record').addEventListener('change', updatePaymentFields);
   $('card-mode').addEventListener('change', updatePaymentFields);
   $('installments').addEventListener('change', updatePaymentFields);
   $('amount').addEventListener('input', (event) => { formatCurrencyInput(event.currentTarget); updatePaymentFields(); });
   $('card-limit').addEventListener('input', (event) => formatCurrencyInput(event.currentTarget));
+  $('account-opening-balance').addEventListener('input', event => formatCurrencyInput(event.currentTarget));
+  $('transfer-amount').addEventListener('input', event => formatCurrencyInput(event.currentTarget));
+  $('account-list').addEventListener('click', event => {
+    const edit = event.target.closest('[data-edit-account]'), remove = event.target.closest('[data-delete-account]'), add = event.target.closest('[data-account-add]');
+    if (edit) openAccountDialog(accountById(edit.dataset.editAccount));
+    if (remove) deleteAccount(remove.dataset.deleteAccount);
+    if (add) openAccountDialog();
+  });
+  $('transfer-list').addEventListener('click', event => {
+    const edit = event.target.closest('[data-edit-transfer]'), remove = event.target.closest('[data-delete-transfer]');
+    if (edit) openTransferDialog(transfers.find(item => item.id === edit.dataset.editTransfer));
+    if (remove) deleteTransfer(remove.dataset.deleteTransfer);
+  });
   $('transactions-list').addEventListener('click', (event) => {
     const edit = event.target.closest('[data-edit]');
     const remove = event.target.closest('[data-delete]');

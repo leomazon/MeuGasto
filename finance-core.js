@@ -137,6 +137,48 @@
     }
     return {income:income/100,expenses:expenses/100,balance:(income-expenses)/100};
   }
+  function accountBalances(accounts, entries, payments, transfers, asOf) {
+    const cutoff = dateKey(asOf);
+    const balances = new Map(accounts.map(account => [String(account.id), Math.round(Number(account.openingBalance || 0) * 100)]));
+    const openingDates = new Map(accounts.map(account => [String(account.id), dateKey(account.openingDate)]));
+    const apply = (accountId, date, amountCents) => {
+      const id = String(accountId || ''), dateValue = dateKey(date);
+      if (!balances.has(id) || !/^\d{4}-\d{2}-\d{2}$/.test(dateValue) || dateValue > cutoff || dateValue < openingDates.get(id)) return;
+      balances.set(id, balances.get(id) + amountCents);
+    };
+    for (const entry of entries) {
+      if (entry.type === 'debt-transfer' || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey(entry.firstDate))) continue;
+      const lastMonth = cutoff.slice(0, 7);
+      const lastIndex = monthOffset(entry.firstDate, lastMonth);
+      if (lastIndex < 0) continue;
+      const count = entry.recurring === true ? lastIndex + 1 : Math.min(Math.max(1, Number(entry.installments) || 1), lastIndex + 1);
+      for (let index = 0; index < count; index += 1) {
+        if (entry.recurring === true && entry.recurringUntil && dateKey(installmentDate(entry.firstDate, index)).slice(0, 7) > entry.recurringUntil) continue;
+        const occurrence = occurrenceEntry(entry, index);
+        const occurrenceDay = dateKey(occurrenceDate(entry, index));
+        if (occurrenceDay > cutoff) continue;
+        const recorded = payments.filter(payment => payment.expenseId === entry.id && Number(payment.installmentIndex) === index);
+        if (recorded.length) {
+          for (const payment of recorded) {
+            const paidByCard = payment.method === 'Cartão' || Boolean(payment.sourceCardId);
+            const accountId = paidByCard ? '' : payment.accountId || occurrence.accountId || entry.accountId;
+            const amount = Math.round(Number(payment.amount) * 100) * (entry.type === 'income' ? 1 : -1);
+            apply(accountId, payment.date || occurrenceDay, amount);
+          }
+        } else if (entry.payment !== 'Cartão' && implicitRealized(entry, index)) {
+          const amount = entry.recurring === true ? Number(occurrence.amount) : installmentAmount(entry.amount, entry.installments, index);
+          apply(occurrence.accountId || entry.accountId, occurrenceDay, Math.round(amount * 100) * (entry.type === 'income' ? 1 : -1));
+        }
+      }
+    }
+    for (const transfer of transfers) {
+      const amount = Math.round(Number(transfer.amount) * 100);
+      if (!(amount > 0) || transfer.fromAccountId === transfer.toAccountId) continue;
+      apply(transfer.fromAccountId, transfer.date, -amount);
+      apply(transfer.toAccountId, transfer.date, amount);
+    }
+    return accounts.map(account => ({ ...account, balance: balances.get(String(account.id)) / 100 }));
+  }
   function monthlyClosing(entries,payments,month) {
     const actual=monthlyCashFlow(entries,payments,month);
     let toReceiveCents=0, toPayCents=0, toReceiveCount=0, toPayCount=0;
@@ -355,6 +397,7 @@
     occurrenceDate,
     realizedAmount,
     monthlyCashFlow,
+    accountBalances,
     budgetProgress,
     financialAlerts,
     monthlyTrends,

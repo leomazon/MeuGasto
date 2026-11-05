@@ -82,6 +82,40 @@ test('calculates how much of projected income is committed to expenses', () => {
   });
 });
 
+test('calculates account balances from opening amounts, settled records and internal transfers', () => {
+  const accounts = [
+    { id: 'checking', name: 'Conta principal', kind: 'checking', openingBalance: 500.1, openingDate: '2026-11-01' },
+    { id: 'wallet', name: 'Carteira', kind: 'cash', openingBalance: 100, openingDate: '2026-11-01' },
+  ];
+  const entries = [
+    { id: 'salary', type: 'income', amount: 1000, installments: 1, firstDate: '2026-11-02', payment: 'Transferência', accountId: 'checking', status: 'realized' },
+    { id: 'rent', type: 'expense', amount: 250, installments: 1, firstDate: '2026-11-03', payment: 'Pix', accountId: 'checking', status: 'realized' },
+    { id: 'old-cash', type: 'expense', amount: 20, installments: 1, firstDate: '2026-10-30', payment: 'Dinheiro', accountId: 'wallet', status: 'planned' },
+    { id: 'planned', type: 'expense', amount: 70, installments: 1, firstDate: '2026-11-04', payment: 'Pix', accountId: 'checking', status: 'planned' },
+    { id: 'card-buy', type: 'expense', amount: 300, installments: 1, firstDate: '2026-11-05', payment: 'Cartão', status: 'planned' },
+  ];
+  const payments = [
+    { expenseId: 'old-cash', installmentIndex: 0, amount: 20, date: '2026-11-06', method: 'Dinheiro', accountId: 'wallet' },
+    { expenseId: 'card-buy', installmentIndex: 0, amount: 60, date: '2026-11-07', method: 'Pix', accountId: 'checking' },
+  ];
+  const transfers = [{ id: 'move', fromAccountId: 'checking', toAccountId: 'wallet', amount: 75, date: '2026-11-08' }];
+
+  const balances = Core.accountBalances(accounts, entries, payments, transfers, '2026-11-30');
+  assert.deepEqual(balances.map(({ id, balance }) => [id, balance]), [['checking', 1115.1], ['wallet', 155]]);
+  assert.equal(balances.reduce((total, account) => total + Math.round(account.balance * 100), 0) / 100, 1270.1,
+    'moving money between owned accounts must leave the combined balance unchanged');
+});
+
+test('uses the opening date to exclude earlier activity and ignores records without an account', () => {
+  const accounts = [{ id: 'checking', openingBalance: 100, openingDate: '2026-11-05' }];
+  const entries = [
+    { id: 'already-included', type: 'income', amount: 500, installments: 1, firstDate: '2026-11-04', payment: 'Pix', accountId: 'checking', status: 'realized' },
+    { id: 'unassigned', type: 'income', amount: 200, installments: 1, firstDate: '2026-11-06', payment: 'Pix', status: 'realized' },
+    { id: 'new-income', type: 'income', amount: 25, installments: 1, firstDate: '2026-11-06', payment: 'Pix', accountId: 'checking', status: 'realized' },
+  ];
+  assert.deepEqual(Core.accountBalances(accounts, entries, [], [], '2026-11-30').map(({ balance }) => balance), [125]);
+});
+
 test('paginates monthly charges with a selected page size and clamps an out-of-range page', () => {
   const charges = Array.from({ length: 26 }, (_, id) => id);
   assert.deepEqual(Core.paginate(charges, 2, 10), { items: Array.from({ length: 10 }, (_, id) => id + 10), page: 2, pageSize: 10, totalItems: 26, totalPages: 3 });

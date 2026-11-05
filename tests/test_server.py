@@ -62,6 +62,30 @@ class StateStoreTests(unittest.TestCase):
                 store.restore_backup("backup-missing.sqlite3")
             self.assertEqual(store.load_state(), saved)
 
+    def test_accounts_and_transfers_round_trip_through_local_sqlite_backups(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = StateStore(Path(folder) / "meugasto.sqlite3", backup_interval_seconds=0, retention=5)
+            state = {
+                "expenses": [], "cards": [], "settlements": [], "budgets": [],
+                "accounts": [{"id": "checking", "name": "Conta principal", "openingBalance": 500}],
+                "transfers": [{"id": "move", "fromAccountId": "checking", "toAccountId": "wallet", "amount": 50}],
+            }
+            store.save_state(state)
+            backup_name = store.list_backups()[0]["name"]
+            store.save_state({"expenses": [], "cards": [], "settlements": [], "accounts": [], "transfers": []})
+            store.restore_backup(backup_name)
+            self.assertEqual(store.load_state(), state)
+
+    def test_rejects_invalid_accounts_or_transfers_without_overwriting_saved_state(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = StateStore(Path(folder) / "meugasto.sqlite3")
+            saved = {"expenses": [], "cards": [], "settlements": [], "accounts": [], "transfers": []}
+            store.save_state(saved)
+            for invalid in ({**saved, "accounts": "not-a-list"}, {**saved, "transfers": {}}):
+                with self.assertRaises(ValueError):
+                    store.save_state(invalid)
+                self.assertEqual(store.load_state(), saved)
+
 
 if __name__ == "__main__":
     unittest.main()

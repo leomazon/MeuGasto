@@ -58,6 +58,10 @@ function startRealization(id,index) {
   $('realization-title').textContent = income ? 'Confirmar recebimento' : 'Confirmar pagamento';
   $('realization-date-label').textContent = income ? 'Data do recebimento' : 'Data do pagamento';
   $('realization-summary').textContent = `${charge.expense.description} · ${currency.format(charge.amount)} · ${charge.expense.payment}`;
+  const effective = Core.occurrenceEntry(root,index);
+  $('realization-account-wrap').hidden = accounts.length === 0;
+  $('realization-account').required = accounts.length > 0;
+  populateAccountSelect($('realization-account'), effective.accountId || root.accountId || accounts[0]?.id || '');
   $('realization-date').max = localDateKey();
   $('realization-date').value = localDateKey();
   clearFormValidation($('realization-form'));
@@ -72,22 +76,24 @@ function confirmRealization(event) {
   if (!entry) { showToast('Este registro não está mais disponível. Atualize a lista e tente novamente.', 'error'); return; }
   if (!date) { setFieldValidationError($('realization-date'), FIELD_ERROR_MESSAGES['realization-date']); return; }
   if (date > localDateKey()) { setFieldValidationError($('realization-date'), 'A data de confirmação não pode ser futura.'); return; }
+  const accountId = accounts.length ? $('realization-account').value : '';
+  if (accounts.length && !accountById(accountId)) { setFieldValidationError($('realization-account'), 'Selecione a conta ou carteira usada.'); return; }
   const effective = Core.occurrenceEntry(entry,index);
   // Replacing this occurrence's confirmation makes double submission harmless.
   settlements = settlements.filter(payment=>payment.expenseId!==id || Number(payment.installmentIndex)!==index);
-  settlements.push({id:createId('cashflow'),expenseId:id,installmentIndex:index,amount,date,month:selectedMonth(),method:effective.payment,kind:income ? 'receipt' : 'cash-payment'});
+  settlements.push({id:createId('cashflow'),expenseId:id,installmentIndex:index,amount,date,month:selectedMonth(),method:effective.payment,accountId,kind:income ? 'receipt' : 'cash-payment'});
   entry.realizationStates = {...entry.realizationStates,[index]:'confirmed'};
   saveExpenses(); saveSettlements(); $('realization-dialog').close(); realizationTarget=null; render();
   showToast(income ? 'Recebimento confirmado.' : 'Pagamento confirmado.', 'success');
 }
-function submitMonthlyOverride(previous, amount, chosenCard) {
+function submitMonthlyOverride(previous, amount, chosenCard, accountId) {
   const month = selectedMonth(), index = occurrenceIndex(previous);
   const date = $('first-date').value;
   if (index < 0 || date.slice(0,7)!==month) { setFieldValidationError($('first-date'), 'Escolha uma data dentro do mês selecionado.'); return; }
   const old = Core.occurrenceEntry(previous,index);
   const payment = $('payment').value;
-  const override = {description:$('description').value.trim(),amount,category:$('category').value,payment,cardId:chosenCard?.id || '',card:chosenCard?.name || '',notes:$('notes').value.trim(),date,status:payment==='Cartão' ? 'planned' : $('record-status').value};
-  const changed = Number(old.amount)!==amount || old.payment!==payment || (old.cardId || '')!==override.cardId || localDateKey(Core.occurrenceDate(previous,index))!==date;
+  const override = {description:$('description').value.trim(),amount,category:$('category').value,payment,cardId:chosenCard?.id || '',card:chosenCard?.name || '',accountId,notes:$('notes').value.trim(),date,status:payment==='Cartão' ? 'planned' : $('record-status').value};
+  const changed = Number(old.amount)!==amount || old.payment!==payment || (old.cardId || '')!==override.cardId || (old.accountId || '')!==accountId || localDateKey(Core.occurrenceDate(previous,index))!==date;
   const linked = settlements.some(item=>item.expenseId===previous.id && Number(item.installmentIndex)===index);
   if (linked && settlementResetOnSave!==previous.id) { showToast('Confirme a edição antes de alterar um mês já liquidado.', 'error'); return; }
   if (linked && (changed || override.status==='planned')) {
@@ -207,6 +213,8 @@ function setPaymentsMenuExpanded(expanded) {
 function setupEnhancements() {
   setupDatePicker('first-date');
   setupDatePicker('realization-date');
+  setupDatePicker('account-opening-date');
+  setupDatePicker('transfer-date');
   const smallScreen=matchMedia('(max-width:760px)');
   setSidebarCollapsed(smallScreen.matches);
   smallScreen.addEventListener('change',event=>setSidebarCollapsed(event.matches));

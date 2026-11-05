@@ -17,3 +17,9 @@ For visual design and UI styling work, use the project-local `frontend-design` s
 - Build new form fields with the shared `.field`, `.field-row`, and `.full-field` styles so labels, input heights, typography, spacing, and responsive behavior match existing forms.
 - Keep fields in a `.field-row` aligned at the top. Put conditional fields in their own row after the grid; do not nest an extra field inside one column, because it can stretch and misalign its sibling input.
 - Avoid one-off label or input sizing for new fields unless the user specifically requests a different treatment.
+
+## Git workflow
+
+- For each cohesive feature or fix, create a dedicated branch (for example, `feat/contas-carteiras`); group related small visual adjustments with the feature instead of creating a branch for every tiny tweak.
+- After the change is complete and the required checks pass, create a descriptive commit and push the branch to GitHub.
+- Merge the verified branch into `main` and push `main` after the feature is ready. Do not leave completed, authorized work only in the local working tree.

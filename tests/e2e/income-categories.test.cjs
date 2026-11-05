@@ -96,10 +96,10 @@ test('shows centered icons for payment methods and keeps the selected method in 
   await page.locator('#payment-trigger').click();
 
   const methods=page.locator('#payment-options [role="option"]');
-  assert.deepEqual(await methods.evaluateAll(elements=>elements.map(option=>option.lastElementChild.textContent)),['Pix','Dinheiro','Cartão']);
+  assert.deepEqual(await methods.evaluateAll(elements=>elements.map(option=>option.lastElementChild.textContent)),['Pix','Transferência','Dinheiro','Cartão']);
   assert.equal(await methods.nth(0).locator('.payment-picker-pix').count(),1);
-  assert.equal(await methods.nth(1).locator('.material-icons').innerText(),'payments');
-  assert.equal(await methods.nth(2).locator('.material-icons').innerText(),'credit_card');
+  assert.equal(await methods.filter({hasText:'Dinheiro'}).locator('.material-icons').innerText(),'payments');
+  assert.equal(await methods.filter({hasText:'Cartão'}).locator('.material-icons').innerText(),'credit_card');
   await methods.filter({hasText:'Dinheiro'}).click();
   assert.equal(await page.locator('#payment').inputValue(),'Dinheiro');
   assert.equal(await page.locator('#payment-selected-name').innerText(),'Dinheiro');
