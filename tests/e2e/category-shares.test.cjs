@@ -49,6 +49,8 @@ test('shows each launch share of its category total for the selected month', asy
     ]));
   });
   await page.reload();
+  await page.getByRole('button', { name: 'Análises', exact: true }).click();
+  await page.getByRole('tab', { name: 'Categorias' }).click();
   const overviewColors = await page.locator('#category-list .category-item').evaluateAll((items) => Object.fromEntries(items.map((item) => [
     item.querySelector('.category-name').textContent,
     getComputedStyle(item.querySelector('.category-track i')).backgroundColor,

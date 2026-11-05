@@ -217,6 +217,7 @@ test('adds a cash purchase and shows cash separately beside Pix and card in the 
   assert.equal(await dialog.locator('#card-details-row').isHidden(), true, 'cash purchases should not ask for card details');
   await dialog.getByRole('button', { name: 'Salvar registro' }).click();
   await page.getByRole('button', { name: 'Visão geral', exact: true }).click();
+  await page.getByRole('tab', { name: 'Pagamentos' }).click();
 
   const amountText = async (selector) => (await page.locator(selector).innerText()).replace(/\u00a0/g, ' ');
   assert.equal(await amountText('#cash-total'), 'R$ 12,50');
@@ -280,8 +281,11 @@ test('uses payment bar colors that do not repeat category bar colors', async () 
     ]));
   });
   await page.reload();
+  await page.getByRole('tab', { name: 'Pagamentos' }).click();
 
   const paymentColors = await page.locator('#pix-bar, #cash-bar, #card-bar').evaluateAll((bars) => bars.map((bar) => getComputedStyle(bar).backgroundColor));
+  await page.getByRole('button', { name: 'Análises', exact: true }).click();
+  await page.getByRole('tab', { name: 'Categorias' }).click();
   const categoryColors = await page.locator('#category-list .category-track i').evaluateAll((bars) => bars.map((bar) => getComputedStyle(bar).backgroundColor));
   const rgb = (color) => color.match(/\d+/g).slice(0, 3).map(Number);
   const colorDistance = (a, b) => Math.hypot(...rgb(a).map((channel, index) => channel - rgb(b)[index]));

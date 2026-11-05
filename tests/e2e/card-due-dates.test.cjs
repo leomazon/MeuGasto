@@ -170,6 +170,7 @@ test('marks unpaid card charges overdue and keeps settled charges as paid', asyn
   }, { firstDate, previousMonthKey, paidAt });
   await page.reload();
   await page.locator('#prev-month').click();
+  await page.getByRole('tab', { name: 'Recentes' }).click();
 
   const recentOverdue = page.locator('#recent-list .expense-row').filter({ hasText: 'Compra vencida' });
   const recentPaid = page.locator('#recent-list .expense-row').filter({ hasText: 'Compra liquidada' });

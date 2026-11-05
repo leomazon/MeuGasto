@@ -66,6 +66,12 @@ test('shows actual monthly totals and splits pending amounts from unpaid card in
   await page.reload();
   await page.getByRole('button',{name:'Análises',exact:true}).click();
 
+  const closingHelp=page.getByRole('button',{name:'Sobre o fechamento mensal'});
+  assert.equal(await closingHelp.count(),1);
+  assert.equal(await closingHelp.getAttribute('aria-describedby'),'closing-tooltip');
+  assert.match(await page.locator('#closing-tooltip').textContent(),/Faturas em aberto são cobranças de cartão não liquidadas/);
+  await closingHelp.focus();
+  assert.equal(await page.locator('#closing-tooltip').evaluate(element=>getComputedStyle(element).visibility),'visible');
   assert.equal((await page.locator('#closing-received').innerText()).replace(/\s/g,''),'R$1.000,00');
   assert.equal((await page.locator('#closing-paid').innerText()).replace(/\s/g,''),'R$230,00');
   assert.equal((await page.locator('#closing-balance').innerText()).replace(/\s/g,''),'R$770,00');
@@ -74,6 +80,36 @@ test('shows actual monthly totals and splits pending amounts from unpaid card in
   assert.equal((await page.locator('#closing-open-cards').innerText()).replace(/\s/g,''),'R$270,00');
   assert.match(await page.locator('#closing-card-list').innerText(),/Nubank.*150,00/s);
   assert.match(await page.locator('#closing-card-list').innerText(),/Ourocard.*120,00/s);
+});
+
+test('separates overview and analysis into accessible topic tabs', async () => {
+  const overviewTabs = page.getByRole('tablist', { name: 'Visão geral' });
+  assert.equal(await overviewTabs.getByRole('tab').count(), 3);
+  assert.equal(await page.getByRole('tab', { name: 'Saldo' }).getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('#month-balance').isVisible(), true);
+  assert.equal(await page.locator('#month-total').isVisible(), false);
+
+  await page.getByRole('tab', { name: 'Saldo' }).focus();
+  await page.getByRole('tab', { name: 'Saldo' }).press('ArrowRight');
+  assert.equal(await page.getByRole('tab', { name: 'Pagamentos' }).getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('#month-total').isVisible(), true);
+  assert.equal(await page.locator('#month-balance').isVisible(), false);
+  await page.getByRole('tab', { name: 'Recentes' }).click();
+  assert.equal(await page.locator('#recent-list').isVisible(), true);
+
+  await page.getByRole('button', { name: 'Análises', exact: true }).click();
+  const analysisTabs = page.getByRole('tablist', { name: 'Análises' });
+  assert.equal(await analysisTabs.getByRole('tab').count(), 4);
+  assert.equal(await page.locator('#closing-title').isVisible(), true);
+  await page.getByRole('tab', { name: 'Categorias' }).click();
+  assert.equal(await page.locator('#category-list').isVisible(), true);
+  assert.equal(await page.locator('#income-category-list').isVisible(), true);
+  assert.equal(await page.locator('#closing-title').isVisible(), false);
+  await page.getByRole('tab', { name: 'Evolução' }).click();
+  assert.equal(await page.locator('#trend-chart').isVisible(), true);
+  assert.equal(await page.locator('#budget-list').isVisible(), false);
+  await page.getByRole('tab', { name: 'Orçamentos' }).click();
+  assert.equal(await page.locator('#budget-list').isVisible(), true);
 });
 
 
@@ -146,6 +182,7 @@ test('edits a fixed record for one month while preserving neighboring months and
 
 test('saves category budgets, shows overruns and compares consecutive months', async () => {
   await page.getByRole('button',{name:'Análises',exact:true}).click();
+  await page.getByRole('tab',{name:'Orçamentos'}).click();
   await page.locator('#new-budget').click();
   await page.locator('#budget-category').selectOption('Moradia');
   await page.locator('#budget-amount').fill('100,00');
@@ -157,6 +194,7 @@ test('saves category budgets, shows overruns and compares consecutive months', a
   await page.locator('#save-expense').click();
   await page.getByRole('button',{name:'Análises',exact:true}).click();
   assert.match(await page.locator('#budget-list').innerText(),/50,00 acima/);
+  await page.getByRole('tab',{name:'Evolução'}).click();
   assert.equal(await page.locator('#trend-chart .trend-month').count(),6);
   assert.equal(await page.locator('#trend-chart .trend-bar-income').count(),6);
   assert.equal(await page.locator('#trend-chart .trend-bar-expense').count(),6);
@@ -170,6 +208,7 @@ test('saves category budgets, shows overruns and compares consecutive months', a
   assert.equal(await page.locator('#trend-chart .trend-month').count(),12);
   await page.reload();
   await page.getByRole('button',{name:'Análises',exact:true}).click();
+  await page.getByRole('tab',{name:'Orçamentos'}).click();
   assert.match(await page.locator('#budget-list').innerText(),/50,00 acima/);
   await page.getByRole('button',{name:'Excluir orçamento de Moradia',exact:true}).click();
   await page.locator('#confirm-delete').click();

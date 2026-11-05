@@ -76,6 +76,7 @@ test('formats purchase amounts and card limits as Brazilian reais while typing',
   assert.equal((await expenseDialog.locator('#amount').inputValue()).replace(/\s/g, ' '), 'R$ 1.234,56');
   await expenseDialog.getByRole('button', { name: 'Salvar registro' }).click();
   await page.getByRole('button', { name: 'Visão geral', exact: true }).click();
+  await page.getByRole('tab', { name: 'Pagamentos' }).click();
   assert.equal((await page.locator('#month-total').innerText()).replace(/\s/g, ' '), 'R$ 1.234,56');
   assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('meu-financeiro-v1'))))[0].amount, 1234.56);
 

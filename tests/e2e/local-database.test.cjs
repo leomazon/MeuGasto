@@ -63,12 +63,14 @@ test('migrates existing browser expenses to SQLite and restores them after brows
     const { initialized, state } = await response.json();
     return initialized && state.expenses.some((expense) => expense.id === 'legacy');
   });
+  await page.getByRole('tab',{name:'Recentes'}).click();
   await page.locator('#recent-list').getByText('Compra migrada').waitFor();
   await page.waitForFunction(() => localStorage.getItem('meu-financeiro-v1') === null, null, { timeout: 3000 });
 
   await page.evaluate(() => localStorage.clear());
   await page.reload();
 
+  await page.getByRole('tab',{name:'Recentes'}).click();
   await page.locator('#recent-list').getByText('Compra migrada').waitFor();
   assert.equal((await page.evaluate(async () => (await (await fetch('/api/state')).json()).state.expenses))[0].amount, 42.5);
   await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
@@ -97,6 +99,7 @@ test('restores a local SQLite backup through the UI including budgets and preser
   const original={expenses:[{id:'restore-one',description:'Antes da cópia',amount:70,category:'Moradia',payment:'Pix',installments:1,firstDate:today,type:'expense',status:'planned'}],cards:[],settlements:[],budgets:[{category:'Moradia',amount:100}]};
   assert.equal((await fetch(`${appUrl}/api/state`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(original)})).status,200);
   await page.reload();
+  await page.getByRole('tab',{name:'Recentes'}).click();
   await page.locator('#recent-list').getByText('Antes da cópia',{exact:true}).waitFor();
   await page.locator('#local-backups').click();
   await page.locator('#create-backup').click();
@@ -106,6 +109,7 @@ test('restores a local SQLite backup through the UI including budgets and preser
   const changed={...original,expenses:[{...original.expenses[0],description:'Depois da cópia',amount:200}],budgets:[{category:'Moradia',amount:300}]};
   await fetch(`${appUrl}/api/state`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(changed)});
   await page.reload();
+  await page.getByRole('tab',{name:'Recentes'}).click();
   await page.locator('#recent-list').getByText('Depois da cópia',{exact:true}).waitFor();
   await page.locator('#local-backups').click();
   await page.locator(`[data-restore="${name}"]`).click();
@@ -113,6 +117,8 @@ test('restores a local SQLite backup through the UI including budgets and preser
   await page.waitForFunction(()=>document.querySelector('.notyf__message')?.textContent==='Cópia restaurada.');
   await page.locator('#backups-dialog [data-close]').first().click();
   await page.locator('#recent-list').getByText('Antes da cópia',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Análises',exact:true}).click();
+  await page.getByRole('tab',{name:'Orçamentos'}).click();
   assert.match(await page.locator('#budget-list').innerText(),/100,00/);
   assert.deepEqual((await (await fetch(`${appUrl}/api/state`)).json()).state,original);
   assert.equal((await (await fetch(`${appUrl}/api/backups`)).json()).backups.length,copies.backups.length+1);
@@ -128,6 +134,7 @@ test('restores a local SQLite backup through the UI including budgets and preser
   }
   assert.ok(ready,'Server should restart against the same SQLite database');
   await page.goto(appUrl);
+  await page.getByRole('tab',{name:'Recentes'}).click();
   await page.locator('#recent-list').getByText('Antes da cópia',{exact:true}).waitFor();
   assert.deepEqual((await (await fetch(`${appUrl}/api/state`)).json()).state,original);
 });

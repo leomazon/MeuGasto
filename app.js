@@ -863,6 +863,40 @@ function render() {
   renderTransactions();
   renderCards();
 }
+function activateViewTab(tab, moveFocus = false) {
+  const tablist = tab.closest('[role="tablist"]');
+  if (!tablist) return;
+  const panelIds = [...tablist.querySelectorAll('[role="tab"]')].map(item => item.getAttribute('aria-controls'));
+  tablist.querySelectorAll('[role="tab"]').forEach(item => {
+    const selected = item === tab;
+    item.setAttribute('aria-selected', String(selected));
+    item.tabIndex = selected ? 0 : -1;
+  });
+  panelIds.forEach(id => {
+    const panel = document.getElementById(id);
+    if (panel) panel.hidden = id !== tab.getAttribute('aria-controls');
+  });
+  if (moveFocus) tab.focus();
+}
+function setupViewTabs() {
+  document.querySelectorAll('[role="tablist"]').forEach(tablist => {
+    tablist.addEventListener('click', event => {
+      const tab = event.target.closest('[role="tab"]');
+      if (tab && tablist.contains(tab)) activateViewTab(tab);
+    });
+    tablist.addEventListener('keydown', event => {
+      const tabs = [...tablist.querySelectorAll('[role="tab"]')];
+      const index = tabs.indexOf(document.activeElement);
+      if (index < 0) return;
+      const nextIndex = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? (index + 1) % tabs.length
+        : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? (index - 1 + tabs.length) % tabs.length
+          : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1;
+      if (nextIndex < 0) return;
+      event.preventDefault();
+      activateViewTab(tabs[nextIndex], true);
+    });
+  });
+}
 function deleteIncome(id) {
   const entry = expenses.find((item) => item.id === id && item.type === 'income');
   if (!entry) return;
@@ -1191,6 +1225,7 @@ async function importBackup(file) {
 function initialize() {
   setupFormValidation();
   setupEnhancements();
+  setupViewTabs();
   $('sidebar-toggle').addEventListener('click', () => setSidebarCollapsed(!document.querySelector('.app-shell').classList.contains('sidebar-collapsed')));
   $('month-picker').value = monthKey(new Date());
   $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');

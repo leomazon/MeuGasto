@@ -129,6 +129,8 @@ test('shows separate monthly category charts and income shares that survive filt
     ]));
   });
   await page.reload();
+  await page.getByRole('button',{name:'Análises',exact:true}).click();
+  await page.getByRole('tab',{name:'Categorias'}).click();
   const incomeRows=page.locator('#income-category-list .category-item');
   assert.deepEqual(await incomeRows.locator('.category-name').allTextContents(),['Salário','Prestação de serviço']);
   assert.deepEqual(await incomeRows.locator('.category-share').allTextContents(),['60%','40%']);
@@ -146,6 +148,7 @@ test('shows separate monthly category charts and income shares that survive filt
   assert.match(await mainRow.locator('.category-share').innerText(),/75%/);
   await page.getByRole('button',{name:'Visão geral',exact:true}).click();
   await page.getByRole('button',{name:'Próximo mês',exact:true}).click();
+  await page.getByRole('button',{name:'Análises',exact:true}).click();
   assert.equal(await page.locator('#income-category-list .category-item').count(),0);
   assert.match(await page.locator('#income-category-list').innerText(),/Nenhuma receita/);
   assert.equal(await page.locator('#category-list .category-item').count(),0);

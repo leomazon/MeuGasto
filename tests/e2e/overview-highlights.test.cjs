@@ -49,6 +49,7 @@ test('shows the average charge in the overview total card', async () => {
     ]));
   });
   await page.reload();
+  await page.getByRole('tab', { name: 'Pagamentos' }).click();
 
   assert.equal((await page.locator('#average-charge').textContent()).replace(/\s+/g, ' ').trim(), 'R$ 93,33');
   assert.equal(await page.locator('#average-charge-count').textContent(), 'em 3 cobranças');
@@ -68,6 +69,7 @@ test('shows the newest expenses first and matches their count to category rows',
     localStorage.setItem('meu-financeiro-v1', JSON.stringify(expenses));
   });
   await page.reload();
+  await page.getByRole('tab', { name: 'Recentes' }).click();
 
   assert.equal(await page.locator('#recent-list .expense-row').count(), 7, 'recent expenses should show as many items as the category breakdown');
   assert.equal(await page.locator('#recent-list .expense-name strong').first().textContent(), 'Recente 7', 'the most recently added expense should appear first when dates match');

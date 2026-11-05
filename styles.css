@@ -401,9 +401,9 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 
 .balance-heading{display:flex;align-items:center;gap:9px}
 .help-tip{position:relative;display:grid;place-items:center;width:23px;height:23px;flex:0 0 23px;padding:0;border:1px solid #d8cdef;border-radius:50%;background:#f7f3ff;color:#6541c8;font-size:13px;font-weight:700;line-height:1}
-.help-tip:hover,.help-tip:focus-visible{background:#6541c8;color:#fff}
+.help-tip:hover,.help-tip:focus{background:#6541c8;color:#fff}
 .tooltip-copy{position:absolute;z-index:8;top:calc(100% + 10px);left:0;width:min(330px,calc(100vw - 56px));padding:12px 14px;border:1px solid #e5def1;border-radius:10px;background:#fff;color:var(--ink);font-size:13px;font-weight:500;line-height:1.55;text-align:left;box-shadow:0 8px 24px rgba(33,20,68,.14);opacity:0;visibility:hidden;transform:translateY(-3px);transition:opacity .15s ease,transform .15s ease,visibility .15s}
-.help-tip:hover .tooltip-copy,.help-tip:focus-visible .tooltip-copy{opacity:1;visibility:visible;transform:translateY(0)}
+.help-tip:hover .tooltip-copy,.help-tip:focus .tooltip-copy{opacity:1;visibility:visible;transform:translateY(0)}
 @media(max-width:760px){.tooltip-copy{left:-4px}}
 
 .nav-item svg{width:20px;height:20px;flex:0 0 20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -544,7 +544,7 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .monthly-closing-panel{margin-bottom:20px;padding:23px;border:1px solid var(--line);border-radius:16px;background:var(--white)}
 .closing-header{display:flex;align-items:center;justify-content:space-between;gap:14px}
 .closing-header h2{margin:0;font-family:Manrope,sans-serif;font-size:20px;letter-spacing:-.45px}
-.closing-header .balance-note{margin:5px 0 0}
+
 .closing-month-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:10px;background:var(--lavender);color:#5e4a92;font-size:12px;font-weight:700;text-transform:capitalize;white-space:nowrap}
 .closing-month-chip .material-icons{font-size:17px}
 .closing-actual-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:19px}
@@ -575,3 +575,20 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .closing-empty{margin:0;padding:8px 0 0;color:#918b9d;font-size:11px}
 @media(max-width:900px){.closing-pending-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.closing-invoices-card{grid-column:1/-1}}
 @media(max-width:600px){.monthly-closing-panel{padding:18px}.closing-actual-grid,.closing-pending-grid{grid-template-columns:1fr}.closing-invoices-card{grid-column:auto}.closing-actual-metric{grid-template-columns:1fr auto;align-items:center}.closing-actual-metric>strong{font-size:19px}.closing-open-heading{align-items:flex-start;flex-direction:column;gap:4px}.closing-pending-card>strong{font-size:19px}}
+
+.closing-title-row{position:relative;display:flex;align-items:center;gap:9px}
+.closing-title-row .tooltip-copy{width:min(380px,calc(100vw - 56px))}
+.closing-title-row .help-tip{position:static}
+.closing-title-row .tooltip-copy{left:0;right:auto}
+
+.view-tabs{display:flex;align-items:stretch;gap:10px;min-height:47px;margin:0 0 18px;border-bottom:1px solid var(--line);overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
+.view-tabs::-webkit-scrollbar{display:none}
+.view-tab{flex:0 0 auto;min-height:46px;padding:0 14px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-size:14px;font-weight:600;white-space:nowrap;transition:color .15s,border-color .15s}
+.view-tab:hover{color:var(--purple)}
+.view-tab[aria-selected="true"]{border-bottom-color:var(--purple);color:var(--purple);font-weight:700}
+.view-tab:focus-visible{outline:2px solid #aa94f3;outline-offset:-3px;border-radius:7px 7px 0 0}
+.view-tab-panel:focus-visible{outline:2px solid #aa94f3;outline-offset:3px;border-radius:8px}
+.overview-balance-panel .balance-panel:first-child{margin-top:0}
+.overview-recent-panel .overview-recent{margin-top:0}
+#analysis-panel-trend .insight-panel,#analysis-panel-budgets .insight-panel{margin-top:0}
+@media(max-width:600px){.view-tabs{gap:2px;margin-bottom:14px}.view-tab{padding:0 11px;font-size:13px}.overview-view{padding-top:14px}.analytics-view{padding-top:14px}}
