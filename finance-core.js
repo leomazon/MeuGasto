@@ -407,6 +407,8 @@
   function sortTransactionCharges(charges, order = 'date-desc') {
     const recentFirst = (a, b) => b.date - a.date;
     return [...charges].sort((a, b) => {
+      const fixedPriority = Number(b.expense.recurring === true) - Number(a.expense.recurring === true);
+      if (fixedPriority) return fixedPriority;
       if (order === 'amount-asc') return cents(a.amount) - cents(b.amount) || recentFirst(a, b);
       if (order === 'amount-desc') return cents(b.amount) - cents(a.amount) || recentFirst(a, b);
       if (order === 'category-asc' || order === 'category-desc') {

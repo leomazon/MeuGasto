@@ -255,6 +255,23 @@ test('sorts monthly records by category and amount without mutating their source
   assert.deepEqual(records.map(r=>r.expense.id),['health','food','education']);
 });
 
+test('places fixed monthly records first for every sort order, before pagination', () => {
+  const records = [
+    { expense:{id:'regular-new',category:'Alimentação'}, amount:500, date:new Date(2026,10,20) },
+    { expense:{id:'fixed-old',category:'Moradia',recurring:true}, amount:20, date:new Date(2026,10,1) },
+    { expense:{id:'regular-old',category:'Saúde'}, amount:10, date:new Date(2026,10,5) },
+    { expense:{id:'fixed-new',category:'Contas',recurring:true}, amount:100, date:new Date(2026,10,10) },
+  ];
+  const ids = mode => Core.sortTransactionCharges(records,mode).map(record=>record.expense.id);
+  assert.deepEqual(ids('date-desc'),['fixed-new','fixed-old','regular-new','regular-old']);
+  assert.deepEqual(ids('amount-asc'),['fixed-old','fixed-new','regular-old','regular-new']);
+  assert.deepEqual(ids('amount-desc'),['fixed-new','fixed-old','regular-new','regular-old']);
+  assert.deepEqual(ids('category-asc'),['fixed-new','fixed-old','regular-new','regular-old']);
+  assert.deepEqual(ids('category-desc'),['fixed-old','fixed-new','regular-old','regular-new']);
+  assert.deepEqual(Core.paginate(Core.sortTransactionCharges(records,'amount-desc'),1,2).items.map(record=>record.expense.id),['fixed-new','fixed-old']);
+  assert.deepEqual(records.map(record=>record.expense.id),['regular-new','fixed-old','regular-old','fixed-new']);
+});
+
 
 test('keeps category percentages separate for income and expenses with the same category name', () => {
   const entries = [

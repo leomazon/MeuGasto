@@ -846,7 +846,7 @@ function renderExpenseRow(charge, actions = false, categoryShare = null) {
   const cashStatus = realizationMarkup(charge, actions);
   const isPaid = charge.expense.payment === 'Cartão' ? charge.remaining <= 0 : cashStatus.paid;
   const isOverdue = !isPaid && paymentCard?.dueDay && Core.isChargeOverdue(charge.date, paymentCard.dueDay, localDateKey());
-  const fixedStatus = charge.expense.recurring === true ? '<span class="fixed-tag">Fixo mensal</span>' : '';
+  const fixedStatus = charge.expense.recurring === true ? '<span class="fixed-tag"><span class="material-icons" aria-hidden="true">push_pin</span>Fixo mensal</span>' : '';
   const paymentStatus = charge.expense.payment !== 'Cartão' ? cashStatus.badge : isPaid ? '<span class="paid-tag">Liquidado</span>' : isOverdue ? '<span class="overdue-tag">Vencido</span>' : '';
   const categoryShareMarkup = categoryShare === null ? '' : `<div class="category-share" role="img" aria-label="${escapeHtml(charge.expense.description)} corresponde a ${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria ${escapeHtml(charge.expense.category || 'Outros')}"><span class="category-share-track" aria-hidden="true"><i style="width:${categoryShare}%;background:${info.color}"></i></span><span class="category-share-label">${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria</span></div>`;
   const settleButton = actions && !income && charge.expense.payment === 'Cartão' && charge.remaining > 0
