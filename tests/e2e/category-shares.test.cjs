@@ -51,6 +51,11 @@ test('shows each launch share of its category total for the selected month', asy
   await page.reload();
   await page.getByRole('button', { name: 'Análises', exact: true }).click();
   await page.getByRole('tab', { name: 'Categorias' }).click();
+  const composition = page.locator('#analysis-panel-categories .expense-composition-panel');
+  assert.equal(await composition.locator('#category-list .category-item').count(), 2, 'expense category bars should sit inside the composition card beside the pie');
+  assert.equal(await page.locator('#analysis-panel-categories .category-comparison #category-list').count(), 0, 'the separate expense category card should be removed');
+  assert.equal(await page.locator('#analysis-panel-categories .category-comparison #income-category-list').count(), 1, 'income categories should remain available in their own panel');
+  assert.equal(await composition.locator('#category-list .category-emoji.material-icons').count(), 2, 'each expense bar should keep its category icon');
   const overviewColors = await page.locator('#category-list .category-item').evaluateAll((items) => Object.fromEntries(items.map((item) => [
     item.querySelector('.category-name').textContent,
     getComputedStyle(item.querySelector('.category-track i')).backgroundColor,

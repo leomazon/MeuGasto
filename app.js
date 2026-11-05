@@ -819,7 +819,6 @@ function renderOverview() {
   renderExpenseCategoryPie(breakdown.expense);
   renderCategoryChart('category-list', breakdown.expense, 'expense');
   renderCategoryChart('income-category-list', breakdown.income, 'income');
-  $('expense-category-context').textContent = `Percentuais sobre ${currency.format(breakdown.expense.total)} em despesas neste mês.`;
   $('income-category-context').textContent = `Percentuais sobre ${currency.format(breakdown.income.total)} em receitas neste mês.`;
   const recentLimit = Math.max(5, breakdown.expense.categories.length);
   const recentCharges = [...charges].sort((a, b) => b.date - a.date
@@ -863,11 +862,6 @@ function renderExpenseCategoryPie(summary) {
   $('category-pie-center-category').textContent = summary.total ? 'Total das despesas' : 'Sem despesas previstas';
   $('category-pie-center-amount').textContent = currency.format(summary.total);
   $('category-pie-center-details').textContent = summary.total ? '100% do total mensal' : 'No mês selecionado';
-  $('category-pie-legend').innerHTML = categories.length ? categories.map(item => {
-    const percent = summary.total ? (item.amount / summary.total * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '0';
-    const color = category(item.category, 'expense').color;
-    return `<div class="category-pie-item"><i style="background:${color}" aria-hidden="true"></i><span title="${escapeHtml(item.category)}">${escapeHtml(item.category)}</span><strong>${currency.format(item.amount)}</strong><small>${percent}%</small></div>`;
-  }).join('') : '<p class="commitment-pie-empty-note">Nenhuma despesa prevista neste mês.</p>';
 }
 function updateCategoryPieCenter(slice) {
   if (!slice) {
