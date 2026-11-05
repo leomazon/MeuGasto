@@ -87,6 +87,22 @@ class StateStoreTests(unittest.TestCase):
                     store.save_state(invalid)
                 self.assertEqual(store.load_state(), saved)
 
+    def test_categories_round_trip_in_state_and_backups(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = StateStore(Path(folder) / "meugasto.sqlite3", backup_interval_seconds=0)
+            state = {"expenses": [], "cards": [], "settlements": [], "categories": [
+                {"id": "custom", "type": "income", "name": "Bônus", "icon": "trending_up", "color": "#118877", "archived": False},
+            ]}
+            store.save_state(state)
+            backup = store.list_backups()[0]["name"]
+            self.assertEqual(StateStore(store.path).load_state()["categories"], state["categories"])
+            with self.assertRaises(ValueError):
+                store.save_state({**state, "categories": {"custom": True}})
+            self.assertEqual(store.load_state(), state)
+            store.save_state({**state, "categories": []})
+            store.restore_backup(backup)
+            self.assertEqual(store.load_state()["categories"], state["categories"])
+
 
 if __name__ == "__main__":
     unittest.main()

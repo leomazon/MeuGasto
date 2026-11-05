@@ -174,7 +174,7 @@ function renderInsights() {
 }
 function openBudget(name='') {
   $('budget-form').reset();
-  const names=[...new Set([...recordCategories('expense').map(item=>item.name),...budgets.map(item=>item.category)])];
+  const names=recordCategories('expense',{selectedName:name}).map(item=>item.name);
   $('budget-category').innerHTML=names.map(name=>{
     return `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
   }).join('');

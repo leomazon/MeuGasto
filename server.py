@@ -60,7 +60,7 @@ class StateStore:
             for key in ("expenses", "cards", "settlements")
         ):
             raise ValueError("State must contain expense, card, and settlement lists")
-        if any(key in state and not isinstance(state[key], list) for key in ("budgets", "accounts", "transfers", "reconciliations")):
+        if any(key in state and not isinstance(state[key], list) for key in ("budgets", "accounts", "transfers", "reconciliations", "categories")):
             raise ValueError("Invalid optional state list")
         with self.lock:
             self._write_state(state)

@@ -193,3 +193,25 @@ test('rejects malformed backup restore requests without changing saved data', as
   }
   assert.deepEqual((await (await fetch(`${appUrl}/api/state`)).json()).state,before);
 });
+
+test('keeps custom categories in SQLite after browser storage is cleared', async () => {
+  const empty = { expenses: [], cards: [], settlements: [], budgets: [], accounts: [], transfers: [], reconciliations: [] };
+  assert.equal((await fetch(`${appUrl}/api/state`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(empty) })).status, 200);
+  await page.goto(appUrl);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole('button', { name: 'Categorias', exact: true }).click();
+  await page.getByRole('tab', { name: 'Receitas' }).click();
+  await page.locator('#new-category').click();
+  await page.locator('#category-name').fill('Projetos no PC');
+  await page.locator('#category-form').getByRole('button', { name: 'Salvar categoria' }).click();
+  await page.waitForFunction(async () => {
+    const { state } = await (await fetch('/api/state')).json();
+    return state.categories?.some(item => item.name === 'Projetos no PC');
+  });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole('button', { name: 'Categorias', exact: true }).click();
+  await page.getByRole('tab', { name: 'Receitas' }).click();
+  assert.match(await page.locator('#managed-income-categories').innerText(), /Projetos no PC/);
+});
