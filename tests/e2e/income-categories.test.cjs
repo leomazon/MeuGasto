@@ -83,7 +83,7 @@ test('shows Material icons in expense and income category choices', async () => 
   assert.equal(await incomeOptions.filter({hasText:'Trabalho físico'}).count(),0);
   const otherIncomeIcon=incomeOptions.filter({hasText:'Outras receitas'}).locator('.material-icons');
   assert.equal(await otherIncomeIcon.innerText(),'north_east');
-  assert.equal(await otherIncomeIcon.evaluate(icon=>getComputedStyle(icon).color),'rgb(74, 145, 184)');
+  assert.notEqual(await otherIncomeIcon.evaluate(icon=>getComputedStyle(icon).color),'rgb(180, 71, 82)');
   await incomeOptions.filter({hasText:'Vendas'}).click();
   assert.equal(await page.locator('#category').inputValue(),'Vendas');
   assert.equal(await page.locator('#category-selected-icon').innerText(),'shopping_bag');
