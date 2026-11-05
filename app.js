@@ -11,12 +11,12 @@ const CATEGORY_DATA = [
   { name: 'Outros', icon: 'category', color: '#8b8298' },
 ];
 const INCOME_CATEGORY_DATA = [
-  { name: 'Prestação de serviço', icon: 'handyman', color: '#317c62', iconColor: '#c8793a' },
-  { name: 'Salário', icon: 'work', color: '#317c62', iconColor: '#317c62' },
-  { name: 'Vendas', icon: 'shopping_bag', color: '#317c62', iconColor: '#c89b38' },
-  { name: 'Rendimentos', icon: 'trending_up', color: '#317c62', iconColor: '#8a68c4' },
-  { name: 'Aluguéis', icon: 'home_work', color: '#317c62', iconColor: '#46977c' },
-  { name: 'Outras receitas', icon: 'north_east', color: '#317c62', iconColor: '#4a91b8' },
+  { name: 'Prestação de serviço', icon: 'handyman', color: '#c8793a' },
+  { name: 'Salário', icon: 'work', color: '#317c62' },
+  { name: 'Vendas', icon: 'shopping_bag', color: '#c89b38' },
+  { name: 'Rendimentos', icon: 'trending_up', color: '#8a68c4' },
+  { name: 'Aluguéis', icon: 'home_work', color: '#46977c' },
+  { name: 'Outras receitas', icon: 'north_east', color: '#4a91b8' },
 ];
 const BANK_DATA = [
   { key: 'bb', name: 'Banco do Brasil', aliases: ['bb'], symbol: 'BB', icon: 'assets/banks/00000000.svg', color: '#ffdc00', surface: '#FCFC30' },
@@ -816,10 +816,10 @@ function renderOverview() {
   $('card-share').textContent = `${cardShare}%`;
   $('payment-foot').textContent = total ? 'Os valores e percentuais mostram como as despesas previstas estão distribuídas entre as formas de pagamento.' : 'Registre despesas para comparar Pix, dinheiro e cartão.';
   const breakdown = Core.monthlyCategoryBreakdown(expenses, settlements, selectedMonth());
-  renderExpenseCategoryPie(breakdown.expense);
+  renderCategoryPie(breakdown.expense, 'expense');
+  renderCategoryPie(breakdown.income, 'income');
   renderCategoryChart('category-list', breakdown.expense, 'expense');
   renderCategoryChart('income-category-list', breakdown.income, 'income');
-  $('income-category-context').textContent = `Percentuais sobre ${currency.format(breakdown.income.total)} em receitas neste mês.`;
   const recentLimit = Math.max(5, breakdown.expense.categories.length);
   const recentCharges = [...charges].sort((a, b) => b.date - a.date
     || expenses.findIndex(entry=>entry.id===b.expense.id) - expenses.findIndex(entry=>entry.id===a.expense.id)
@@ -837,50 +837,56 @@ function renderCategoryChart(listId, summary, type) {
     return `<div class="category-item" role="img" aria-label="${escapeHtml(item.category)}, ${currency.format(item.amount)}, ${percent}% ${baseLabel} do mês"><div class="category-chart-meta">${categoryIcon(info, 'category-emoji')}<span class="category-name">${escapeHtml(item.category)}</span><strong class="category-amount">${currency.format(item.amount)}</strong><span class="category-share">${percent}%</span></div><div class="category-track"><i style="width:${summary.total ? item.amount / summary.total * 100 : 0}%;background:${info.color}"></i></div></div>`;
   }).join('') : `<p class="empty-note">${income ? 'Nenhuma receita neste mês.' : 'Nenhuma despesa registrada neste mês.'}</p>`;
 }
-function renderExpenseCategoryPie(summary) {
+const CATEGORY_PIE_ELEMENTS = {
+  expense: { chart: 'expense-category-pie', total: 'commitment-pie-total', category: 'category-pie-center-category', amount: 'category-pie-center-amount', details: 'category-pie-center-details', plural: 'despesas' },
+  income: { chart: 'income-category-pie', total: 'income-pie-total', category: 'income-pie-center-category', amount: 'income-pie-center-amount', details: 'income-pie-center-details', plural: 'receitas' },
+};
+function renderCategoryPie(summary, type) {
+  const elements = CATEGORY_PIE_ELEMENTS[type];
   const categories = summary.categories;
-  const svg = $('expense-category-pie');
+  const svg = $(elements.chart);
   const circumference = 2 * Math.PI * 96;
   let offset = 0;
   const slices = categories.map(item => {
     const share = summary.total ? item.amount / summary.total : 0;
     const length = circumference * share;
-    const color = category(item.category, 'expense').color;
+    const color = category(item.category, type).color;
     const percent = summary.total ? (item.amount / summary.total * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '0';
-    const sliceLabel = `${item.category}: ${currency.format(item.amount)}, ${percent}% das despesas`;
+    const sliceLabel = `${item.category}: ${currency.format(item.amount)}, ${percent}% das ${elements.plural}`;
     const slice = `<circle class="category-pie-slice" data-category="${escapeHtml(item.category)}" data-amount="${item.amount}" data-percent="${percent}" cx="140" cy="140" r="96" fill="none" stroke="${color}" stroke-width="44" stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}" transform="rotate(-90 140 140)" tabindex="0" role="img" aria-label="${escapeHtml(sliceLabel)}"><title>${escapeHtml(sliceLabel)}</title></circle>`;
     offset += length;
     return slice;
   });
   const chartDescription = summary.total
-    ? `Despesas previstas por categoria: ${categories.map(item => `${item.category}, ${currency.format(item.amount)}, ${(item.amount / summary.total * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`).join('; ')}`
-    : 'Nenhuma despesa prevista por categoria neste mês.';
+    ? `${type === 'income' ? 'Receitas' : 'Despesas'} previstas por categoria: ${categories.map(item => `${item.category}, ${currency.format(item.amount)}, ${(item.amount / summary.total * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`).join('; ')}`
+    : `Nenhuma ${type === 'income' ? 'receita' : 'despesa'} prevista por categoria neste mês.`;
   svg.setAttribute('aria-label', chartDescription);
   svg.dataset.total = String(summary.total);
   svg.innerHTML = `<title>${escapeHtml(chartDescription)}</title>${summary.total ? slices.join('') : '<circle class="category-pie-empty" cx="140" cy="140" r="96"></circle>'}`;
-  $('commitment-pie-total').textContent = currency.format(summary.total);
-  $('category-pie-center-category').textContent = summary.total ? 'Total das despesas' : 'Sem despesas previstas';
-  $('category-pie-center-amount').textContent = currency.format(summary.total);
-  $('category-pie-center-details').textContent = summary.total ? '100% do total mensal' : 'No mês selecionado';
+  $(elements.total).textContent = currency.format(summary.total);
+  updateCategoryPieCenter(type, null);
 }
-function updateCategoryPieCenter(slice) {
+function updateCategoryPieCenter(type, slice) {
+  const elements = CATEGORY_PIE_ELEMENTS[type];
   if (!slice) {
-    const total = Number($('expense-category-pie').dataset.total || 0);
-    $('category-pie-center-category').textContent = total ? 'Total das despesas' : 'Sem despesas previstas';
-    $('category-pie-center-amount').textContent = currency.format(total);
-    $('category-pie-center-details').textContent = total ? '100% do total mensal' : 'No mês selecionado';
+    const total = Number($(elements.chart).dataset.total || 0);
+    $(elements.category).textContent = total ? `Total das ${elements.plural}` : `Sem ${elements.plural} previstas`;
+    $(elements.amount).textContent = currency.format(total);
+    $(elements.details).textContent = total ? '100% do total mensal' : 'No mês selecionado';
     return;
   }
-  $('category-pie-center-category').textContent = slice.dataset.category;
-  $('category-pie-center-amount').textContent = currency.format(Number(slice.dataset.amount));
-  $('category-pie-center-details').textContent = `${slice.dataset.percent}% das despesas`;
+  $(elements.category).textContent = slice.dataset.category;
+  $(elements.amount).textContent = currency.format(Number(slice.dataset.amount));
+  $(elements.details).textContent = `${slice.dataset.percent}% das ${elements.plural}`;
 }
 function setupCategoryPieInteraction() {
-  const chart = $('expense-category-pie');
-  chart.addEventListener('pointerover', event => updateCategoryPieCenter(event.target.closest('.category-pie-slice')));
-  chart.addEventListener('pointerleave', () => updateCategoryPieCenter(null));
-  chart.addEventListener('focusin', event => updateCategoryPieCenter(event.target.closest('.category-pie-slice')));
-  chart.addEventListener('focusout', event => { if (!chart.contains(event.relatedTarget)) updateCategoryPieCenter(null); });
+  for (const type of Object.keys(CATEGORY_PIE_ELEMENTS)) {
+    const chart = $(CATEGORY_PIE_ELEMENTS[type].chart);
+    chart.addEventListener('pointerover', event => updateCategoryPieCenter(type, event.target.closest('.category-pie-slice')));
+    chart.addEventListener('pointerleave', () => updateCategoryPieCenter(type, null));
+    chart.addEventListener('focusin', event => updateCategoryPieCenter(type, event.target.closest('.category-pie-slice')));
+    chart.addEventListener('focusout', event => { if (!chart.contains(event.relatedTarget)) updateCategoryPieCenter(type, null); });
+  }
 }
 function showCategoryTransactions(type) {
   view = 'lancamentos';

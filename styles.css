@@ -688,13 +688,14 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .income-commitment .commitment-track{margin:0;height:10px}
 .income-commitment>p{margin:10px 0 15px;color:var(--muted);font-size:13px;line-height:1.5}
 .expense-composition-panel{margin:0 0 20px}
-.expense-composition-total{font-family:Manrope,sans-serif;font-size:20px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.category-composition-total{font-family:Manrope,sans-serif;font-size:20px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.income-composition-panel .eyebrow{color:#317c62}
 .composition-heading-actions{display:grid;justify-items:end;gap:5px;flex:0 0 auto}
 .category-pie-layout{display:grid;grid-template-columns:280px minmax(0,1fr);align-items:start;gap:30px}
-.expense-composition-panel .category-list{margin-top:0}
-.expense-composition-panel .category-item{padding:5px 0}
+.category-composition-panel .category-list{margin-top:0}
+.category-composition-panel .category-item{padding:5px 0}
 .category-pie-visual{position:relative;display:grid;place-items:center;width:280px;height:280px;margin:0 auto}
-.expense-category-pie{display:block;width:280px;height:280px;overflow:visible}
+.category-pie-svg{display:block;width:280px;height:280px;overflow:visible}
 .category-pie-empty{fill:none;stroke:#e9e5ef;stroke-width:44}
 .category-pie-slice{stroke-linecap:butt;cursor:pointer;transition:stroke-width .15s ease,filter .15s ease}
 .category-pie-slice:hover,.category-pie-slice:focus-visible{stroke-width:52;filter:brightness(1.06)}
@@ -716,9 +717,9 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .payment-average strong{font-family:Manrope,sans-serif;font-size:16px;line-height:1.2;font-variant-numeric:tabular-nums}
 .payment-average small{color:var(--muted);font-size:10px}
 @media(max-width:1050px){.overview-balance-panel{grid-template-columns:1fr}.overview-balance-panel .balance-panel{min-height:0}}
-@media(max-width:1050px){.category-pie-layout{grid-template-columns:240px minmax(0,1fr);gap:20px}.category-pie-visual,.expense-category-pie{width:240px;height:240px}}
-@media(max-width:760px){.overview-balance-panel{gap:12px}.overview-balance-panel .balance-panel{padding:19px}.overview-balance-panel .balance-metrics{grid-template-columns:1fr}.overview-balance-panel .balance-metrics .net-balance{grid-column:auto}.overview-balance-panel .income-commitment{padding:19px}.income-commitment .commitment-content{margin:17px 0 12px}.income-commitment .commitment-content strong{font-size:38px}.category-pie-layout{grid-template-columns:minmax(0,1fr);gap:15px}.category-pie-visual,.expense-category-pie{width:230px;height:230px}.overview-expenses-panel .payment-panel{padding:19px}.payment-heading-meta{gap:8px}.payment-average span{font-size:10px}.payment-average strong{font-size:14px}.payment-average small{font-size:9px}}
-@media(max-width:430px){.expense-composition-panel{padding:18px}.expense-composition-total{font-size:17px}}
+@media(max-width:1050px){.category-pie-layout{grid-template-columns:240px minmax(0,1fr);gap:20px}.category-pie-visual,.category-pie-svg{width:240px;height:240px}}
+@media(max-width:760px){.overview-balance-panel{gap:12px}.overview-balance-panel .balance-panel{padding:19px}.overview-balance-panel .balance-metrics{grid-template-columns:1fr}.overview-balance-panel .balance-metrics .net-balance{grid-column:auto}.overview-balance-panel .income-commitment{padding:19px}.income-commitment .commitment-content{margin:17px 0 12px}.income-commitment .commitment-content strong{font-size:38px}.category-pie-layout{grid-template-columns:minmax(0,1fr);gap:15px}.category-pie-visual,.category-pie-svg{width:230px;height:230px}.overview-expenses-panel .payment-panel{padding:19px}.payment-heading-meta{gap:8px}.payment-average span{font-size:10px}.payment-average strong{font-size:14px}.payment-average small{font-size:9px}}
+@media(max-width:430px){.category-composition-panel{padding:18px}.category-composition-total{font-size:17px}}
 
 .transactions-view{padding-top:22px}
 @media(max-width:760px){.transactions-view{padding-top:18px}}
