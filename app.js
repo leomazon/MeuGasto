@@ -18,6 +18,20 @@ const INCOME_CATEGORY_DATA = [
   { name: 'Aluguéis', icon: 'home_work', color: '#aa6040' },
   { name: 'Outras receitas', icon: 'north_east', color: '#526d78' },
 ];
+const DEFAULT_CATEGORY_CATALOG = [
+  ...CATEGORY_DATA.map(item => ({ ...item, id: `expense:${item.name}`, type: 'expense', archived: false })),
+  ...INCOME_CATEGORY_DATA.map(item => ({ ...item, id: `income:${item.name}`, type: 'income', archived: false })),
+];
+const CATEGORY_ICON_OPTIONS = [
+  ['home', 'Casa'], ['restaurant', 'Alimentação'], ['directions_bike', 'Transporte'],
+  ['health_and_safety', 'Saúde'], ['local_activity', 'Lazer'], ['school', 'Educação'],
+  ['shopping_bag', 'Compras'], ['headphones', 'Assinaturas'], ['lightbulb', 'Contas'],
+  ['category', 'Outros'], ['handyman', 'Serviços'], ['work', 'Trabalho'],
+  ['trending_up', 'Rendimentos'], ['home_work', 'Imóveis'], ['north_east', 'Receita'],
+  ['pets', 'Pets'], ['savings', 'Poupança'], ['receipt_long', 'Recibos'],
+  ['flight', 'Viagem'], ['sports_esports', 'Jogos'], ['child_care', 'Família'],
+  ['medical_services', 'Cuidados'], ['business_center', 'Negócios'], ['redeem', 'Presentes'],
+];
 const BANK_DATA = [
   { key: 'bb', name: 'Banco do Brasil', aliases: ['bb'], symbol: 'BB', icon: 'assets/banks/00000000.svg', color: '#ffdc00', surface: '#FCFC30' },
   { key: 'nubank', name: 'Nubank', aliases: ['nu'], symbol: 'nu', icon: 'assets/banks/18236120.svg', color: '#820ad1', surface: '#f4e8fb' },
@@ -32,6 +46,7 @@ const PAYMENT_STORAGE_KEY = 'meugasto-card-payments-v1';
 const ACCOUNT_STORAGE_KEY = 'meugasto-accounts-v1';
 const TRANSFER_STORAGE_KEY = 'meugasto-transfers-v1';
 const RECONCILIATION_STORAGE_KEY = 'meugasto-reconciliations-v1';
+const CATEGORY_STORAGE_KEY = 'meugasto-categories-v1';
 const ACCOUNT_KINDS = { checking: 'Conta corrente', savings: 'Poupança', cash: 'Dinheiro', other: 'Outra conta' };
 const Core = window.FinanceCore;
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -90,6 +105,7 @@ let budgets = loadBudgets();
 let accounts = loadAccounts();
 let transfers = loadTransfers();
 let reconciliations = loadReconciliations();
+let categories = loadCategories();
 let view = 'inicio';
 let currentFinancialAlerts = [];
 let transactionPage = 1;
@@ -151,6 +167,10 @@ function loadReconciliations() {
   try { const stored = JSON.parse(localStorage.getItem(RECONCILIATION_STORAGE_KEY) || '[]'); return Array.isArray(stored) ? stored.filter(validReconciliation) : []; }
   catch { return []; }
 }
+function loadCategories() {
+  try { return Core.hydrateCategoryCatalog(DEFAULT_CATEGORY_CATALOG, JSON.parse(localStorage.getItem(CATEGORY_STORAGE_KEY) || 'null')); }
+  catch { return Core.hydrateCategoryCatalog(DEFAULT_CATEGORY_CATALOG); }
+}
 function isValidExpense(item) {
   return item && typeof item.id === 'string' && typeof item.description === 'string' && Number.isFinite(Number(item.amount)) && Number(item.amount) > 0 && Number.isInteger(Number(item.installments)) && Number(item.installments) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(item.firstDate);
 }
@@ -162,6 +182,7 @@ function saveBrowserCache() {
   localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(accounts));
   localStorage.setItem(TRANSFER_STORAGE_KEY, JSON.stringify(transfers));
   localStorage.setItem(RECONCILIATION_STORAGE_KEY, JSON.stringify(reconciliations));
+  localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
 }
 function clearBrowserCache() {
   localStorage.removeItem(CARD_STORAGE_KEY);
@@ -171,10 +192,11 @@ function clearBrowserCache() {
   localStorage.removeItem(ACCOUNT_STORAGE_KEY);
   localStorage.removeItem(TRANSFER_STORAGE_KEY);
   localStorage.removeItem(RECONCILIATION_STORAGE_KEY);
+  localStorage.removeItem(CATEGORY_STORAGE_KEY);
 }
 function persistLocalDatabase() {
   if (!localDatabaseEnabled) return Promise.resolve();
-  const state = JSON.stringify({ expenses, cards, settlements, budgets, accounts, transfers, reconciliations });
+  const state = JSON.stringify({ expenses, cards, settlements, budgets, accounts, transfers, reconciliations, categories });
   localDatabaseQueue = localDatabaseQueue.catch(() => {}).then(async () => {
     const response = await fetch('/api/state', {
       method: 'PUT',
@@ -196,6 +218,7 @@ function saveSettlements() { if (localDatabaseEnabled) persistLocalDatabase(); e
 function saveAccounts() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(accounts)); }
 function saveTransfers() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(TRANSFER_STORAGE_KEY, JSON.stringify(transfers)); }
 function saveReconciliations() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(RECONCILIATION_STORAGE_KEY, JSON.stringify(reconciliations)); }
+function saveCategories() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories)); }
 async function restoreLocalDatabase() {
   try {
     const response = await fetch('/api/state');
@@ -211,6 +234,7 @@ async function restoreLocalDatabase() {
       accounts = Array.isArray(state.accounts) ? state.accounts.filter(validAccount) : [];
       transfers = Array.isArray(state.transfers) ? state.transfers.filter(validTransfer) : [];
       reconciliations = Array.isArray(state.reconciliations) ? state.reconciliations.filter(validReconciliation) : [];
+      categories = Core.hydrateCategoryCatalog(DEFAULT_CATEGORY_CATALOG, state.categories);
       clearBrowserCache();
       migrateLegacyCardLinks();
       render();
@@ -242,25 +266,85 @@ function migrateLegacyCardLinks() {
 }
 migrateLegacyCardLinks();
 function category(name, type = 'expense') {
-  return [...CATEGORY_DATA, ...INCOME_CATEGORY_DATA].find(item => item.name === name)
-    || (type === 'income' ? INCOME_CATEGORY_DATA.at(-1) : CATEGORY_DATA.at(-1));
+  return categories.find(item => item.type === type && item.name === name)
+    || { ...(type === 'income' ? INCOME_CATEGORY_DATA.at(-1) : CATEGORY_DATA.at(-1)), name };
 }
 function recordType() { return document.querySelector('input[name="record-type"]:checked').value; }
-function recordCategories(type) {
-  const base = type === 'income' ? INCOME_CATEGORY_DATA : CATEGORY_DATA;
+function recordCategories(type, { includeArchived = false, selectedName = '' } = {}) {
+  const base = categories.filter(item => item.type === type && (!item.archived || includeArchived || item.name === selectedName));
   const names = new Set(base.map(item => item.name));
   const extra = [];
   for (const entry of expenses) {
-    if ((entry.type === 'income' ? 'income' : 'expense') !== type || entry.type === 'debt-transfer' || !entry.category || names.has(entry.category)) continue;
-    names.add(entry.category);
-    extra.push({ ...category(entry.category, type), name: entry.category });
+    if ((entry.type === 'income' ? 'income' : 'expense') !== type || entry.type === 'debt-transfer') continue;
+    for (const name of [entry.category, ...Object.values(entry.overrides || {}).map(override => override?.category)]) {
+      if (!name || names.has(name) || (!includeArchived && name !== selectedName)) continue;
+      names.add(name);
+      extra.push(category(name, type));
+    }
   }
+  if (selectedName && !names.has(selectedName)) extra.push(category(selectedName, type));
   return [...base, ...extra];
+}
+function renderCategoryManagement() {
+  for (const type of ['expense', 'income']) {
+    const items = categories.filter(item => item.type === type).sort((a, b) => Number(a.archived) - Number(b.archived));
+    $(`managed-${type}-categories`).innerHTML = items.map(item => {
+      const used = expenses.filter(entry => (entry.type === 'income' ? 'income' : 'expense') === type
+        && (entry.category === item.name || Object.values(entry.overrides || {}).some(override => override?.category === item.name))).length;
+      const budget = type === 'expense' ? budgets.find(entry => entry.category === item.name) : null;
+      const details = [used ? `${used} registro${used === 1 ? '' : 's'}` : 'Sem registros', budget ? `Orçamento: ${currency.format(budget.amount)}` : null].filter(Boolean).join(' · ');
+      return `<article class="category-manager-card credit-card-card ${item.archived ? 'is-archived' : ''}" style="--category-accent:${item.color}">${categoryIcon(item, 'category-manager-icon')}<div class="category-manager-copy"><h3>${escapeHtml(item.name)}</h3><p>${details}</p></div>${item.archived ? '<span class="category-archived-tag">Arquivada</span>' : ''}<div class="category-manager-actions"><button class="icon-button" type="button" data-category-edit="${escapeHtml(item.id)}" aria-label="Editar ${escapeHtml(item.name)}" title="Editar ${escapeHtml(item.name)}">${materialIcon('edit')}</button><button class="icon-button" type="button" data-category-archive="${escapeHtml(item.id)}" aria-label="${item.archived ? 'Reativar' : 'Arquivar'} ${escapeHtml(item.name)}" title="${item.archived ? 'Reativar' : 'Arquivar'} ${escapeHtml(item.name)}">${materialIcon(item.archived ? 'unarchive' : 'archive')}</button></div></article>`;
+    }).join('');
+  }
+}
+function updateManagedCategoryPreview() {
+  const color = $('managed-category-color').value;
+  $('category-icon-preview').textContent = $('managed-category-icon').value;
+  $('category-icon-preview').style.color = color;
+  $('category-icon-preview').style.backgroundColor = `${color}1a`;
+  $('category-color-value').textContent = color.toUpperCase();
+}
+function openCategoryDialog(item = null) {
+  const form = $('category-form');
+  form.reset();
+  clearFormValidation(form);
+  $('managed-category-id').value = item?.id || '';
+  $('managed-category-type').value = item?.type || ($('category-tab-income').getAttribute('aria-selected') === 'true' ? 'income' : 'expense');
+  $('managed-category-type').disabled = Boolean(item);
+  $('category-name').value = item?.name || '';
+  $('managed-category-icon').value = item?.icon || ($('managed-category-type').value === 'income' ? 'trending_up' : 'category');
+  $('managed-category-color').value = item?.color || ($('managed-category-type').value === 'income' ? '#277448' : '#8665da');
+  $('category-dialog-title').textContent = item ? 'Editar categoria' : 'Nova categoria';
+  updateManagedCategoryPreview();
+  $('category-dialog').showModal();
+  $('category-name').focus();
+}
+function submitCategory(event) {
+  event.preventDefault();
+  const id = $('managed-category-id').value || createId('category');
+  const original = categories.find(item => item.id === id);
+  try {
+    const changed = Core.saveCategoryInCatalog(categories, {
+      id, type: $('managed-category-type').value, name: $('category-name').value,
+      icon: $('managed-category-icon').value, color: $('managed-category-color').value,
+    }, expenses, budgets);
+    categories = changed.categories;
+    expenses = changed.expenses;
+    budgets = changed.budgets;
+    saveExpenses(); saveBudgets(); saveCategories();
+    $('category-dialog').close();
+    render();
+    showToast(original ? 'Categoria atualizada.' : 'Categoria criada.', 'success');
+  } catch (error) {
+    const target = /cor/i.test(error.message) ? $('managed-category-color') : /ícone/i.test(error.message) ? $('managed-category-icon') : $('category-name');
+    setFieldValidationError(target, error.message);
+    target.focus();
+  }
 }
 function updateCategoryFilter() {
   const selected = $('category-filter').value;
   const type = $('type-filter').value;
-  const group = (kind, label) => `<optgroup label="${label}">${recordCategories(kind).map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('')}</optgroup>`;
+  const group = (kind, label) => `<optgroup label="${label}">${recordCategories(kind, { includeArchived: true }).map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('')}</optgroup>`;
   $('category-filter').innerHTML = '<option value="">Todas as categorias</option>' + (type !== 'income' ? group('expense', 'Despesas') : '') + (type !== 'expense' ? group('income', 'Receitas') : '');
   $('category-filter').value = [...$('category-filter').options].some(option => option.value === selected) ? selected : '';
 }
@@ -296,7 +380,7 @@ function updatePaymentFilter() {
 function updateRecordType(selectedCategory = '') {
   const income = recordType() === 'income';
   const previousPayment = $('payment').value;
-  $('category').innerHTML = recordCategories(income ? 'income' : 'expense').filter(item=>item.name!=='Trabalho físico' || selectedCategory==='Trabalho físico').map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
+  $('category').innerHTML = recordCategories(income ? 'income' : 'expense', { selectedName: selectedCategory }).map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
   if (selectedCategory) $('category').value = selectedCategory;
   syncCategoryPicker();
   const methods = recordPaymentMethods(income ? 'income' : 'expense');
@@ -313,14 +397,14 @@ function syncCategoryPicker() {
   const select=$('category'), trigger=$('category-trigger');
   if (!select || !trigger) return;
   const income=recordType()==='income';
-  const selected=category(select.value,income);
+  const selected=category(select.value,income ? 'income' : 'expense');
   const color=selected.iconColor || selected.color;
   $('category-selected-icon').textContent=selected.icon;
   $('category-selected-icon').style.color=color;
   $('category-selected-icon').style.backgroundColor=`${color}1a`;
   $('category-selected-name').textContent=select.value;
   $('category-options').innerHTML=[...select.options].map(option=>{
-    const info=category(option.value,income), iconColor=info.iconColor || info.color;
+    const info=category(option.value,income ? 'income' : 'expense'), iconColor=info.iconColor || info.color;
     return `<div class="category-picker-option" role="option" tabindex="-1" data-category-option="${escapeHtml(option.value)}" aria-selected="${String(option.value===select.value)}"><span class="material-icons category-picker-option-icon" style="color:${iconColor};background-color:${iconColor}1a" aria-hidden="true">${escapeHtml(info.icon)}</span><span>${escapeHtml(option.value)}</span></div>`;
   }).join('');
 }
@@ -1257,10 +1341,10 @@ function render() {
   const selectedMonthTitle = selectedMonthLabel.charAt(0).toLocaleUpperCase('pt-BR') + selectedMonthLabel.slice(1);
   $('month-long-label').textContent = selectedMonthTitle;
   $('month-long-label').hidden = false;
-  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : view === 'orcamentos' ? 'Orçamentos' : view === 'contas' ? 'Contas e carteiras' : view === 'analises' ? 'Análises' : view === 'alertas' ? 'Alertas' : 'Lançamentos';
+  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : view === 'orcamentos' ? 'Orçamentos' : view === 'contas' ? 'Contas e carteiras' : view === 'analises' ? 'Análises' : view === 'alertas' ? 'Alertas' : view === 'categorias' ? 'Categorias' : 'Lançamentos';
   document.querySelector('.app-shell').classList.toggle('transactions-active', view === 'lancamentos');
   document.querySelector('.app-shell').classList.add('page-title-active');
-  document.querySelector('.topbar .month-control').hidden = view === 'contas';
+  document.querySelector('.topbar .month-control').hidden = view === 'contas' || view === 'categorias';
   $('date-greeting').textContent = `SEU RESUMO DE ${monthLabel(selectedMonth())}`;
   $('page-heading').hidden = true;
   $('overview-view').hidden = view !== 'inicio';
@@ -1270,6 +1354,7 @@ function render() {
   $('budget-view').hidden = view !== 'orcamentos';
   $('alerts-view').hidden = view !== 'alertas';
   $('accounts-view').hidden = view !== 'contas';
+  $('categories-view').hidden = view !== 'categorias';
   document.querySelectorAll('[data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
   const paymentsActive=view==='cartoes'||view==='orcamentos';
   $('payments-nav').classList.toggle('has-active-view',paymentsActive);
@@ -1280,6 +1365,7 @@ function render() {
   renderCards();
   renderAccountView();
   renderAlerts();
+  renderCategoryManagement();
 }
 function activateViewTab(tab, moveFocus = false) {
   const tablist = tab.closest('[role="tablist"]');
@@ -1635,7 +1721,7 @@ function confirmSettlement(event) {
   showToast(`Pagamento de ${currency.format(total)} registrado via ${method}.`, 'success');
 }
 function exportBackup() {
-  const blob = new Blob([JSON.stringify({ app: 'MeuGasto', version: 5, exportedAt: new Date().toISOString(), expenses, cards, settlements, budgets, accounts, transfers, reconciliations }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'MeuGasto', version: 6, exportedAt: new Date().toISOString(), expenses, cards, settlements, budgets, accounts, transfers, reconciliations, categories }, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = `meugasto-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1652,13 +1738,14 @@ async function importBackup(file) {
     const incomingAccounts = Array.isArray(parsed.accounts) ? parsed.accounts : [];
     const incomingTransfers = Array.isArray(parsed.transfers) ? parsed.transfers : [];
     const incomingReconciliations = Array.isArray(parsed.reconciliations) ? parsed.reconciliations : [];
+    if (parsed.categories !== undefined && (!Array.isArray(parsed.categories) || !parsed.categories.every(Core.validCatalogCategory))) throw new Error('invalid');
     if (!Array.isArray(incoming) || !incoming.every(isValidExpense) || !incomingCards.every((card) => card && typeof card.id === 'string' && Number.isFinite(Number(card.limit))) || !incomingAccounts.every(validAccount) || !incomingTransfers.every(validTransfer) || !incomingReconciliations.every(validReconciliation)) throw new Error('invalid');
     if ((expenses.length || cards.length || accounts.length || transfers.length || reconciliations.length) && !window.confirm('Importar este backup vai substituir registros, cartões, contas, transferências e conferências salvos neste PC. Continuar?')) return;
     if (parsed.budgets !== undefined && (!Array.isArray(parsed.budgets) || !parsed.budgets.every(validBudget))) throw new Error('invalid');
-    expenses = incoming; cards = incomingCards; settlements = incomingSettlements; budgets = parsed.budgets || []; accounts = incomingAccounts; transfers = incomingTransfers; reconciliations = incomingReconciliations;
+    expenses = incoming; cards = incomingCards; settlements = incomingSettlements; budgets = parsed.budgets || []; accounts = incomingAccounts; transfers = incomingTransfers; reconciliations = incomingReconciliations; categories = Core.hydrateCategoryCatalog(DEFAULT_CATEGORY_CATALOG, parsed.categories);
     saveBudgets();
     migrateLegacyCardLinks();
-    saveExpenses(); saveCards(); saveSettlements(); saveAccounts(); saveTransfers(); saveReconciliations(); render();
+    saveExpenses(); saveCards(); saveSettlements(); saveAccounts(); saveTransfers(); saveReconciliations(); saveCategories(); render();
     showToast('Backup importado.', 'success');
   } catch { showToast('Não foi possível importar esse arquivo. Confira se ele foi exportado pelo MeuGasto e tente novamente.', 'error'); }
   finally { $('import-file').value = ''; }
@@ -1667,10 +1754,32 @@ function initialize() {
   setupFormValidation();
   setupEnhancements();
   setupViewTabs();
+  $('managed-category-icon').innerHTML = CATEGORY_ICON_OPTIONS.map(([icon, label]) => `<option value="${icon}">${label}</option>`).join('');
+  $('managed-category-icon').addEventListener('change', updateManagedCategoryPreview);
+  $('managed-category-color').addEventListener('input', updateManagedCategoryPreview);
+  $('managed-category-type').addEventListener('change', () => {
+    $('managed-category-icon').value = $('managed-category-type').value === 'income' ? 'trending_up' : 'category';
+    $('managed-category-color').value = $('managed-category-type').value === 'income' ? '#277448' : '#8665da';
+    updateManagedCategoryPreview();
+  });
+  $('new-category').addEventListener('click', () => openCategoryDialog());
+  $('category-form').addEventListener('submit', submitCategory);
+  $('categories-view').addEventListener('click', event => {
+    const edit = event.target.closest('[data-category-edit]');
+    const archive = event.target.closest('[data-category-archive]');
+    if (edit) openCategoryDialog(categories.find(item => item.id === edit.dataset.categoryEdit));
+    if (archive) {
+      const item = categories.find(entry => entry.id === archive.dataset.categoryArchive);
+      try {
+        categories = Core.setCategoryArchived(categories, item.id, !item.archived);
+        saveCategories(); render(); showToast(item.archived ? 'Categoria reativada.' : 'Categoria arquivada.', 'success');
+      } catch (error) { showToast(error.message, 'error'); }
+    }
+  });
   setupCategoryPieInteraction();
   $('sidebar-toggle').addEventListener('click', () => setSidebarCollapsed(!document.querySelector('.app-shell').classList.contains('sidebar-collapsed')));
   $('month-picker').value = monthKey(new Date());
-  $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
+  $('category').innerHTML = recordCategories('expense').map((item) => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
   setupCategoryPicker();
   setupPaymentPicker();
   setupBankPicker();

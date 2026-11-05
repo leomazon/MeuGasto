@@ -1,5 +1,52 @@
 (function exposeFinanceCore(root) {
   const cents = (value) => Math.round(Number(value) * 100);
+  const categoryNameKey = (name) => String(name || '').trim().replace(/\s+/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+  function validCatalogCategory(item) {
+    return item && typeof item.id === 'string' && item.id.length > 0
+      && ['income', 'expense'].includes(item.type)
+      && typeof item.name === 'string' && item.name.trim().length > 0 && item.name.trim().length <= 40
+      && typeof item.icon === 'string' && /^[a-z][a-z_]{1,39}$/.test(item.icon)
+      && typeof item.color === 'string' && /^#[\da-fA-F]{6}$/.test(item.color);
+  }
+  function hydrateCategoryCatalog(defaults, stored) {
+    const result = [];
+    const seenIds = new Set(), seenNames = new Set();
+    for (const item of [...(Array.isArray(stored) ? stored : []), ...defaults]) {
+      if (!validCatalogCategory(item) || seenIds.has(item.id) || seenNames.has(categoryNameKey(item.name))) continue;
+      result.push({ ...item, archived: item.archived === true });
+      seenIds.add(item.id);
+      seenNames.add(categoryNameKey(item.name));
+    }
+    return result;
+  }
+  function saveCategoryInCatalog(catalog, input, expenses, budgets) {
+    const old = catalog.find(item => item.id === input.id);
+    const name = String(input.name || '').trim().replace(/\s+/g, ' ');
+    const next = { id: input.id, type: old?.type || input.type, name, icon: input.icon, color: input.color, archived: old?.archived === true };
+    if (!name || name.length > 40) throw new Error('Informe um nome de até 40 caracteres.');
+    if (catalog.some(item => item.id !== input.id && categoryNameKey(item.name) === categoryNameKey(name))) throw new Error('Já existe uma categoria com esse nome.');
+    if (!/^[a-z][a-z_]{1,39}$/.test(next.icon || '')) throw new Error('Escolha um ícone válido.');
+    if (!/^#[\da-fA-F]{6}$/.test(next.color || '')) throw new Error('Escolha uma cor válida.');
+    if (!['income', 'expense'].includes(next.type) || !next.id) throw new Error('Tipo de categoria inválido.');
+    const categories = old ? catalog.map(item => item.id === old.id ? next : item) : [...catalog, next];
+    if (!old || old.name === name) return { categories, expenses, budgets };
+    const updatedExpenses = expenses.map(entry => {
+      if ((entry.type === 'income' ? 'income' : 'expense') !== next.type) return entry;
+      const overrides = entry.overrides && Object.fromEntries(Object.entries(entry.overrides).map(([month, override]) => [month,
+        override?.category === old.name ? { ...override, category: name } : override]));
+      return { ...entry, category: entry.category === old.name ? name : entry.category, ...(overrides ? { overrides } : {}) };
+    });
+    const updatedBudgets = next.type === 'expense' ? budgets.map(item => item.category === old.name ? { ...item, category: name } : item) : budgets;
+    return { categories, expenses: updatedExpenses, budgets: updatedBudgets };
+  }
+  function setCategoryArchived(catalog, id, archived) {
+    const item = catalog.find(entry => entry.id === id);
+    if (!item) throw new Error('Categoria não encontrada.');
+    if (archived && !item.archived && catalog.filter(entry => entry.type === item.type && !entry.archived).length <= 1) {
+      throw new Error('Não é possível arquivar a última categoria disponível.');
+    }
+    return catalog.map(entry => entry.id === id ? { ...entry, archived: Boolean(archived) } : entry);
+  }
   function installmentAmount(total, count, index) {
     const totalCents = cents(total);
     const parts = Math.max(1, Number(count) || 1);
@@ -391,6 +438,10 @@
   }
   function availableLimit(limit, used) { return Math.round((Number(limit) - Number(used)) * 100) / 100; }
   const api = {
+    validCatalogCategory,
+    hydrateCategoryCatalog,
+    saveCategoryInCatalog,
+    setCategoryArchived,
     installmentAmount,
     installmentDate,
     monthlyClosing,

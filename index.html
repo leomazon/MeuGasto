@@ -24,6 +24,7 @@
           <button class="nav-item active" data-view="inicio"><span class="material-icons" aria-hidden="true">window</span> Visão geral</button>
           <button class="nav-item" data-view="analises"><span class="material-icons" aria-hidden="true">science</span> Análises</button>
           <button class="nav-item" data-view="lancamentos"><span class="material-icons" aria-hidden="true">menu_book</span> Lançamentos</button>
+          <button class="nav-item" data-view="categorias"><span class="material-icons" aria-hidden="true">category</span> Categorias</button>
           <button class="nav-item" data-view="contas"><span class="material-icons" aria-hidden="true">account_balance</span> Contas</button>
           <div class="nav-group" id="payments-nav" data-nav-group="pagamentos">
             <button class="nav-item nav-group-toggle" id="payments-toggle" type="button" aria-expanded="true" aria-controls="payments-submenu"><span class="material-icons" aria-hidden="true">payments</span> Pagamentos<span class="material-icons nav-group-chevron" aria-hidden="true">expand_more</span></button>
@@ -220,6 +221,20 @@
           </section>
         </section>
 
+        <section class="categories-view" id="categories-view" hidden aria-labelledby="categories-title">
+          <div class="section-title-row cards-heading category-management-heading">
+            <div><h2 id="categories-title">Suas categorias</h2><p class="cards-intro">Organize os registros com nomes, ícones e cores que fazem sentido para você.</p></div>
+            <button class="add-button" id="new-category" type="button"><span class="material-icons" aria-hidden="true">add</span> Nova categoria</button>
+          </div>
+          <div class="view-tabs" role="tablist" aria-label="Tipo de categoria">
+            <button class="view-tab" id="category-tab-expense" type="button" role="tab" aria-selected="true" aria-controls="category-panel-expense" tabindex="0">Despesas</button>
+            <button class="view-tab" id="category-tab-income" type="button" role="tab" aria-selected="false" aria-controls="category-panel-income" tabindex="-1">Receitas</button>
+          </div>
+          <section id="category-panel-expense" role="tabpanel" aria-labelledby="category-tab-expense" tabindex="0"><div id="managed-expense-categories" class="category-manager-list"></div></section>
+          <section id="category-panel-income" role="tabpanel" aria-labelledby="category-tab-income" tabindex="0" hidden><div id="managed-income-categories" class="category-manager-list"></div></section>
+          <p class="local-footnote"><span aria-hidden="true">▣</span> Arquivar impede novos usos; lançamentos e orçamentos existentes permanecem.</p>
+        </section>
+
         <section class="budget-view" id="budget-view" hidden aria-labelledby="budget-title">
           <div class="section-title-row cards-heading budget-heading">
             <div><p class="eyebrow">PLANEJAMENTO MENSAL</p><h2 id="budget-title">Seus orçamentos</h2><p class="cards-intro">Acompanhe os limites e as despesas previstas de cada categoria.</p></div>
@@ -388,6 +403,20 @@
       <label class="field full-field">Categoria<select id="budget-category" required></select></label>
       <label class="field full-field">Limite mensal<input id="budget-amount" type="text" inputmode="decimal" placeholder="R$ 0,00" required /></label>
       <div class="dialog-actions"><button class="cancel-button" type="button" data-close="budget-dialog">Cancelar</button><button class="add-button" type="submit">Salvar orçamento</button></div></form>
+    </dialog>
+    <dialog id="category-dialog" class="expense-dialog category-dialog" aria-labelledby="category-dialog-title">
+      <form id="category-form" novalidate>
+        <div class="dialog-heading"><div><p class="eyebrow">ORGANIZAÇÃO</p><h2 id="category-dialog-title">Nova categoria</h2></div><button class="close-button" type="button" data-close="category-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
+        <input id="managed-category-id" type="hidden" />
+        <label class="field full-field">Tipo<select id="managed-category-type" required><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
+        <label class="field full-field">Nome<input id="category-name" required maxlength="40" autocomplete="off" placeholder="Ex.: Pets, trabalhos extras" /></label>
+        <div class="field-row">
+          <label class="field">Ícone<span class="category-icon-control"><span class="material-icons" id="category-icon-preview" aria-hidden="true">category</span><select id="managed-category-icon" required></select></span></label>
+          <label class="field">Cor<span class="category-color-control"><input id="managed-category-color" type="color" required value="#6541c8" /><span id="category-color-value">#6541C8</span></span></label>
+        </div>
+        <p class="category-dialog-note">A cor aparece nos gráficos e nas barras dos lançamentos.</p>
+        <div class="dialog-actions"><button class="cancel-button" type="button" data-close="category-dialog">Cancelar</button><button class="add-button" type="submit">Salvar categoria</button></div>
+      </form>
     </dialog>
     <dialog id="backups-dialog" class="expense-dialog backups-dialog" aria-labelledby="backups-title">
       <div class="dialog-heading"><h2 id="backups-title">Backups locais</h2><button class="close-button" type="button" data-close="backups-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>

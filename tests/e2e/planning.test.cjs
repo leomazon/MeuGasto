@@ -119,7 +119,7 @@ test('separates overview and analysis into accessible topic tabs', async () => {
 
 test('groups independent card and budget screens under Pagamentos',async()=>{
   const topLevel=await page.locator('.main-nav').evaluate(nav=>[...nav.children].map(item=>item.dataset.view||item.dataset.navGroup));
-  assert.deepEqual(topLevel,['alertas','inicio','analises','lancamentos','contas','pagamentos']);
+  assert.deepEqual(topLevel,['alertas','inicio','analises','lancamentos','categorias','contas','pagamentos']);
   const paymentsToggle=page.getByRole('button',{name:'Pagamentos'});
   assert.equal(await paymentsToggle.getAttribute('aria-expanded'),'true');
   await paymentsToggle.click();

@@ -23,9 +23,9 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 - Faturas mensais com liquidação integral ou cobrança por cobrança, via Pix ou outro cartão.
 - Contas e carteiras com saldo inicial, saldo atual e vínculo de receitas, despesas e pagamentos de fatura. Transferências entre contas atualizam os dois saldos sem serem tratadas como receita ou despesa. **Conferência de saldo** compara o valor calculado com o extrato e registra ajustes datados com histórico, sem reescrever lançamentos nem alterar os totais mensais.
 - Lançamentos filtrados pelo mês selecionado, com busca, paginação e opções de 10, 20, 30 ou 50 itens por página.
-- Categorias com ícones, edição e exclusão de lançamentos.
+- Categorias personalizadas de receita e despesa com nome, ícone Material e cor. Renomear atualiza lançamentos, exceções de registros fixos e orçamentos vinculados; arquivar impede novos usos sem apagar o histórico. Categorias arquivadas podem ser reativadas.
 - Compras no cartão à vista ou parceladas. O app distribui o valor total em cobranças mensais; a última parcela ajusta a diferença de centavos.
-- Exportação e importação de backup em JSON, incluindo orçamentos, contas, transferências e conferências de saldo.
+- Exportação e importação de backup em JSON, incluindo categorias, orçamentos, contas, transferências e conferências de saldo.
 - Cópias SQLite automáticas ao salvar, com intervalo mínimo de 30 minutos e retenção das 30 cópias mais recentes. Em **Backups locais**, gere uma cópia manual ou restaure uma anterior. Antes da restauração, o estado atual recebe uma cópia de segurança.
 - Evolução dos últimos 6 ou 12 meses até o mês selecionado, com receitas e despesas previstas, saldo previsto e saldo realizado.
 - Orçamentos mensais por categoria de despesa: limites recorrentes, valor comprometido, percentual utilizado e destaque ao se aproximar ou ultrapassar o limite.
@@ -48,4 +48,4 @@ As regras financeiras têm testes no Node.js, a persistência SQLite usa `unitte
 
 ## Decisões de implementação
 
-A conciliação usa o núcleo financeiro e a persistência local já existentes. Não foi adicionada uma biblioteca externa: o cálculo é pequeno e depende das regras específicas de data, conta e lançamentos do MeuGasto; uma dependência genérica não reduziria a complexidade nem melhoraria a integração.
+A conciliação usa o núcleo financeiro e a persistência local já existentes. Não foi adicionada uma biblioteca externa: o cálculo é pequeno e depende das regras específicas de data, conta e lançamentos do MeuGasto; uma dependência genérica não reduziria a complexidade nem melhoraria a integração. O cadastro de categorias reutiliza os ícones Material já hospedados no projeto e os controles nativos de cor e seleção, evitando uma dependência apenas para esses campos.

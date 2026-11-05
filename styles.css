@@ -721,6 +721,31 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 @media(max-width:760px){.overview-balance-panel{gap:12px}.overview-balance-panel .balance-panel{padding:19px}.overview-balance-panel .balance-metrics{grid-template-columns:1fr}.overview-balance-panel .balance-metrics .net-balance{grid-column:auto}.overview-balance-panel .income-commitment{padding:19px}.income-commitment .commitment-content{margin:17px 0 12px}.income-commitment .commitment-content strong{font-size:38px}.category-pie-layout{grid-template-columns:minmax(0,1fr);gap:15px}.category-pie-visual,.category-pie-svg{width:230px;height:230px}.overview-expenses-panel .payment-panel{padding:19px}.payment-heading-meta{gap:8px}.payment-average span{font-size:10px}.payment-average strong{font-size:14px}.payment-average small{font-size:9px}}
 @media(max-width:430px){.category-composition-panel{padding:18px}.category-composition-total{font-size:17px}}
 
+.categories-view{padding-top:18px}
+.category-management-heading{margin:0 0 22px}
+.category-management-heading .cards-intro{max-width:600px;margin:7px 0 0;color:var(--muted);line-height:1.5}
+.category-manager-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.category-manager-card{display:grid;grid-template-columns:46px minmax(0,1fr) auto;align-items:center;gap:13px;min-height:105px;padding:18px 19px;border-left:3px solid var(--category-accent)}
+.category-manager-icon.material-icons{display:grid;place-items:center;width:46px;height:46px;border-radius:12px;font-size:25px;line-height:1}
+.category-manager-copy{min-width:0}
+.category-manager-copy h3{margin:0 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:Manrope,sans-serif;font-size:17px}
+.category-manager-copy p{margin:0;color:var(--muted);font-size:12px;line-height:1.4}
+.category-manager-actions{display:flex;gap:5px;grid-column:3;grid-row:1}
+.category-manager-card.is-archived{border-left-color:#b7afc1;background:#faf9fc}
+.category-manager-card.is-archived .category-manager-icon{opacity:.58}
+.category-archived-tag{grid-column:2;grid-row:2;justify-self:start;padding:3px 8px;border-radius:999px;background:#eeebf2;color:#716a7c;font-size:11px;font-weight:700}
+.category-dialog{width:min(560px,calc(100vw - 28px))}
+.category-icon-control,.category-color-control{display:flex;align-items:center;height:46px;min-width:0;border:1px solid #e7e3ed;border-radius:9px;background:#fff}
+.category-icon-control:focus-within,.category-color-control:focus-within{outline:3px solid #aa94f3;outline-offset:2px}
+.category-icon-control #category-icon-preview{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;margin-left:9px;border-radius:8px;font-size:21px;line-height:1}
+.field .category-icon-control select{flex:1;min-width:0;height:44px;border:0;background:transparent;outline:0}
+.field .category-color-control input[type=color]{flex:0 0 42px;width:42px;height:38px;margin-left:5px;padding:2px;border:0;background:transparent;cursor:pointer}
+.category-color-control span{padding-left:8px;color:var(--muted);font-size:13px;letter-spacing:.02em}
+.category-dialog-note{margin:0 0 20px;color:var(--muted);font-size:12px}
+@media(max-width:1050px){.category-manager-list{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:760px){.categories-view{padding-top:14px}.category-manager-list{gap:11px}.category-manager-card{padding:15px;min-height:92px}.category-management-heading{gap:12px}.category-dialog .field-row{grid-template-columns:1fr 1fr;gap:11px}}
+@media(max-width:390px){.category-dialog .field-row{grid-template-columns:1fr;gap:0}}
+
 .transactions-view{padding-top:22px}
 @media(max-width:760px){.transactions-view{padding-top:18px}}
 @media(max-width:500px){.transactions-filters{grid-template-columns:minmax(0,1fr)}.transactions-filters .category-filter-field,.transactions-filters .payment-filter-field,.transactions-filters .transactions-order,.transactions-filters .amount-range-filter,.transactions-filters .clear-filters-button{grid-column:1;grid-row:auto}.transactions-filters .clear-filters-button{justify-self:start}}
