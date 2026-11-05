@@ -135,6 +135,19 @@ test('shows separate monthly category charts and income shares that survive filt
   assert.deepEqual(await incomeRows.locator('.category-name').allTextContents(),['Salário','Prestação de serviço']);
   assert.deepEqual(await incomeRows.locator('.category-share').allTextContents(),['60%','40%']);
   assert.deepEqual(await page.locator('#category-list .category-share').allTextContents(),['100%']);
+  const incomePie=page.locator('#income-category-pie');
+  assert.equal(await incomePie.locator('.category-pie-slice').count(),2);
+  assert.equal(await page.locator('.income-composition-panel #income-category-list .category-item').count(),2);
+  const incomeColors=await incomePie.locator('.category-pie-slice').evaluateAll(slices=>slices.map(slice=>slice.getAttribute('stroke')));
+  assert.equal(new Set(incomeColors).size,2);
+  assert.equal(await incomePie.locator('.category-pie-slice').nth(1).evaluate(e=>getComputedStyle(e).stroke),
+    await incomeRows.filter({hasText:'Prestação de serviço'}).locator('.category-track i').evaluate(e=>getComputedStyle(e).backgroundColor));
+  await incomePie.locator('.category-pie-slice').nth(1).focus();
+  assert.equal(await page.locator('#income-pie-center-category').innerText(),'Prestação de serviço');
+  assert.match((await page.locator('#income-pie-center-amount').innerText()).replace(/\u00a0/g,' '),/R\$ 400,00/);
+  assert.match(await page.locator('#income-pie-center-details').innerText(),/40% das receitas/);
+  await page.locator('#all-income-categories').focus();
+  assert.equal(await page.locator('#income-pie-center-category').innerText(),'Total das receitas');
   const incomeColor=await incomeRows.filter({hasText:'Prestação de serviço'}).locator('.category-track i').evaluate(e=>getComputedStyle(e).backgroundColor);
   await page.getByRole('button',{name:'Análises',exact:true}).click();
   await page.locator('#all-income-categories').click();
@@ -151,6 +164,8 @@ test('shows separate monthly category charts and income shares that survive filt
   await page.getByRole('button',{name:'Análises',exact:true}).click();
   assert.equal(await page.locator('#income-category-list .category-item').count(),0);
   assert.match(await page.locator('#income-category-list').innerText(),/Nenhuma receita/);
+  assert.equal(await incomePie.locator('.category-pie-slice').count(),0);
+  assert.equal(await page.locator('#income-pie-center-category').innerText(),'Sem receitas previstas');
   assert.equal(await page.locator('#category-list .category-item').count(),0);
   await page.getByRole('button',{name:'Mês anterior',exact:true}).click();
   assert.equal(await page.locator('#income-category-list .category-item').count(),2);

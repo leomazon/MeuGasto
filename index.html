@@ -185,11 +185,11 @@
           </section>
           </section>
           <section class="view-tab-panel" id="analysis-panel-categories" role="tabpanel" aria-labelledby="analysis-tab-categories" tabindex="0" hidden>
-          <section class="insight-panel expense-composition-panel" aria-labelledby="expense-composition-title">
-            <div class="section-title-row"><div><h2 id="expense-composition-title">Composição das despesas</h2><p class="eyebrow">DISTRIBUIÇÃO POR CATEGORIA</p></div><div class="composition-heading-actions"><strong class="expense-composition-total" id="commitment-pie-total">R$ 0,00</strong><button class="text-button" id="all-categories">Ver lançamentos <span aria-hidden="true">↗</span></button></div></div>
+          <section class="insight-panel category-composition-panel expense-composition-panel" aria-labelledby="expense-composition-title">
+            <div class="section-title-row"><div><h2 id="expense-composition-title">Composição das despesas</h2><p class="eyebrow">DISTRIBUIÇÃO POR CATEGORIA</p></div><div class="composition-heading-actions"><strong class="category-composition-total" id="commitment-pie-total">R$ 0,00</strong><button class="text-button" id="all-categories">Ver lançamentos <span aria-hidden="true">↗</span></button></div></div>
             <div class="category-pie-layout">
               <div class="category-pie-visual">
-                <svg id="expense-category-pie" class="expense-category-pie" viewBox="0 0 280 280" role="img" aria-label="Despesas previstas por categoria">
+                <svg id="expense-category-pie" class="category-pie-svg" viewBox="0 0 280 280" role="img" aria-label="Despesas previstas por categoria">
                   <circle class="category-pie-empty" cx="140" cy="140" r="96"></circle>
                 </svg>
                 <div class="category-pie-center" aria-live="polite"><span id="category-pie-center-category">Total das despesas</span><strong id="category-pie-center-amount">R$ 0,00</strong><small id="category-pie-center-details">No mês selecionado</small></div>
@@ -197,13 +197,18 @@
               <div id="category-list" class="category-list composition-category-list"></div>
             </div>
           </section>
-          <div class="lower-grid category-comparison">
-            <section class="category-panel income-category-panel">
-              <div class="section-title-row"><div><h2>Receitas por categoria</h2><p class="eyebrow">RECEITAS</p></div><button class="text-button" id="all-income-categories">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
-              <p class="category-context" id="income-category-context"></p>
-              <div id="income-category-list" class="category-list"></div>
-            </section>
-          </div>
+          <section class="insight-panel category-composition-panel income-composition-panel" aria-labelledby="income-composition-title">
+            <div class="section-title-row"><div><h2 id="income-composition-title">Composição das receitas</h2><p class="eyebrow">DISTRIBUIÇÃO POR CATEGORIA</p></div><div class="composition-heading-actions"><strong class="category-composition-total" id="income-pie-total">R$ 0,00</strong><button class="text-button" id="all-income-categories">Ver lançamentos <span aria-hidden="true">↗</span></button></div></div>
+            <div class="category-pie-layout">
+              <div class="category-pie-visual">
+                <svg id="income-category-pie" class="category-pie-svg" viewBox="0 0 280 280" role="img" aria-label="Receitas previstas por categoria">
+                  <circle class="category-pie-empty" cx="140" cy="140" r="96"></circle>
+                </svg>
+                <div class="category-pie-center" aria-live="polite"><span id="income-pie-center-category">Total das receitas</span><strong id="income-pie-center-amount">R$ 0,00</strong><small id="income-pie-center-details">No mês selecionado</small></div>
+              </div>
+              <div id="income-category-list" class="category-list composition-category-list"></div>
+            </div>
+          </section>
           </section>
           <section class="view-tab-panel" id="analysis-panel-trend" role="tabpanel" aria-labelledby="analysis-tab-trend" tabindex="0" hidden>
           <section class="insight-panel" aria-labelledby="trend-title">
