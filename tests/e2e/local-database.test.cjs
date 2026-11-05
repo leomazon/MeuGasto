@@ -138,6 +138,47 @@ test('restores a local SQLite backup through the UI including budgets and preser
   assert.deepEqual((await (await fetch(`${appUrl}/api/state`)).json()).state,original);
 });
 
+test('saves accounts and internal transfers in SQLite and restores their balances after reload', async () => {
+  const today = await page.evaluate(() => {
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  });
+  const empty = { expenses: [], cards: [], settlements: [], budgets: [], accounts: [], transfers: [] };
+  assert.equal((await fetch(`${appUrl}/api/state`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(empty) })).status, 200);
+  await page.goto(appUrl);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole('button', { name: 'Contas', exact: true }).click();
+  for (const [name, kind, amount] of [['Conta principal', 'checking', '20000'], ['Carteira', 'cash', '3000']]) {
+    await page.locator('#new-account').click();
+    const form = page.locator('#account-dialog');
+    await form.locator('#account-name').fill(name);
+    await form.locator('#account-kind').selectOption(kind);
+    await form.locator('#account-opening-balance').fill(amount);
+    await form.locator('#account-opening-date').fill(today);
+    await form.getByRole('button', { name: 'Salvar conta', exact: true }).click();
+  }
+  await page.getByRole('button', { name: 'Nova transferência', exact: true }).click();
+  const transfer = page.locator('#transfer-dialog');
+  await transfer.locator('#transfer-from').selectOption({ label: 'Conta principal' });
+  await transfer.locator('#transfer-to').selectOption({ label: 'Carteira' });
+  await transfer.locator('#transfer-amount').fill('2500');
+  await transfer.locator('#transfer-date').fill(today);
+  await transfer.getByRole('button', { name: 'Salvar transferência', exact: true }).click();
+
+  await page.waitForFunction(async () => {
+    const state = (await (await fetch('/api/state')).json()).state;
+    return state.accounts?.length === 2 && state.transfers?.length === 1;
+  });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole('button', { name: 'Contas', exact: true }).click();
+  assert.equal((await page.locator('#accounts-total-balance').innerText()).replace(/\s/g, ' '), 'R$ 230,00');
+  const persisted = (await (await fetch(`${appUrl}/api/state`)).json()).state;
+  assert.equal(persisted.accounts.length, 2);
+  assert.equal(persisted.transfers.length, 1);
+});
+
 test('rejects malformed backup restore requests without changing saved data', async () => {
   const before=(await (await fetch(`${appUrl}/api/state`)).json()).state;
   for (const body of ['[]','null','{"name":"../meugasto.sqlite3"}','{}']) {

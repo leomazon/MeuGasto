@@ -60,8 +60,8 @@ class StateStore:
             for key in ("expenses", "cards", "settlements")
         ):
             raise ValueError("State must contain expense, card, and settlement lists")
-        if "budgets" in state and not isinstance(state["budgets"], list):
-            raise ValueError("Invalid budgets")
+        if any(key in state and not isinstance(state[key], list) for key in ("budgets", "accounts", "transfers")):
+            raise ValueError("Invalid optional state list")
         with self.lock:
             self._write_state(state)
             self._maybe_backup()
@@ -124,7 +124,7 @@ class StateStore:
             state = json.loads(row[0]) if row else None
             if not isinstance(state, dict) or any(not isinstance(state.get(key), list) for key in ("expenses", "cards", "settlements")):
                 raise ValueError("Cópia inválida")
-            if "budgets" in state and not isinstance(state["budgets"], list):
+            if any(key in state and not isinstance(state[key], list) for key in ("budgets", "accounts", "transfers")):
                 raise ValueError("Cópia inválida")
             return state
         finally:

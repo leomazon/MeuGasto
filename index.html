@@ -24,6 +24,7 @@
           <button class="nav-item active" data-view="inicio"><span class="material-icons" aria-hidden="true">window</span> Visão geral</button>
           <button class="nav-item" data-view="analises"><span class="material-icons" aria-hidden="true">science</span> Análises</button>
           <button class="nav-item" data-view="lancamentos"><span class="material-icons" aria-hidden="true">menu_book</span> Lançamentos</button>
+          <button class="nav-item" data-view="contas"><span class="material-icons" aria-hidden="true">account_balance</span> Contas</button>
           <div class="nav-group" id="payments-nav" data-nav-group="pagamentos">
             <button class="nav-item nav-group-toggle" id="payments-toggle" type="button" aria-expanded="true" aria-controls="payments-submenu"><span class="material-icons" aria-hidden="true">payments</span> Pagamentos<span class="material-icons nav-group-chevron" aria-hidden="true">expand_more</span></button>
             <div class="nav-submenu" id="payments-submenu">
@@ -125,6 +126,23 @@
             <section class="alerts-group" id="alerts-upcoming-group" aria-labelledby="alerts-upcoming-title" hidden><div class="alerts-group-heading"><div><h3 id="alerts-upcoming-title">Vencendo nos próximos 7 dias</h3><p>Inclui itens que vencem hoje.</p></div><span class="alerts-group-count" id="alerts-upcoming-group-count">0</span></div><div class="alerts-list" id="alerts-upcoming"></div></section>
             <section class="alerts-group" id="alerts-budget-group" aria-labelledby="alerts-budget-title" hidden><div class="alerts-group-heading"><div><h3 id="alerts-budget-title">Orçamentos excedidos</h3><p id="alerts-budget-period">Com base no mês selecionado.</p></div><span class="alerts-group-count" id="alerts-budget-group-count">0</span></div><div class="alerts-list" id="alerts-budget"></div></section>
           </div>
+        </section>
+
+        <section class="accounts-view" id="accounts-view" hidden aria-labelledby="accounts-title">
+          <div class="section-title-row cards-heading accounts-heading">
+            <div><p class="eyebrow">SALDOS E MOVIMENTAÇÕES</p><h2 id="accounts-title">Contas e carteiras</h2><p class="cards-intro">Acompanhe o dinheiro disponível em cada lugar.</p></div>
+            <div class="account-actions"><button class="cancel-button" id="new-transfer" type="button"><span class="material-icons" aria-hidden="true">swap_horiz</span> Nova transferência</button><button class="add-button" id="new-account" type="button"><span class="material-icons" aria-hidden="true">add</span> Adicionar conta</button></div>
+          </div>
+          <section class="accounts-total-panel" aria-labelledby="accounts-total-title">
+            <div class="accounts-total-icon material-icons" aria-hidden="true">account_balance_wallet</div>
+            <div><span id="accounts-total-title">Saldo total nas contas</span><strong id="accounts-total-balance">R$ 0,00</strong><small id="accounts-total-caption">Cadastre contas para começar a acompanhar seus saldos.</small></div>
+          </section>
+          <div id="account-list" class="account-list cards-list"></div>
+          <section class="account-transfers-panel" aria-labelledby="transfers-title">
+            <div class="section-title-row"><div><h2 id="transfers-title">Transferências entre contas</h2><p class="account-section-copy">Movem saldo entre suas contas sem alterar receitas ou despesas.</p></div></div>
+            <div id="transfer-list" class="transfer-list"></div>
+          </section>
+          <p class="local-footnote"><span aria-hidden="true">▣</span> Os saldos usam o valor inicial e as movimentações vinculadas a cada conta desde a data de início.</p>
         </section>
 
         <section class="analytics-view" id="analytics-view" hidden>
@@ -271,10 +289,42 @@
           <label class="field"><span>Observação <span class="optional">opcional</span></span><input id="notes" maxlength="120" placeholder="Uma nota curta" /></label>
         </div>
         <label class="field full-field" id="record-status-wrap"><span id="record-status-label">Situação</span><select id="record-status"><option value="realized">Pago</option><option value="planned">Em aberto</option></select></label>
+        <label class="field full-field" id="record-account-wrap" hidden>Conta ou carteira<select id="record-account"></select></label>
         <label class="recurring-control"><input type="checkbox" id="recurring-record" /><span>Registro fixo mensal</span></label>
         <p class="recurring-hint" id="recurring-hint">Repete o valor integral todo mês a partir da data inicial. Os valores de meses futuros são previstos.</p>
         <p class="installment-hint" id="installment-hint" hidden></p>
         <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-dialog">Cancelar</button><button class="add-button" type="submit" id="save-expense">Salvar registro</button></div>
+      </form>
+    </dialog>
+    <dialog id="account-dialog" class="expense-dialog" aria-labelledby="account-dialog-title">
+      <form id="account-form" novalidate>
+        <div class="dialog-heading"><div><p class="eyebrow">SALDOS E MOVIMENTAÇÕES</p><h2 id="account-dialog-title">Adicionar conta</h2></div><button class="close-button" type="button" data-close="account-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
+        <input type="hidden" id="account-id" />
+        <label class="field full-field">Nome da conta<input id="account-name" required maxlength="60" placeholder="Ex.: Conta principal" /></label>
+        <div class="field-row">
+          <label class="field">Tipo de conta<select id="account-kind"><option value="checking">Conta corrente</option><option value="savings">Poupança</option><option value="cash">Dinheiro</option><option value="other">Outra conta</option></select></label>
+          <label class="field">Saldo inicial<input id="account-opening-balance" class="currency-input" type="text" inputmode="decimal" autocomplete="off" required placeholder="R$ 0,00" /></label>
+        </div>
+        <label class="field full-field">Saldo válido a partir de<input id="account-opening-date" type="date" required /></label>
+        <p class="account-form-hint">Movimentações anteriores a essa data não entram no saldo desta conta.</p>
+        <div class="dialog-actions"><button class="cancel-button" type="button" data-close="account-dialog">Cancelar</button><button class="add-button" type="submit">Salvar conta</button></div>
+      </form>
+    </dialog>
+    <dialog id="transfer-dialog" class="expense-dialog" aria-labelledby="transfer-dialog-title">
+      <form id="transfer-form" novalidate>
+        <div class="dialog-heading"><div><p class="eyebrow">MOVIMENTAÇÃO INTERNA</p><h2 id="transfer-dialog-title">Nova transferência</h2></div><button class="close-button" type="button" data-close="transfer-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
+        <input type="hidden" id="transfer-id" />
+        <div class="field-row">
+          <label class="field">De<select id="transfer-from" required></select></label>
+          <label class="field">Para<select id="transfer-to" required></select></label>
+        </div>
+        <div class="field-row">
+          <label class="field">Valor<input id="transfer-amount" class="currency-input" type="text" inputmode="decimal" autocomplete="off" required placeholder="R$ 0,00" /></label>
+          <label class="field">Data<input id="transfer-date" type="date" required /></label>
+        </div>
+        <label class="field full-field">Observação <span class="optional">opcional</span><input id="transfer-notes" maxlength="100" placeholder="Ex.: Reserva do mês" /></label>
+        <p class="account-form-hint">A transferência altera os saldos das duas contas, sem aparecer como receita ou despesa.</p>
+        <div class="dialog-actions"><button class="cancel-button" type="button" data-close="transfer-dialog">Cancelar</button><button class="add-button" type="submit">Salvar transferência</button></div>
       </form>
     </dialog>
     <dialog id="card-dialog" class="expense-dialog">
@@ -295,7 +345,8 @@
       <form id="settlement-form" novalidate>
         <div class="dialog-heading"><div><p class="eyebrow">PAGAMENTO DE FATURA</p><h2>Liquidar cobrança</h2></div><button class="close-button" type="button" id="close-settlement-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
         <p class="settlement-summary" id="settlement-summary"></p>
-        <label class="field full-field">Forma de pagamento<select id="settlement-method"><option value="Pix">Pix</option><option value="Dinheiro">Dinheiro</option><option value="Cartão">Outro cartão</option></select></label>
+        <label class="field full-field">Forma de pagamento<select id="settlement-method"><option value="Pix">Pix</option><option value="Transferência">Transferência</option><option value="Dinheiro">Dinheiro</option><option value="Cartão">Outro cartão</option></select></label>
+        <label class="field full-field" id="settlement-account-wrap">Conta ou carteira usada<select id="settlement-account"></select></label>
         <label class="field full-field" id="funding-card-wrap" hidden>Cartão usado para pagar<select id="funding-card"></select></label>
         <p class="installment-hint" id="funding-card-hint" hidden>O valor pago será registrado como uma nova compra nesse cartão, mantendo o limite utilizado correto.</p>
         <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-settlement">Cancelar</button><button class="add-button" type="submit">Confirmar pagamento</button></div>
@@ -311,6 +362,7 @@
       <form id="realization-form" novalidate><div class="dialog-heading"><h2 id="realization-title">Confirmar pagamento</h2><button class="close-button" type="button" data-close="realization-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
       <p id="realization-summary" class="settlement-summary"></p>
       <label class="field full-field"><span id="realization-date-label">Data do pagamento</span><input id="realization-date" type="date" required /></label>
+      <label class="field full-field" id="realization-account-wrap" hidden>Conta ou carteira usada<select id="realization-account"></select></label>
       <div class="dialog-actions"><button class="cancel-button" type="button" data-close="realization-dialog">Cancelar</button><button class="add-button" type="submit">Confirmar</button></div></form>
     </dialog>
     <dialog id="budget-dialog" class="expense-dialog" aria-labelledby="budget-dialog-title">

@@ -21,6 +21,7 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 - Barras em Lançamentos mostram a participação de cada receita ou despesa na própria categoria do mês, sem mudar a base ao aplicar filtros.
 - Cadastro de cartões, limites e crédito disponível no dashboard.
 - Faturas mensais com liquidação integral ou cobrança por cobrança, via Pix ou outro cartão.
+- Contas e carteiras com saldo inicial, saldo atual e vínculo de receitas, despesas e pagamentos de fatura. Transferências entre contas atualizam os dois saldos sem serem tratadas como receita ou despesa.
 - Lançamentos filtrados pelo mês selecionado, com busca, paginação e opções de 10, 20, 30 ou 50 itens por página.
 - Categorias com ícones, edição e exclusão de lançamentos.
 - Compras no cartão à vista ou parceladas. O app distribui o valor total em cobranças mensais; a última parcela ajusta a diferença de centavos.
