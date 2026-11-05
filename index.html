@@ -20,10 +20,17 @@
         </a>
         <p class="nav-label">Seu espaço</p>
         <nav class="main-nav">
+          <button class="nav-item" data-view="alertas"><span class="material-icons" aria-hidden="true">notifications_active</span> Alertas <span class="nav-count" id="alert-count" hidden></span></button>
           <button class="nav-item active" data-view="inicio"><span class="material-icons" aria-hidden="true">window</span> Visão geral</button>
-          <button class="nav-item" data-view="lancamentos"><span class="material-icons" aria-hidden="true">menu_book</span> Lançamentos</button>
           <button class="nav-item" data-view="analises"><span class="material-icons" aria-hidden="true">science</span> Análises</button>
-          <button class="nav-item" data-view="cartoes"><span class="material-icons" aria-hidden="true">credit_card</span> Cartões</button>
+          <button class="nav-item" data-view="lancamentos"><span class="material-icons" aria-hidden="true">menu_book</span> Lançamentos</button>
+          <div class="nav-group" id="payments-nav" data-nav-group="pagamentos">
+            <button class="nav-item nav-group-toggle" id="payments-toggle" type="button" aria-expanded="true" aria-controls="payments-submenu"><span class="material-icons" aria-hidden="true">payments</span> Pagamentos<span class="material-icons nav-group-chevron" aria-hidden="true">expand_more</span></button>
+            <div class="nav-submenu" id="payments-submenu">
+              <button class="nav-subitem" data-view="cartoes"><span class="material-icons" aria-hidden="true">credit_card</span>Cartões</button>
+              <button class="nav-subitem" data-view="orcamentos"><span class="material-icons" aria-hidden="true">account_balance_wallet</span>Orçamentos</button>
+            </div>
+          </div>
         </nav>
         <div class="sidebar-bottom">
           <div class="privacy-note"><span aria-hidden="true">◉</span><p>Seus dados ficam neste PC.</p></div>
@@ -65,38 +72,31 @@
         <section class="overview-view" id="overview-view">
           <div class="view-tabs" role="tablist" aria-label="Visão geral">
             <button class="view-tab" id="overview-tab-balance" type="button" role="tab" aria-selected="true" aria-controls="overview-panel-balance" tabindex="0">Saldo</button>
-            <button class="view-tab" id="overview-tab-payments" type="button" role="tab" aria-selected="false" aria-controls="overview-panel-payments" tabindex="-1">Pagamentos</button>
+            <button class="view-tab" id="overview-tab-expenses" type="button" role="tab" aria-selected="false" aria-controls="overview-panel-expenses" tabindex="-1">Despesas</button>
             <button class="view-tab" id="overview-tab-recent" type="button" role="tab" aria-selected="false" aria-controls="overview-panel-recent" tabindex="-1">Recentes</button>
           </div>
           <section class="view-tab-panel overview-balance-panel" id="overview-panel-balance" role="tabpanel" aria-labelledby="overview-tab-balance" tabindex="0">
             <section class="balance-panel" aria-labelledby="balance-title">
               <div class="section-title-row"><div class="balance-heading"><h2 id="balance-title">Saldo previsto</h2><button class="help-tip" type="button" aria-label="Sobre o saldo previsto" aria-describedby="projected-tooltip"><span aria-hidden="true">?</span><span class="tooltip-copy" id="projected-tooltip" role="tooltip">Receitas menos despesas previstas do mês, incluindo registros fixos e parcelas de cartão. Não considera saldo anterior; as cobranças do cartão entram mesmo quando a fatura já foi paga.</span></button></div><button class="text-button" id="manage-income">Ver lançamentos ↗</button></div>
-              <div class="balance-metrics"><div><span>Receitas do mês</span><strong id="income-total" class="income-value">R$ 0,00</strong></div><div><span>Despesas do mês</span><strong id="balance-expenses">R$ 0,00</strong></div><div class="net-balance"><span>Saldo previsto</span><strong id="month-balance">R$ 0,00</strong></div></div>
+              <div class="balance-metrics"><div><span>Receitas previstas</span><strong id="income-total" class="income-value">R$ 0,00</strong></div><div><span>Despesas previstas</span><strong id="balance-expenses">R$ 0,00</strong></div><div class="net-balance"><span>Saldo previsto</span><strong id="month-balance">R$ 0,00</strong></div></div>
             </section>
-            <section class="balance-panel actual-panel" aria-labelledby="actual-title">
-              <div class="section-title-row"><div class="balance-heading"><h2 id="actual-title">Realizado no mês</h2><button class="help-tip" type="button" aria-label="Sobre o saldo realizado" aria-describedby="actual-tooltip"><span aria-hidden="true">?</span><span class="tooltip-copy" id="actual-tooltip" role="tooltip">Recebimentos e pagamentos confirmados, pela data em que ocorreram. Compras no cartão entram quando a fatura é paga; pagar uma fatura com outro cartão só transfere a dívida. Não considera saldo anterior.</span></button></div></div>
-              <div class="balance-metrics"><div><span>Recebido</span><strong id="actual-income" class="income-value">R$ 0,00</strong></div><div><span>Pago</span><strong id="actual-expenses">R$ 0,00</strong></div><div class="net-balance"><span>Saldo realizado</span><strong id="actual-balance">R$ 0,00</strong></div></div>
+            <section class="balance-panel income-commitment" id="income-commitment" aria-labelledby="commitment-title">
+              <div class="section-title-row"><div class="balance-heading"><h2 id="commitment-title">Renda comprometida</h2><button class="help-tip" type="button" aria-label="Sobre a renda comprometida" aria-describedby="commitment-tooltip"><span aria-hidden="true">?</span><span class="tooltip-copy" id="commitment-tooltip" role="tooltip">Percentual das receitas previstas do mês que já está destinado às despesas previstas.</span></button></div></div>
+              <div class="commitment-content"><span>Percentual da renda prevista comprometido</span><strong id="income-commitment-rate">—</strong></div>
+              <div class="commitment-track" role="progressbar" aria-label="Percentual da renda comprometida com despesas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="income-commitment-bar"></i></div>
+              <p id="income-commitment-note">Cadastre receitas e despesas para acompanhar a renda comprometida.</p>
             </section>
           </section>
-          <section class="view-tab-panel overview-payments-panel" id="overview-panel-payments" role="tabpanel" aria-labelledby="overview-tab-payments" tabindex="0" hidden>
+          <section class="view-tab-panel overview-expenses-panel" id="overview-panel-expenses" role="tabpanel" aria-labelledby="overview-tab-expenses" tabindex="0" hidden>
             <div class="summary-row">
-              <article class="total-panel">
-                <div class="total-topline"><span>Gastos neste mês</span><span class="material-icons sparkle" aria-hidden="true">auto_awesome</span></div>
-                <strong id="month-total">R$ 0,00</strong>
-                <div class="total-footer"><span class="status-dot"></span><span id="entry-count">Nenhum gasto lançado</span></div>
-                <div class="total-insights">
-                  <div class="total-insight"><span class="total-insight-label">Média por cobrança</span><strong id="average-charge">—</strong><small id="average-charge-count">Sem cobranças neste mês</small></div>
-                </div>
-                <div class="panel-curve" aria-hidden="true"></div>
-              </article>
               <article class="payment-panel">
-                <div class="section-title-row"><div><h2>Forma de pagamento</h2><p class="eyebrow">PAGAMENTOS</p></div><span class="material-icons mini-icon" aria-hidden="true">payments</span></div>
+                <div class="section-title-row"><div><h2>Forma de pagamento</h2><p class="eyebrow">DESPESAS</p></div><div class="payment-heading-meta"><div class="payment-average"><span>Média por cobrança</span><strong id="average-charge">—</strong><small id="average-charge-count">Sem cobranças neste mês</small></div><span class="material-icons mini-icon" aria-hidden="true">payments</span></div></div>
                 <div class="payment-lines">
                   <div class="payment-line"><span class="pay-icon pix-icon" aria-hidden="true"><img class="pix-brand" src="pix-symbol.svg" alt="" /></span><div class="pay-label"><div class="pay-meta"><span>Pix</span><span class="payment-share" id="pix-share">0%</span></div><div class="progress-track"><i id="pix-bar"></i></div></div><strong id="pix-total">R$ 0,00</strong></div>
                   <div class="payment-line"><span class="material-icons pay-icon cash-icon" aria-hidden="true">payments</span><div class="pay-label"><div class="pay-meta"><span>Dinheiro</span><span class="payment-share" id="cash-share">0%</span></div><div class="progress-track"><i id="cash-bar"></i></div></div><strong id="cash-total">R$ 0,00</strong></div>
                   <div class="payment-line"><span class="material-icons pay-icon card-icon" aria-hidden="true">credit_card</span><div class="pay-label"><div class="pay-meta"><span>Cartão</span><span class="payment-share" id="card-share">0%</span></div><div class="progress-track"><i id="card-bar"></i></div></div><strong id="card-total">R$ 0,00</strong></div>
                 </div>
-                <p class="payment-foot" id="payment-foot">Seus pagamentos aparecem aqui conforme você registra os gastos.</p>
+                <p class="payment-foot" id="payment-foot">A distribuição das despesas aparece aqui conforme você registra lançamentos.</p>
               </article>
             </div>
           </section>
@@ -109,12 +109,29 @@
           <p class="local-footnote"><span aria-hidden="true">▣</span> Seus dados ficam salvos neste PC. Baixe um backup para guardar uma cópia ou transferi-los.</p>
         </section>
 
+        <section class="alerts-view" id="alerts-view" hidden aria-labelledby="alerts-title">
+          <header class="alerts-intro">
+            <div><p class="eyebrow">CENTRAL DE ALERTAS</p><h2 id="alerts-title">O que precisa da sua atenção</h2><p class="alerts-copy">Vencimentos em aberto, faturas atrasadas e categorias acima do orçamento.</p></div>
+            <span class="material-icons alerts-intro-icon" aria-hidden="true">notifications_active</span>
+          </header>
+          <div class="alert-summary-strip" aria-label="Resumo dos alertas">
+            <article class="alert-summary alert-summary-overdue"><span>Em atraso</span><strong id="alert-overdue-count">0</strong></article>
+            <article class="alert-summary alert-summary-upcoming"><span>Próximos 7 dias</span><strong id="alert-upcoming-count">0</strong></article>
+            <article class="alert-summary alert-summary-budget"><span>Orçamentos excedidos</span><strong id="alert-budget-count">0</strong></article>
+          </div>
+          <div class="alerts-empty" id="alerts-empty" hidden><span class="material-icons" aria-hidden="true">task_alt</span><h3>Tudo em dia</h3><p>Não há vencimentos próximos ou orçamentos excedidos para mostrar.</p></div>
+          <div class="alerts-groups" id="alerts-groups">
+            <section class="alerts-group" id="alerts-overdue-group" aria-labelledby="alerts-overdue-title" hidden><div class="alerts-group-heading"><div><h3 id="alerts-overdue-title">Em atraso</h3><p>Contas e faturas com saldo em aberto.</p></div><span class="alerts-group-count" id="alerts-overdue-group-count">0</span></div><div class="alerts-list" id="alerts-overdue"></div></section>
+            <section class="alerts-group" id="alerts-upcoming-group" aria-labelledby="alerts-upcoming-title" hidden><div class="alerts-group-heading"><div><h3 id="alerts-upcoming-title">Vencendo nos próximos 7 dias</h3><p>Inclui itens que vencem hoje.</p></div><span class="alerts-group-count" id="alerts-upcoming-group-count">0</span></div><div class="alerts-list" id="alerts-upcoming"></div></section>
+            <section class="alerts-group" id="alerts-budget-group" aria-labelledby="alerts-budget-title" hidden><div class="alerts-group-heading"><div><h3 id="alerts-budget-title">Orçamentos excedidos</h3><p id="alerts-budget-period">Com base no mês selecionado.</p></div><span class="alerts-group-count" id="alerts-budget-group-count">0</span></div><div class="alerts-list" id="alerts-budget"></div></section>
+          </div>
+        </section>
+
         <section class="analytics-view" id="analytics-view" hidden>
           <div class="view-tabs" role="tablist" aria-label="Análises">
             <button class="view-tab" id="analysis-tab-closing" type="button" role="tab" aria-selected="true" aria-controls="analysis-panel-closing" tabindex="0">Fechamento</button>
             <button class="view-tab" id="analysis-tab-categories" type="button" role="tab" aria-selected="false" aria-controls="analysis-panel-categories" tabindex="-1">Categorias</button>
             <button class="view-tab" id="analysis-tab-trend" type="button" role="tab" aria-selected="false" aria-controls="analysis-panel-trend" tabindex="-1">Evolução</button>
-            <button class="view-tab" id="analysis-tab-budgets" type="button" role="tab" aria-selected="false" aria-controls="analysis-panel-budgets" tabindex="-1">Orçamentos</button>
           </div>
           <section class="view-tab-panel" id="analysis-panel-closing" role="tabpanel" aria-labelledby="analysis-tab-closing" tabindex="0">
           <section class="monthly-closing-panel" aria-labelledby="closing-title">
@@ -123,22 +140,22 @@
               <span class="closing-month-chip"><span class="material-icons" aria-hidden="true">event_note</span><span id="closing-month"></span></span>
             </div>
             <div class="closing-actual-grid">
-              <article class="closing-actual-metric is-income"><span>Receitas recebidas</span><strong id="closing-received">R$ 0,00</strong></article>
-              <article class="closing-actual-metric"><span>Despesas pagas</span><strong id="closing-paid">R$ 0,00</strong></article>
-              <article class="closing-actual-metric is-balance"><span>Saldo realizado</span><strong id="closing-balance">R$ 0,00</strong></article>
+              <article class="closing-actual-metric is-income"><div class="closing-metric-heading"><span class="material-icons closing-metric-icon" aria-hidden="true">north_east</span><span>Receitas recebidas</span></div><strong id="closing-received">R$ 0,00</strong></article>
+              <article class="closing-actual-metric is-expense"><div class="closing-metric-heading"><span class="material-icons closing-metric-icon" aria-hidden="true">south_west</span><span>Despesas pagas</span></div><strong id="closing-paid">R$ 0,00</strong></article>
+              <article class="closing-actual-metric is-balance"><div class="closing-metric-heading"><span class="material-icons closing-metric-icon" aria-hidden="true">account_balance_wallet</span><span>Saldo realizado</span></div><strong id="closing-balance">R$ 0,00</strong></article>
             </div>
             <div class="closing-open-heading"><h3>Valores pendentes</h3></div>
             <div class="closing-pending-grid">
-              <article class="closing-pending-card">
-                <div><span>A receber</span><small id="closing-to-receive-count">Nenhum registro</small></div>
+              <article class="closing-pending-card is-receivable">
+                <div class="closing-pending-heading"><span class="material-icons closing-pending-icon" aria-hidden="true">schedule</span><div><span>A receber</span><small id="closing-to-receive-count">Nenhum registro</small></div></div>
                 <strong id="closing-to-receive">R$ 0,00</strong>
               </article>
-              <article class="closing-pending-card">
-                <div><span>Despesas a pagar</span><small id="closing-to-pay-count">Nenhum registro</small></div>
+              <article class="closing-pending-card is-payable">
+                <div class="closing-pending-heading"><span class="material-icons closing-pending-icon" aria-hidden="true">pending_actions</span><div><span>Despesas a pagar</span><small id="closing-to-pay-count">Nenhum registro</small></div></div>
                 <strong id="closing-to-pay">R$ 0,00</strong>
               </article>
-              <article class="closing-pending-card closing-invoices-card">
-                <div><span>Faturas em aberto</span><small id="closing-open-cards-count">Nenhuma fatura</small></div>
+              <article class="closing-pending-card closing-invoices-card is-invoice">
+                <div class="closing-pending-heading"><span class="material-icons closing-pending-icon" aria-hidden="true">credit_card</span><div><span>Faturas em aberto</span><small id="closing-open-cards-count">Nenhuma fatura</small></div></div>
                 <strong id="closing-open-cards">R$ 0,00</strong>
                 <div id="closing-card-list" class="closing-card-list"><p class="closing-empty">Sem faturas abertas neste mês.</p></div>
               </article>
@@ -146,6 +163,18 @@
           </section>
           </section>
           <section class="view-tab-panel" id="analysis-panel-categories" role="tabpanel" aria-labelledby="analysis-tab-categories" tabindex="0" hidden>
+          <section class="insight-panel expense-composition-panel" aria-labelledby="expense-composition-title">
+            <div class="section-title-row"><div><h2 id="expense-composition-title">Composição das despesas</h2><p class="eyebrow">DISTRIBUIÇÃO POR CATEGORIA</p></div><strong class="expense-composition-total" id="commitment-pie-total">R$ 0,00</strong></div>
+            <div class="category-pie-layout">
+              <div class="category-pie-visual">
+                <svg id="expense-category-pie" class="expense-category-pie" viewBox="0 0 280 280" role="img" aria-label="Despesas previstas por categoria">
+                  <circle class="category-pie-empty" cx="140" cy="140" r="96"></circle>
+                </svg>
+                <div class="category-pie-center" aria-live="polite"><span id="category-pie-center-category">Total das despesas</span><strong id="category-pie-center-amount">R$ 0,00</strong><small id="category-pie-center-details">No mês selecionado</small></div>
+              </div>
+              <div id="category-pie-legend" class="category-pie-legend"></div>
+            </div>
+          </section>
           <div class="lower-grid category-comparison">
             <section class="category-panel">
               <div class="section-title-row"><div><h2>Despesas por categoria</h2><p class="eyebrow">DESPESAS</p></div><button class="text-button" id="all-categories">Ver lançamentos <span aria-hidden="true">↗</span></button></div>
@@ -167,13 +196,15 @@
             <p id="month-comparison" class="balance-note"></p>
           </section>
           </section>
-          <section class="view-tab-panel" id="analysis-panel-budgets" role="tabpanel" aria-labelledby="analysis-tab-budgets" tabindex="0" hidden>
-          <section class="insight-panel" aria-labelledby="budget-title">
-            <div class="section-title-row"><div><h2 id="budget-title">Orçamento por categoria</h2><p class="balance-note">Limites mensais recorrentes, comparados com as despesas previstas do mês.</p></div><button class="add-button" id="new-budget">Definir orçamento</button></div>
-            <div id="budget-list" class="budget-list"></div>
-          </section>
-          <p class="local-footnote"><span aria-hidden="true">▣</span> Os orçamentos comparam limites mensais com as despesas previstas.</p>
-          </section>
+        </section>
+
+        <section class="budget-view" id="budget-view" hidden aria-labelledby="budget-title">
+          <div class="section-title-row cards-heading budget-heading">
+            <div><p class="eyebrow">PLANEJAMENTO MENSAL</p><h2 id="budget-title">Seus orçamentos</h2><p class="cards-intro">Acompanhe os limites e as despesas previstas de cada categoria.</p></div>
+            <button class="add-button" id="new-budget"><span class="material-icons" aria-hidden="true">add</span> Definir orçamento</button>
+          </div>
+          <div id="budget-list" class="budget-list cards-list"></div>
+          <p class="local-footnote"><span aria-hidden="true">▣</span> Os orçamentos ficam salvos neste PC.</p>
         </section>
 
         <section class="transactions-view" id="transactions-view" hidden>

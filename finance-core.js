@@ -108,6 +108,17 @@
     const expenseCents = cents(monthlyOverview(entries, payments, month).total);
     return { income: incomeCents / 100, expenses: expenseCents / 100, balance: (incomeCents - expenseCents) / 100 };
   }
+  function incomeCommitmentSummary(income, expenses) {
+    const toCents = value => Number.isFinite(Number(value)) ? cents(value) : 0;
+    const incomeCents = Math.max(0, toCents(income));
+    const expenseCents = Math.max(0, toCents(expenses));
+    return {
+      income: incomeCents / 100,
+      expenses: expenseCents / 100,
+      remaining: (incomeCents - expenseCents) / 100,
+      percent: incomeCents ? Math.round(expenseCents * 1000 / incomeCents) / 10 : null,
+    };
+  }
   function monthlyCashFlow(entries,payments,month) {
     let income=0, expenses=0;
     for (const payment of payments) {
@@ -171,6 +182,61 @@
       const limit=cents(item.amount), used=cents(spent.get(item.category)||0);
       return {category:item.category,limit:limit/100,spent:used/100,remaining:(limit-used)/100,percent:limit?Math.round(used*1000/limit)/10:0};
     });
+  }
+  function financialAlerts(entries,payments,cards,budgets,today,month,daysAhead=7) {
+    const todayKey=dateKey(today), todayDate=new Date(`${todayKey}T00:00:00Z`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(todayKey) || Number.isNaN(todayDate.getTime())) return [];
+    const horizon=new Date(todayDate);
+    horizon.setUTCDate(horizon.getUTCDate()+Math.max(0,Math.floor(Number(daysAhead)||0)));
+    const horizonKey=horizon.toISOString().slice(0,10), horizonMonth=horizonKey.slice(0,7);
+    const cardById=new Map(cards.map(card=>[String(card.id),card]));
+    const alerts=[], cardBills=new Map();
+    const classify=(dueDate)=>dueDate<todayKey ? 'overdue' : dueDate<=horizonKey ? 'upcoming' : '';
+    const addDueAlert=(kind,record,dueDate,remaining)=>{
+      const timing=classify(dueDate);
+      if (!timing || remaining<=0) return;
+      alerts.push({kind:`${kind}-${timing}`,severity:timing,amount:remaining,dueDate,month:dueDate.slice(0,7),expenseId:record.expense.id,installmentIndex:record.index,description:record.expense.description,category:record.expense.category||'Outros',payment:record.expense.payment||'',cardId:record.expense.cardId||'',cardName:record.expense.card||''});
+    };
+    for (const entry of entries) {
+      if (entry.type==='debt-transfer' || !/^\d{4}-\d{2}-\d{2}$/.test(String(entry.firstDate||''))) continue;
+      const lastMonth=entry.recurring===true && entry.recurringUntil && entry.recurringUntil<horizonMonth ? entry.recurringUntil : horizonMonth;
+      const lastIndex=monthOffset(entry.firstDate,lastMonth);
+      if (lastIndex<0) continue;
+      const count=entry.recurring===true ? lastIndex+1 : Math.min(Math.max(1,Number(entry.installments)||1),lastIndex+1);
+      for (let index=0;index<count;index++) {
+        const effective=occurrenceEntry(entry,index), dueDate=dateKey(occurrenceDate(entry,index));
+        if (dueDate>horizonKey) continue;
+        const amount=entry.recurring===true ? Number(effective.amount)||0 : installmentAmount(entry.amount,entry.installments,index);
+        if (entry.type==='income') {
+          addDueAlert('income',{expense:effective,index},dueDate,Math.max(0,cents(amount)-cents(realizedAmount(entry,index,payments)))/100);
+          continue;
+        }
+        if (effective.payment==='Cartão') {
+          const card=cardById.get(String(effective.cardId||''));
+          const dueDay=card?.dueDay;
+          const invoiceDueDate=cardDueDate(dueDate,dueDay);
+          const remaining=chargeRemaining(entry,index,payments);
+          if (!invoiceDueDate || invoiceDueDate>horizonKey || remaining<=0) continue;
+          const key=`${effective.cardId||effective.card||'card'}::${invoiceDueDate}`;
+          const bill=cardBills.get(key)||{kind:'card',cardId:effective.cardId||'',cardName:card?.name||effective.card||'Cartão',dueDate:invoiceDueDate,month:invoiceDueDate.slice(0,7),amountCents:0,charges:0};
+          bill.amountCents+=cents(remaining); bill.charges++;
+          cardBills.set(key,bill);
+          continue;
+        }
+        addDueAlert('expense',{expense:effective,index},dueDate,Math.max(0,cents(amount)-cents(realizedAmount(entry,index,payments)))/100);
+      }
+    }
+    for (const bill of cardBills.values()) {
+      const timing=classify(bill.dueDate);
+      if (!timing) continue;
+      const {amountCents,...item}=bill;
+      alerts.push({...item,kind:`card-${timing}`,severity:timing,amount:amountCents/100});
+    }
+    for (const item of budgetProgress(entries,payments,budgets,month)) {
+      if (item.spent>item.limit) alerts.push({kind:'budget-exceeded',severity:'budget',amount:Math.round((item.spent-item.limit)*100)/100,spent:item.spent,limit:item.limit,category:item.category,month});
+    }
+    const severityOrder={overdue:0,budget:1,upcoming:2};
+    return alerts.sort((a,b)=>(severityOrder[a.severity]-severityOrder[b.severity]) || String(a.dueDate||'').localeCompare(String(b.dueDate||'')) || String(a.category||a.cardName||'').localeCompare(String(b.category||b.cardName||''),'pt-BR'));
   }
   function monthlyTrends(entries,payments,endMonth,count=6) {
     const [year,month]=endMonth.split('-').map(Number);
@@ -290,6 +356,7 @@
     realizedAmount,
     monthlyCashFlow,
     budgetProgress,
+    financialAlerts,
     monthlyTrends,
     cardUsed,
     monthCharges,
@@ -297,6 +364,7 @@
     monthlyOverview,
     monthlyRecords,
     monthlyBalance,
+    incomeCommitmentSummary,
     categoryBreakdown,
     monthlyCategoryBreakdown,
     categoryChargeShares,

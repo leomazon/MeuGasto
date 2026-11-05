@@ -78,8 +78,8 @@ test('manages income and expenses through one form and filters them by type and 
   await page.locator('#clear-filters').click();
   await page.getByRole('button',{name:'Visão geral',exact:true}).click();
   assert.equal((await page.locator('#month-balance').innerText()).replace(/\s/g,' '),'R$ 1.400,00');
-  await page.getByRole('tab',{name:'Pagamentos'}).click();
-  assert.equal((await page.locator('#month-total').innerText()).replace(/\s/g,' '),'R$ 100,00');
+  await page.getByRole('tab',{name:'Despesas'}).click();
+  assert.equal((await page.locator('#pix-total').innerText()).replace(/\s/g,' '),'R$ 100,00');
   await page.getByRole('tab',{name:'Saldo'}).click();
   await page.locator('#manage-income').click();
   assert.equal(await page.locator('#type-filter').inputValue(),'');

@@ -61,6 +61,27 @@ test('returns only expense charges for the selected month, including that month 
   assert.deepEqual(charges.map(({ expense, index }) => [expense.id, index]), [['installment', 1], ['cash-purchase', 0]]);
 });
 
+test('calculates how much of projected income is committed to expenses', () => {
+  assert.deepEqual(Core.incomeCommitmentSummary(4000, 2500), {
+    income: 4000,
+    expenses: 2500,
+    remaining: 1500,
+    percent: 62.5,
+  });
+  assert.deepEqual(Core.incomeCommitmentSummary(500, 750), {
+    income: 500,
+    expenses: 750,
+    remaining: -250,
+    percent: 150,
+  });
+  assert.deepEqual(Core.incomeCommitmentSummary(0, 100), {
+    income: 0,
+    expenses: 100,
+    remaining: -100,
+    percent: null,
+  });
+});
+
 test('paginates monthly charges with a selected page size and clamps an out-of-range page', () => {
   const charges = Array.from({ length: 26 }, (_, id) => id);
   assert.deepEqual(Core.paginate(charges, 2, 10), { items: Array.from({ length: 10 }, (_, id) => id + 10), page: 2, pageSize: 10, totalItems: 26, totalPages: 3 });
@@ -316,4 +337,34 @@ test('monthly card overrides affect the selected card only and remove cash occur
   assert.equal(Core.monthCharges([entry],[],'a','2026-02').length,0);
   assert.equal(Core.cardUsed([entry],[],'b',new Date(2026,2,15)),150);
   assert.equal(Core.cardUsed([entry],[],'a',new Date(2026,2,15)),180);
+});
+
+test('collects budget, overdue and seven-day due alerts while ignoring paid and later items',()=>{
+ const entries=[
+  {id:'budget-over',description:'Aluguel',type:'expense',category:'Moradia',amount:150,installments:1,firstDate:'2026-11-03',payment:'Pix',status:'realized'},
+  {id:'expense-late',description:'Conta atrasada',type:'expense',category:'Contas',amount:100,installments:1,firstDate:'2026-11-02',payment:'Pix',status:'planned'},
+  {id:'expense-soon',description:'Conta próxima',type:'expense',category:'Compras',amount:80,installments:1,firstDate:'2026-11-10',payment:'Dinheiro',status:'planned'},
+  {id:'income-late',description:'Receita atrasada',type:'income',category:'Salário',amount:200,installments:1,firstDate:'2026-11-01',payment:'Pix',status:'planned'},
+  {id:'income-soon',description:'Receita próxima',type:'income',category:'Vendas',amount:300,installments:1,firstDate:'2026-11-09',payment:'Pix',status:'planned'},
+  {id:'card-late',description:'Fatura antiga',type:'expense',category:'Outros',amount:120,installments:1,firstDate:'2026-10-01',payment:'Cartão',cardId:'card-a',card:'Nubank'},
+  {id:'card-soon',description:'Compra próxima',type:'expense',category:'Lazer',amount:70,installments:1,firstDate:'2026-11-08',payment:'Cartão',cardId:'card-a',card:'Nubank'},
+  {id:'card-paid',description:'Compra liquidada',type:'expense',category:'Lazer',amount:50,installments:1,firstDate:'2026-11-08',payment:'Cartão',cardId:'card-a',card:'Nubank'},
+  {id:'outside-window',description:'Conta distante',type:'expense',category:'Contas',amount:999,installments:1,firstDate:'2026-11-20',payment:'Pix',status:'planned'},
+ ];
+ const payments=[
+  {expenseId:'expense-late',installmentIndex:0,amount:25,date:'2026-11-02',method:'Pix'},
+  {expenseId:'card-paid',installmentIndex:0,amount:50,date:'2026-11-04',method:'Pix'},
+ ];
+ const alerts=Core.financialAlerts(entries,payments,[{id:'card-a',name:'Nubank',dueDay:8}],[{category:'Moradia',amount:100}],'2026-11-05','2026-11');
+ assert.deepEqual(alerts.map(alert=>alert.kind).sort(),[
+  'budget-exceeded','card-overdue','card-upcoming','expense-overdue','expense-upcoming','income-overdue','income-upcoming',
+ ]);
+ assert.equal(alerts.find(alert=>alert.kind==='budget-exceeded').amount,50);
+ assert.equal(alerts.find(alert=>alert.kind==='expense-overdue').amount,75);
+ assert.equal(alerts.find(alert=>alert.kind==='card-upcoming').amount,70);
+ assert.equal(alerts.some(alert=>alert.expenseId==='outside-window'),false);
+});
+
+test('returns no financial alerts when everything is within date and budget limits',()=>{
+ assert.deepEqual(Core.financialAlerts([],[],[],[],'2026-11-05','2026-11'),[]);
 });

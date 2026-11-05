@@ -36,7 +36,7 @@ after(async () => {
   await new Promise((resolve) => server?.close(resolve));
 });
 
-test('shows the average charge in the overview total card', async () => {
+test('shows the average charge with the overview payment breakdown', async () => {
   await page.goto(appUrl);
   await page.evaluate(() => {
     localStorage.clear();
@@ -49,10 +49,38 @@ test('shows the average charge in the overview total card', async () => {
     ]));
   });
   await page.reload();
-  await page.getByRole('tab', { name: 'Pagamentos' }).click();
+  await page.getByRole('tab', { name: 'Despesas' }).click();
 
   assert.equal((await page.locator('#average-charge').textContent()).replace(/\s+/g, ' ').trim(), 'R$ 93,33');
   assert.equal(await page.locator('#average-charge-count').textContent(), 'em 3 cobranças');
+});
+
+test('shows a larger expense category pie in analysis and identifies slices on hover', async () => {
+  await page.goto(appUrl);
+  await page.evaluate(() => {
+    localStorage.clear();
+    const today = new Date();
+    const firstDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    localStorage.setItem('meu-financeiro-v1', JSON.stringify([
+      { id: 'income', description: 'Salário', type: 'income', amount: 1000, category: 'Salário', payment: 'Pix', installments: 1, firstDate, status: 'planned' },
+      { id: 'home', description: 'Aluguel', type: 'expense', amount: 200, category: 'Moradia', payment: 'Pix', installments: 1, firstDate, status: 'planned' },
+      { id: 'food', description: 'Mercado', type: 'expense', amount: 100, category: 'Alimentação', payment: 'Dinheiro', installments: 1, firstDate, status: 'planned' },
+    ]));
+  });
+  await page.reload();
+
+  await page.getByRole('button', { name: 'Análises', exact: true }).click();
+  await page.getByRole('tab', { name: 'Categorias' }).click();
+  const pie = page.locator('#expense-category-pie');
+  assert.equal(await pie.isVisible(), true);
+  assert.equal(await page.locator('#income-commitment #expense-category-pie').count(), 0);
+  assert.equal(await pie.locator('.category-pie-slice').count(), 2);
+  assert.match(await pie.getAttribute('aria-label'), /Moradia.*66,7%.*Alimentação.*33,3%/);
+  assert.ok((await pie.boundingBox()).width >= 230, 'the category analysis should give the pie room to read');
+  await pie.locator('.category-pie-slice[data-category="Moradia"]').hover({ position: { x: 205, y: 118 } });
+  assert.equal(await page.locator('#category-pie-center-category').innerText(), 'Moradia');
+  assert.match((await page.locator('#category-pie-center-amount').innerText()).replace(/\u00a0/g, ' '), /R\$ 200,00/);
+  assert.match(await page.locator('#category-pie-center-details').innerText(), /66,7%/);
 });
 
 test('shows the newest expenses first and matches their count to category rows', async () => {

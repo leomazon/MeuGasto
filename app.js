@@ -59,6 +59,7 @@ let expenses = loadExpenses();
 let settlements = loadSettlements();
 let budgets = loadBudgets();
 let view = 'inicio';
+let currentFinancialAlerts = [];
 let transactionPage = 1;
 let transactionPageSize = 10;
 let transactionFilterTimer = null;
@@ -686,12 +687,28 @@ function renderOverview() {
   const { charges, total, pix, cash, card } = summary;
   const average = Core.averageChargeSummary(charges);
   const balance = Core.monthlyBalance(expenses, settlements, selectedMonth());
+  const commitment = Core.incomeCommitmentSummary(balance.income, balance.expenses);
   $('income-total').textContent = currency.format(balance.income);
   $('balance-expenses').textContent = currency.format(balance.expenses);
   $('month-balance').textContent = currency.format(balance.balance);
   $('month-balance').className = balance.balance < 0 ? 'negative-balance' : 'income-value';
-  $('month-total').textContent = currency.format(total);
-  $('entry-count').textContent = charges.length === 0 ? 'Nenhum gasto lançado' : `${charges.length} cobrança${charges.length === 1 ? '' : 's'} neste mês`;
+  const commitmentPanel = $('income-commitment');
+  const commitmentPercent = commitment.percent;
+  const commitmentBar = Math.min(100, Math.max(0, commitmentPercent || 0));
+  commitmentPanel.classList.toggle('is-near', commitmentPercent !== null && commitmentPercent >= 80 && commitmentPercent <= 100);
+  commitmentPanel.classList.toggle('is-over', commitmentPercent !== null && commitmentPercent > 100);
+  commitmentPanel.classList.toggle('is-empty', commitmentPercent === null);
+  $('income-commitment-rate').textContent = commitmentPercent === null ? '—' : `${commitmentPercent.toLocaleString('pt-BR')}%`;
+  $('income-commitment-bar').style.width = `${commitmentBar}%`;
+  const commitmentProgress = commitmentPanel.querySelector('[role="progressbar"]');
+  commitmentProgress.setAttribute('aria-valuenow', String(commitmentBar));
+  commitmentProgress.setAttribute('aria-valuetext', commitmentPercent === null ? 'Sem receitas previstas' : `${commitmentPercent.toLocaleString('pt-BR')}% da renda prevista comprometida`);
+  $('income-commitment-note').textContent = commitmentPercent === null
+    ? balance.expenses ? 'Cadastre receitas previstas para medir o peso das despesas na sua renda.' : 'Cadastre receitas e despesas para acompanhar a renda comprometida.'
+    : commitment.remaining < 0 ? 'As despesas previstas superam a renda prevista.'
+      : commitment.remaining === 0 ? 'Toda a renda prevista está comprometida com despesas.'
+        : commitmentPercent >= 80 ? 'Atenção: grande parte da renda prevista está comprometida.'
+          : 'Parte da renda prevista permanece livre após as despesas.';
   $('average-charge').textContent = average.chargeCount ? currency.format(average.averageCharge) : '—';
   $('average-charge-count').textContent = average.chargeCount ? `em ${average.chargeCount} cobrança${average.chargeCount === 1 ? '' : 's'}` : 'Sem cobranças neste mês';
   $('pix-total').textContent = currency.format(pix);
@@ -706,8 +723,9 @@ function renderOverview() {
   $('pix-share').textContent = `${pixShare}%`;
   $('cash-share').textContent = `${cashShare}%`;
   $('card-share').textContent = `${cardShare}%`;
-  $('payment-foot').textContent = total ? `Distribuição dos ${currency.format(total)} gastos neste mês.` : 'Seus pagamentos aparecem aqui conforme você registra os gastos.';
+  $('payment-foot').textContent = total ? 'Os valores e percentuais mostram como as despesas previstas estão distribuídas entre as formas de pagamento.' : 'Registre despesas para comparar Pix, dinheiro e cartão.';
   const breakdown = Core.monthlyCategoryBreakdown(expenses, settlements, selectedMonth());
+  renderExpenseCategoryPie(breakdown.expense);
   renderCategoryChart('category-list', breakdown.expense, 'expense');
   renderCategoryChart('income-category-list', breakdown.income, 'income');
   $('expense-category-context').textContent = `Percentuais sobre ${currency.format(breakdown.expense.total)} em despesas neste mês.`;
@@ -728,6 +746,56 @@ function renderCategoryChart(listId, summary, type) {
     const baseLabel = income ? 'das receitas' : 'das despesas';
     return `<div class="category-item" role="img" aria-label="${escapeHtml(item.category)}, ${currency.format(item.amount)}, ${percent}% ${baseLabel} do mês"><div class="category-chart-meta">${categoryIcon(info, 'category-emoji')}<span class="category-name">${escapeHtml(item.category)}</span><strong class="category-amount">${currency.format(item.amount)}</strong><span class="category-share">${percent}%</span></div><div class="category-track"><i style="width:${summary.total ? item.amount / summary.total * 100 : 0}%;background:${info.color}"></i></div></div>`;
   }).join('') : `<p class="empty-note">${income ? 'Nenhuma receita neste mês.' : 'Nenhuma despesa registrada neste mês.'}</p>`;
+}
+function renderExpenseCategoryPie(summary) {
+  const categories = summary.categories;
+  const svg = $('expense-category-pie');
+  const circumference = 2 * Math.PI * 96;
+  let offset = 0;
+  const slices = categories.map(item => {
+    const share = summary.total ? item.amount / summary.total : 0;
+    const length = circumference * share;
+    const color = category(item.category, 'expense').color;
+    const percent = summary.total ? (item.amount / summary.total * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '0';
+    const sliceLabel = `${item.category}: ${currency.format(item.amount)}, ${percent}% das despesas`;
+    const slice = `<circle class="category-pie-slice" data-category="${escapeHtml(item.category)}" data-amount="${item.amount}" data-percent="${percent}" cx="140" cy="140" r="96" fill="none" stroke="${color}" stroke-width="44" stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}" transform="rotate(-90 140 140)" tabindex="0" role="img" aria-label="${escapeHtml(sliceLabel)}"><title>${escapeHtml(sliceLabel)}</title></circle>`;
+    offset += length;
+    return slice;
+  });
+  const chartDescription = summary.total
+    ? `Despesas previstas por categoria: ${categories.map(item => `${item.category}, ${currency.format(item.amount)}, ${(item.amount / summary.total * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`).join('; ')}`
+    : 'Nenhuma despesa prevista por categoria neste mês.';
+  svg.setAttribute('aria-label', chartDescription);
+  svg.dataset.total = String(summary.total);
+  svg.innerHTML = `<title>${escapeHtml(chartDescription)}</title>${summary.total ? slices.join('') : '<circle class="category-pie-empty" cx="140" cy="140" r="96"></circle>'}`;
+  $('commitment-pie-total').textContent = currency.format(summary.total);
+  $('category-pie-center-category').textContent = summary.total ? 'Total das despesas' : 'Sem despesas previstas';
+  $('category-pie-center-amount').textContent = currency.format(summary.total);
+  $('category-pie-center-details').textContent = summary.total ? '100% do total mensal' : 'No mês selecionado';
+  $('category-pie-legend').innerHTML = categories.length ? categories.map(item => {
+    const percent = summary.total ? (item.amount / summary.total * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '0';
+    const color = category(item.category, 'expense').color;
+    return `<div class="category-pie-item"><i style="background:${color}" aria-hidden="true"></i><span title="${escapeHtml(item.category)}">${escapeHtml(item.category)}</span><strong>${currency.format(item.amount)}</strong><small>${percent}%</small></div>`;
+  }).join('') : '<p class="commitment-pie-empty-note">Nenhuma despesa prevista neste mês.</p>';
+}
+function updateCategoryPieCenter(slice) {
+  if (!slice) {
+    const total = Number($('expense-category-pie').dataset.total || 0);
+    $('category-pie-center-category').textContent = total ? 'Total das despesas' : 'Sem despesas previstas';
+    $('category-pie-center-amount').textContent = currency.format(total);
+    $('category-pie-center-details').textContent = total ? '100% do total mensal' : 'No mês selecionado';
+    return;
+  }
+  $('category-pie-center-category').textContent = slice.dataset.category;
+  $('category-pie-center-amount').textContent = currency.format(Number(slice.dataset.amount));
+  $('category-pie-center-details').textContent = `${slice.dataset.percent}% das despesas`;
+}
+function setupCategoryPieInteraction() {
+  const chart = $('expense-category-pie');
+  chart.addEventListener('pointerover', event => updateCategoryPieCenter(event.target.closest('.category-pie-slice')));
+  chart.addEventListener('pointerleave', () => updateCategoryPieCenter(null));
+  chart.addEventListener('focusin', event => updateCategoryPieCenter(event.target.closest('.category-pie-slice')));
+  chart.addEventListener('focusout', event => { if (!chart.contains(event.relatedTarget)) updateCategoryPieCenter(null); });
 }
 function showCategoryTransactions(type) {
   view = 'lancamentos';
@@ -829,7 +897,7 @@ function renderCardItem(card) {
   const due = monthlyCharges.reduce((sum, charge) => sum + charge.remaining, 0);
   const unpaid = monthlyCharges.filter((charge) => charge.remaining > 0);
   const rows = monthlyCharges.length ? monthlyCharges.map((charge) => `<div class="bill-line"><div class="bill-description"><strong>${escapeHtml(charge.expense.description)}</strong><span>${charge.expense.recurring === true ? 'Fixo mensal' : `${charge.index + 1}/${charge.expense.installments}`} · ${dateLabel(charge.date)} · ${currency.format(charge.amount)}</span></div><strong>${charge.remaining <= 0 ? '<span class="paid-tag">Liquidado</span>' : currency.format(charge.remaining)}</strong>${charge.remaining > 0 ? `<button class="pay-charge-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}">Liquidar</button>` : ''}</div>`).join('') : '<p class="empty-note compact-empty">Nenhuma cobrança neste mês.</p>';
-  return `<article class="credit-card-card">
+  return `<article class="credit-card-card" data-card-id="${escapeHtml(card.id)}">
     <div class="credit-card-top">${bankBadgeMarkup(card.bank, 'credit-bank-badge')}<div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">${materialIcon('close')}</button></div></div>
     <div class="limit-line"><span>Limite utilizado</span><strong>${currency.format(used)} <small>de ${currency.format(limit)}</small></strong></div>
     <div class="card-progress large-progress"><i style="width:${percentage}%"></i></div>
@@ -842,13 +910,80 @@ function renderCardItem(card) {
 function renderCards() {
   $('cards-list').innerHTML = cards.length ? cards.map(renderCardItem).join('') : `<div class="cards-empty">${materialIcon('credit_card', 'empty-card-icon')}<h3>Cadastre seu primeiro cartão</h3><p>Informe o limite e vincule novas compras para acompanhar uso e faturas.</p><button class="add-button" data-create-card>${materialIcon('add')} Adicionar cartão</button></div>`;
 }
+function alertDateLabel(value) { return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'short'}).format(dateFromKey(value)).replace('.',''); }
+function renderAlertItem(alert,index) {
+  const isBudget=alert.kind==='budget-exceeded', isCard=alert.kind.startsWith('card-'), isIncome=alert.kind.startsWith('income-');
+  const overdue=alert.severity==='overdue';
+  const tone=isBudget?'budget':overdue?'overdue':'upcoming';
+  const icon=isBudget?'account_balance_wallet':overdue?'error_outline':'schedule';
+  let title,detail,action;
+  if (isBudget) {
+    title=`${alert.category} passou do limite planejado`;
+    detail=`${currency.format(alert.spent)} utilizados de ${currency.format(alert.limit)} no mês selecionado.`;
+    action='Ver orçamento';
+  } else if (isCard) {
+    const dateText=alertDateLabel(alert.dueDate);
+    title=`Fatura ${alert.cardName} ${overdue?'está vencida':`vence em ${dateText}`}`;
+    detail=`${alert.charges} cobrança${alert.charges===1?'':'s'} em aberto${overdue?` · venceu em ${dateText}`:''}.`;
+    action='Ver cartão';
+  } else {
+    const typeName=isIncome?'Receita':'Despesa', dateText=alertDateLabel(alert.dueDate);
+    if (isIncome) title=overdue?`Receita em atraso: ${alert.description}`:`Receita prevista para ${dateText}: ${alert.description}`;
+    else title=overdue?`Despesa em atraso: ${alert.description}`:`Despesa vence em ${dateText}: ${alert.description}`;
+    detail=`${alert.category}${alert.payment?` · ${alert.payment}`:''}${overdue?` · vencida em ${dateText}`:''}.`;
+    action='Ver lançamento';
+  }
+  return `<article class="alert-item alert-item-${tone}"><span class="alert-item-icon"><span class="material-icons" aria-hidden="true">${icon}</span></span><div class="alert-item-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span></div><div class="alert-item-action"><strong>${currency.format(alert.amount)}</strong><button class="alert-action-button" type="button" data-alert-action="${index}">${action}<span class="material-icons" aria-hidden="true">arrow_forward</span></button></div></article>`;
+}
+function renderAlerts() {
+  currentFinancialAlerts=Core.financialAlerts(expenses,settlements,cards,budgets,localDateKey(),selectedMonth());
+  const groups={
+    overdue:currentFinancialAlerts.filter(item=>item.severity==='overdue'),
+    upcoming:currentFinancialAlerts.filter(item=>item.severity==='upcoming'),
+    budget:currentFinancialAlerts.filter(item=>item.severity==='budget'),
+  };
+  const total=currentFinancialAlerts.length;
+  $('alert-count').textContent=String(total);
+  $('alert-count').hidden=total===0;
+  $('alert-overdue-count').textContent=String(groups.overdue.length);
+  $('alert-upcoming-count').textContent=String(groups.upcoming.length);
+  $('alert-budget-count').textContent=String(groups.budget.length);
+  for (const [key,items] of Object.entries(groups)) {
+    const group=$(key==='budget'?'alerts-budget-group':`alerts-${key}-group`);
+    const list=$(key==='budget'?'alerts-budget':`alerts-${key==='overdue'?'overdue':'upcoming'}`);
+    const count=$(key==='budget'?'alerts-budget-group-count':`alerts-${key}-group-count`);
+    group.hidden=items.length===0;
+    count.textContent=String(items.length);
+    list.innerHTML=items.map(item=>renderAlertItem(item,currentFinancialAlerts.indexOf(item))).join('');
+  }
+  $('alerts-budget-period').textContent=`Orçamentos de ${monthLabel(selectedMonth())}.`;
+  $('alerts-empty').hidden=total>0;
+  $('alerts-groups').hidden=total===0;
+}
+function openAlertContext(alert) {
+  if (alert.month) $('month-picker').value=alert.month;
+  if (alert.kind==='budget-exceeded') {
+    setPaymentsMenuExpanded(true); view='orcamentos'; render(); return;
+  }
+  if (alert.kind.startsWith('card-')) {
+    setPaymentsMenuExpanded(true); view='cartoes'; render();
+    const card=[...$('cards-list').querySelectorAll('[data-card-id]')].find(item=>item.dataset.cardId===alert.cardId);
+    if (card) { card.scrollIntoView({behavior:'smooth',block:'center'}); card.classList.add('alert-focus'); setTimeout(()=>card.classList.remove('alert-focus'),2200); }
+    return;
+  }
+  $('search-input').value=alert.description||'';
+  $('sort-order').value='date-desc'; $('type-filter').value=alert.kind.startsWith('income-')?'income':'expense';
+  updateCategoryFilter(); updatePaymentFilter(); $('category-filter').value=''; $('payment-filter').value='';
+  $('amount-min').value=''; $('amount-max').value=''; transactionPage=1;
+  view='lancamentos'; render();
+}
 function render() {
   $('month-picker').setAttribute('aria-label', `Mês de referência: ${monthLabel(selectedMonth())}`);
   const selectedMonthLabel = monthLabel(selectedMonth());
   const selectedMonthTitle = selectedMonthLabel.charAt(0).toLocaleUpperCase('pt-BR') + selectedMonthLabel.slice(1);
   $('month-long-label').textContent = selectedMonthTitle;
   $('month-long-label').hidden = false;
-  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : view === 'analises' ? 'Análises' : 'Lançamentos';
+  $('page-top-title').textContent = view === 'inicio' ? 'Visão geral' : view === 'cartoes' ? 'Cartões' : view === 'orcamentos' ? 'Orçamentos' : view === 'analises' ? 'Análises' : view === 'alertas' ? 'Alertas' : 'Lançamentos';
   document.querySelector('.app-shell').classList.toggle('transactions-active', view === 'lancamentos');
   document.querySelector('.app-shell').classList.add('page-title-active');
   $('date-greeting').textContent = `SEU RESUMO DE ${monthLabel(selectedMonth())}`;
@@ -857,11 +992,17 @@ function render() {
   $('transactions-view').hidden = view !== 'lancamentos';
   $('analytics-view').hidden = view !== 'analises';
   $('cards-view').hidden = view !== 'cartoes';
-  document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
+  $('budget-view').hidden = view !== 'orcamentos';
+  $('alerts-view').hidden = view !== 'alertas';
+  document.querySelectorAll('[data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
+  const paymentsActive=view==='cartoes'||view==='orcamentos';
+  $('payments-nav').classList.toggle('has-active-view',paymentsActive);
+  $('payments-toggle').classList.toggle('active',paymentsActive);
   renderOverview();
   updateCategoryFilter(); updatePaymentFilter();
   renderTransactions();
   renderCards();
+  renderAlerts();
 }
 function activateViewTab(tab, moveFocus = false) {
   const tablist = tab.closest('[role="tablist"]');
@@ -1018,6 +1159,13 @@ function submitExpense(event) {
     expense.status = 'planned';
     saveSettlements();
     settlementResetOnSave = null;
+  }
+  if (previous?.recurring !== true) {
+    const realizationStates={...(expense.realizationStates||{})};
+    if (expense.status==='realized') delete realizationStates['0'];
+    else realizationStates['0']='planned';
+    if (Object.keys(realizationStates).length) expense.realizationStates=realizationStates;
+    else delete expense.realizationStates;
   }
   if (existing >= 0) expenses[existing] = expense; else expenses.push(expense);
   saveExpenses();
@@ -1226,6 +1374,7 @@ function initialize() {
   setupFormValidation();
   setupEnhancements();
   setupViewTabs();
+  setupCategoryPieInteraction();
   $('sidebar-toggle').addEventListener('click', () => setSidebarCollapsed(!document.querySelector('.app-shell').classList.contains('sidebar-collapsed')));
   $('month-picker').value = monthKey(new Date());
   $('category').innerHTML = CATEGORY_DATA.map((item) => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
@@ -1233,10 +1382,11 @@ function initialize() {
   setupPaymentPicker();
   setupBankPicker();
   setupCardPicker();
+  $('alerts-view').addEventListener('click',event=>{const button=event.target.closest('[data-alert-action]');if (!button) return;const alert=currentFinancialAlerts[Number(button.dataset.alertAction)];if (alert) openAlertContext(alert);});
   updateCategoryFilter(); updatePaymentFilter();
   $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
   populateCardSelect($('card-select'));
-  document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; render(); }));
+  document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; if (view==='cartoes'||view==='orcamentos') setPaymentsMenuExpanded(true); render(); }));
   $('new-expense').addEventListener('click', () => openExpense());
   $('manage-income').addEventListener('click', () => { view = 'lancamentos'; $('clear-filters').click(); render(); });
   document.querySelectorAll('input[name="record-type"]').forEach(input => input.addEventListener('change', () => updateRecordType()));

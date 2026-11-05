@@ -153,18 +153,18 @@ function renderMonthlyClosing() {
 }
 function renderInsights() {
   renderMonthlyClosing();
-  const actual = Core.monthlyCashFlow(expenses,settlements,selectedMonth());
-  $('actual-income').textContent=currency.format(actual.income);
-  $('actual-expenses').textContent=currency.format(actual.expenses);
-  $('actual-balance').textContent=currency.format(actual.balance);
-  $('actual-balance').className=actual.balance<0 ? 'negative-balance' : 'income-value';
   const series = Core.monthlyTrends(expenses,settlements,selectedMonth(),Number($('trend-period').value));
   $('trend-chart').innerHTML=trendChartMarkup(series);
   const current=series.at(-1), previous=series.at(-2);
   const diff=previous ? Math.round((current.projected.expenses-previous.projected.expenses)*100)/100 : 0;
   $('month-comparison').textContent = previous ? `Despesas previstas: ${diff===0 ? 'mesmo valor do mês anterior' : `${currency.format(Math.abs(diff))} ${diff>0 ? 'a mais' : 'a menos'} que no mês anterior`}.` : '';
   const progress = Core.budgetProgress(expenses,settlements,budgets,selectedMonth());
-  $('budget-list').innerHTML=progress.length ? progress.map(item=>`<article class="budget-item ${item.percent>100 ? 'budget-over' : item.percent>=80 ? 'budget-near' : ''}"><div class="budget-meta"><strong>${escapeHtml(item.category)}</strong><span>${currency.format(item.spent)} de ${currency.format(item.limit)}</span><div><button class="icon-button" data-budget-edit="${escapeHtml(item.category)}" aria-label="Editar orçamento de ${escapeHtml(item.category)}">${materialIcon('edit')}</button><button class="icon-button" data-budget-delete="${escapeHtml(item.category)}" aria-label="Excluir orçamento de ${escapeHtml(item.category)}">${materialIcon('close')}</button></div></div><div class="budget-track"><i style="width:${Math.min(100,item.percent)}%"></i></div><p>${item.percent.toLocaleString('pt-BR')}% utilizado · ${item.remaining<0 ? `${currency.format(-item.remaining)} acima do limite` : `${currency.format(item.remaining)} disponíveis`}</p></article>`).join('') : '<p class="empty-note">Defina um orçamento para acompanhar os limites de cada categoria.</p>';
+  $('budget-list').innerHTML=progress.length ? progress.map(item=>{
+    const status=item.percent>100 ? 'budget-over' : item.percent>=80 ? 'budget-near' : '';
+    const info=category(item.category,'expense');
+    const remainingText=item.remaining<0 ? `${currency.format(-item.remaining)} acima do limite` : `${currency.format(item.remaining)} disponíveis`;
+    return `<article class="budget-item credit-card-card ${status}"><div class="credit-card-top">${categoryIcon(info,'budget-icon')}<div class="credit-card-title"><h3>${escapeHtml(item.category)}</h3><span>Orçamento da categoria</span></div><div class="card-actions"><button class="icon-button" data-budget-edit="${escapeHtml(item.category)}" aria-label="Editar orçamento de ${escapeHtml(item.category)}">${materialIcon('edit')}</button><button class="icon-button" data-budget-delete="${escapeHtml(item.category)}" aria-label="Excluir orçamento de ${escapeHtml(item.category)}">${materialIcon('close')}</button></div></div><div class="limit-line"><span>Gasto previsto</span><strong>${currency.format(item.spent)} <small>de ${currency.format(item.limit)}</small></strong></div><div class="budget-track" style="--budget-color:${info.color}" role="progressbar" aria-label="${escapeHtml(item.category)}: ${item.percent.toLocaleString('pt-BR')}% do orçamento utilizado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(100,Math.max(0,item.percent))}"><i style="width:${Math.min(100,Math.max(0,item.percent))}%"></i></div><div class="limit-foot"><span>${item.percent.toLocaleString('pt-BR')}% utilizado</span><strong class="budget-remaining">${remainingText}</strong></div></article>`;
+  }).join('') : '<p class="empty-note">Defina um orçamento para acompanhar os limites de cada categoria.</p>';
 }
 function openBudget(name='') {
   $('budget-form').reset();
@@ -200,6 +200,10 @@ function setSidebarCollapsed(collapsed) {
   $('sidebar-toggle').setAttribute('aria-label',collapsed ? 'Abrir menu lateral' : 'Fechar menu lateral');
   $('sidebar-toggle').title=collapsed ? 'Abrir menu lateral' : 'Fechar menu lateral';
 }
+function setPaymentsMenuExpanded(expanded) {
+  $('payments-toggle').setAttribute('aria-expanded',String(expanded));
+  $('payments-submenu').hidden=!expanded;
+}
 function setupEnhancements() {
   setupDatePicker('first-date');
   setupDatePicker('realization-date');
@@ -207,7 +211,8 @@ function setupEnhancements() {
   setSidebarCollapsed(smallScreen.matches);
   smallScreen.addEventListener('change',event=>setSidebarCollapsed(event.matches));
   $('sidebar-shade').addEventListener('click',()=>setSidebarCollapsed(true));
-  document.querySelectorAll('.nav-item,.side-action').forEach(button=>button.addEventListener('click',()=>{if (smallScreen.matches) setSidebarCollapsed(true);}));
+  document.querySelectorAll('.nav-item:not(.nav-group-toggle),.nav-subitem,.side-action').forEach(button=>button.addEventListener('click',()=>{if (smallScreen.matches) setSidebarCollapsed(true);}));
+  $('payments-toggle').addEventListener('click',()=>setPaymentsMenuExpanded($('payments-toggle').getAttribute('aria-expanded')!=='true'));
   document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',() => $(button.dataset.close).close()));
   $('record-status').addEventListener('change',updateRecordStatus);
   $('recurring-record').addEventListener('change',()=>{ if ($('recurring-record').checked) $('record-status').value='planned'; });

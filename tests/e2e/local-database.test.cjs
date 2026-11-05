@@ -117,8 +117,7 @@ test('restores a local SQLite backup through the UI including budgets and preser
   await page.waitForFunction(()=>document.querySelector('.notyf__message')?.textContent==='Cópia restaurada.');
   await page.locator('#backups-dialog [data-close]').first().click();
   await page.locator('#recent-list').getByText('Antes da cópia',{exact:true}).waitFor();
-  await page.getByRole('button',{name:'Análises',exact:true}).click();
-  await page.getByRole('tab',{name:'Orçamentos'}).click();
+  await page.getByRole('button',{name:'Orçamentos',exact:true}).click();
   assert.match(await page.locator('#budget-list').innerText(),/100,00/);
   assert.deepEqual((await (await fetch(`${appUrl}/api/state`)).json()).state,original);
   assert.equal((await (await fetch(`${appUrl}/api/backups`)).json()).backups.length,copies.backups.length+1);
