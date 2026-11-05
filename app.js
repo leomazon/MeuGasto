@@ -31,6 +31,7 @@ const CARD_STORAGE_KEY = 'meugasto-cards-v1';
 const PAYMENT_STORAGE_KEY = 'meugasto-card-payments-v1';
 const ACCOUNT_STORAGE_KEY = 'meugasto-accounts-v1';
 const TRANSFER_STORAGE_KEY = 'meugasto-transfers-v1';
+const RECONCILIATION_STORAGE_KEY = 'meugasto-reconciliations-v1';
 const ACCOUNT_KINDS = { checking: 'Conta corrente', savings: 'Poupança', cash: 'Dinheiro', other: 'Outra conta' };
 const Core = window.FinanceCore;
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -57,12 +58,38 @@ function formatCurrencyInput(input) {
   }
   input.setSelectionRange(nextCursor, nextCursor);
 }
+function parseSignedCurrencyInput(value) {
+  const raw = String(value || '').trim();
+  const digits = raw.replace(/\D/g, '');
+  const amount = digits ? Number(digits) / 100 : 0;
+  return raw.startsWith('-') ? -amount : amount;
+}
+function formatSignedCurrencyInput(input) {
+  const previous = input.value;
+  const negative = previous.trim().startsWith('-');
+  const cursor = input.selectionStart ?? previous.length;
+  const digitsBeforeCursor = previous.slice(0, cursor).replace(/\D/g, '').length;
+  const digits = previous.replace(/\D/g, '');
+  input.value = digits ? currency.format((negative ? -1 : 1) * Number(digits) / 100) : negative ? '-' : '';
+  let nextCursor = input.value.length;
+  if (digitsBeforeCursor === 0 && digits.length) {
+    nextCursor = Math.max(0, input.value.search(/\d/));
+  } else if (digitsBeforeCursor < digits.length) {
+    let seenDigits = 0;
+    for (let index = 0; index < input.value.length; index += 1) {
+      if (/\d/.test(input.value[index])) seenDigits += 1;
+      if (seenDigits >= digitsBeforeCursor) { nextCursor = index + 1; break; }
+    }
+  }
+  input.setSelectionRange(nextCursor, nextCursor);
+}
 let cards = loadCards();
 let expenses = loadExpenses();
 let settlements = loadSettlements();
 let budgets = loadBudgets();
 let accounts = loadAccounts();
 let transfers = loadTransfers();
+let reconciliations = loadReconciliations();
 let view = 'inicio';
 let currentFinancialAlerts = [];
 let transactionPage = 1;
@@ -71,6 +98,7 @@ let transactionFilterTimer = null;
 let lastTransactionMarkup = null;
 const TRANSACTION_FILTER_PAUSE = 1000;
 let settlementTarget = null;
+let reconciliationAccountId = null;
 let pendingDelete = null;
 let settlementResetOnSave = null;
 let localDatabaseEnabled = false;
@@ -114,6 +142,15 @@ function loadTransfers() {
   try { const stored = JSON.parse(localStorage.getItem(TRANSFER_STORAGE_KEY) || '[]'); return Array.isArray(stored) ? stored.filter(validTransfer) : []; }
   catch { return []; }
 }
+function validReconciliation(item) {
+  return item && typeof item.id === 'string' && typeof item.accountId === 'string'
+    && validCalendarDate(item.date) && Number.isFinite(Number(item.expectedBalance))
+    && Number.isFinite(Number(item.actualBalance)) && Number.isFinite(Number(item.adjustment));
+}
+function loadReconciliations() {
+  try { const stored = JSON.parse(localStorage.getItem(RECONCILIATION_STORAGE_KEY) || '[]'); return Array.isArray(stored) ? stored.filter(validReconciliation) : []; }
+  catch { return []; }
+}
 function isValidExpense(item) {
   return item && typeof item.id === 'string' && typeof item.description === 'string' && Number.isFinite(Number(item.amount)) && Number(item.amount) > 0 && Number.isInteger(Number(item.installments)) && Number(item.installments) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(item.firstDate);
 }
@@ -124,6 +161,7 @@ function saveBrowserCache() {
   localStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(budgets));
   localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(accounts));
   localStorage.setItem(TRANSFER_STORAGE_KEY, JSON.stringify(transfers));
+  localStorage.setItem(RECONCILIATION_STORAGE_KEY, JSON.stringify(reconciliations));
 }
 function clearBrowserCache() {
   localStorage.removeItem(CARD_STORAGE_KEY);
@@ -132,10 +170,11 @@ function clearBrowserCache() {
   localStorage.removeItem(BUDGET_STORAGE_KEY);
   localStorage.removeItem(ACCOUNT_STORAGE_KEY);
   localStorage.removeItem(TRANSFER_STORAGE_KEY);
+  localStorage.removeItem(RECONCILIATION_STORAGE_KEY);
 }
 function persistLocalDatabase() {
   if (!localDatabaseEnabled) return Promise.resolve();
-  const state = JSON.stringify({ expenses, cards, settlements, budgets, accounts, transfers });
+  const state = JSON.stringify({ expenses, cards, settlements, budgets, accounts, transfers, reconciliations });
   localDatabaseQueue = localDatabaseQueue.catch(() => {}).then(async () => {
     const response = await fetch('/api/state', {
       method: 'PUT',
@@ -156,6 +195,7 @@ function saveExpenses() { if (localDatabaseEnabled) persistLocalDatabase(); else
 function saveSettlements() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(PAYMENT_STORAGE_KEY, JSON.stringify(settlements)); }
 function saveAccounts() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(accounts)); }
 function saveTransfers() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(TRANSFER_STORAGE_KEY, JSON.stringify(transfers)); }
+function saveReconciliations() { if (localDatabaseEnabled) persistLocalDatabase(); else localStorage.setItem(RECONCILIATION_STORAGE_KEY, JSON.stringify(reconciliations)); }
 async function restoreLocalDatabase() {
   try {
     const response = await fetch('/api/state');
@@ -170,6 +210,7 @@ async function restoreLocalDatabase() {
       budgets = Array.isArray(state.budgets) ? state.budgets.filter(validBudget) : [];
       accounts = Array.isArray(state.accounts) ? state.accounts.filter(validAccount) : [];
       transfers = Array.isArray(state.transfers) ? state.transfers.filter(validTransfer) : [];
+      reconciliations = Array.isArray(state.reconciliations) ? state.reconciliations.filter(validReconciliation) : [];
       clearBrowserCache();
       migrateLegacyCardLinks();
       render();
@@ -468,6 +509,7 @@ function fieldValidationMessage(control) {
   if (id === 'realization-date' && value > localDateKey()) return 'A data de confirmação não pode ser futura.';
   if (!control.validity.valid) {
     if (control.validity.rangeOverflow && control.type === 'date') return 'Informe uma data igual ou anterior a hoje.';
+    if (control.validity.rangeUnderflow && id === 'reconciliation-date') return 'A data deve ser igual ou posterior à última conferência de saldo.';
     if (control.validity.rangeUnderflow && id === 'card-due-day') return FIELD_ERROR_MESSAGES[id];
     if (control.validity.typeMismatch) return 'Confira o formato informado.';
     return FIELD_ERROR_MESSAGES[id] || 'Confira o valor informado.';
@@ -962,7 +1004,8 @@ function renderCards() {
 function accountInUse(id) {
   return expenses.some(entry => entry.accountId === id || Object.values(entry.overrides || {}).some(override => override?.accountId === id))
     || settlements.some(payment => payment.accountId === id)
-    || transfers.some(transfer => transfer.fromAccountId === id || transfer.toAccountId === id);
+    || transfers.some(transfer => transfer.fromAccountId === id || transfer.toAccountId === id)
+    || reconciliations.some(item => item.accountId === id);
 }
 function accountIcon(kind) {
   return ({ checking: 'account_balance', savings: 'savings', cash: 'payments', other: 'account_balance_wallet' })[kind] || 'account_balance_wallet';
@@ -970,13 +1013,14 @@ function accountIcon(kind) {
 function renderAccountCard(account) {
   const locked = accountInUse(account.id);
   return `<article class="account-card" data-account-id="${escapeHtml(account.id)}" data-kind="${escapeHtml(account.kind)}">
-    <div class="account-card-heading"><span class="account-type-icon material-icons" aria-hidden="true">${accountIcon(account.kind)}</span><div class="account-card-title"><h3>${escapeHtml(account.name)}</h3><span>${escapeHtml(ACCOUNT_KINDS[account.kind])}</span></div><div class="card-actions"><button class="icon-button" type="button" aria-label="Editar ${escapeHtml(account.name)}" data-edit-account="${escapeHtml(account.id)}">${materialIcon('edit')}</button><button class="icon-button delete" type="button" aria-label="Excluir ${escapeHtml(account.name)}" data-delete-account="${escapeHtml(account.id)}" ${locked ? 'disabled title="Há lançamentos ou transferências vinculados"' : ''}>${materialIcon('close')}</button></div></div>
+    <div class="account-card-heading"><span class="account-type-icon material-icons" aria-hidden="true">${accountIcon(account.kind)}</span><div class="account-card-title"><h3>${escapeHtml(account.name)}</h3><span>${escapeHtml(ACCOUNT_KINDS[account.kind])}</span></div><div class="card-actions"><button class="icon-button" type="button" aria-label="Editar ${escapeHtml(account.name)}" data-edit-account="${escapeHtml(account.id)}">${materialIcon('edit')}</button><button class="icon-button delete" type="button" aria-label="Excluir ${escapeHtml(account.name)}" data-delete-account="${escapeHtml(account.id)}" ${locked ? 'disabled title="Há lançamentos, transferências ou conferências vinculados"' : ''}>${materialIcon('close')}</button></div></div>
     <div class="account-balance-panel"><div class="account-balance-row"><span>Saldo atual</span><strong class="account-balance${account.balance < 0 ? ' negative-balance' : ''}">${currency.format(account.balance)}</strong></div>
     <div class="account-opening-row"><span>Saldo inicial <strong>${currency.format(account.openingBalance)}</strong></span><small>Desde ${escapeHtml(dateLabel(dateFromKey(account.openingDate)))}</small></div></div>
+    <div class="account-card-footer"><button class="account-reconcile-button" type="button" data-reconcile-account="${escapeHtml(account.id)}"><span class="material-icons" aria-hidden="true">fact_check</span> Conferir saldo</button></div>
   </article>`;
 }
 function renderAccountView() {
-  const accountBalances = Core.accountBalances(accounts, expenses, settlements, transfers, localDateKey());
+  const accountBalances = Core.accountBalances(accounts, expenses, settlements, transfers, localDateKey(), reconciliations);
   const totalCents = accountBalances.reduce((sum, account) => sum + Math.round(account.balance * 100), 0);
   $('accounts-total-balance').textContent = currency.format(totalCents / 100);
   $('accounts-total-caption').textContent = accounts.length
@@ -987,8 +1031,89 @@ function renderAccountView() {
     : `<div class="cards-empty account-empty">${materialIcon('account_balance_wallet', 'empty-card-icon')}<h3>Adicione sua primeira conta</h3><p>Informe o saldo atual e acompanhe entradas, saídas e transferências em um só lugar.</p><button class="add-button" type="button" data-account-add>${materialIcon('add')} Adicionar conta</button></div>`;
   $('new-transfer').disabled = accounts.length < 2;
   const names = new Map(accounts.map(account => [account.id, account.name]));
+  const sortedReconciliations = [...reconciliations].sort((a, b) => b.date.localeCompare(a.date) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  $('reconciliation-list').innerHTML = sortedReconciliations.length ? sortedReconciliations.map(item => {
+    const adjustment = Number(item.adjustment);
+    const adjustmentText = adjustment > 0 ? `+${currency.format(adjustment)}` : currency.format(adjustment);
+    return `<div class="reconciliation-row" data-reconciliation-id="${escapeHtml(item.id)}"><span class="material-icons reconciliation-row-icon" aria-hidden="true">fact_check</span><div class="reconciliation-row-description"><strong>${escapeHtml(names.get(item.accountId) || 'Conta removida')} · ${escapeHtml(dateLabel(dateFromKey(item.date)))}</strong><small>Calculado: ${currency.format(item.expectedBalance)} · Informado: ${currency.format(item.actualBalance)}</small></div><strong class="reconciliation-delta${adjustment < 0 ? ' negative-balance' : adjustment > 0 ? ' positive-balance' : ''}">${adjustmentText}</strong><button class="icon-button delete" type="button" aria-label="Excluir conferência de ${escapeHtml(names.get(item.accountId) || 'conta')} em ${escapeHtml(dateLabel(dateFromKey(item.date)))}" data-delete-reconciliation="${escapeHtml(item.id)}">${materialIcon('close')}</button></div>`;
+  }).join('') : '<p class="empty-note account-transfer-empty">Nenhuma conferência de saldo registrada.</p>';
   const sortedTransfers = [...transfers].sort((a, b) => b.date.localeCompare(a.date));
   $('transfer-list').innerHTML = sortedTransfers.length ? sortedTransfers.map(transfer => `<div class="transfer-row" data-transfer-id="${escapeHtml(transfer.id)}"><span class="material-icons transfer-row-icon" aria-hidden="true">swap_horiz</span><div class="transfer-row-description"><strong>${escapeHtml(names.get(transfer.fromAccountId) || 'Conta removida')} <span>para</span> ${escapeHtml(names.get(transfer.toAccountId) || 'Conta removida')}</strong><small>${escapeHtml(dateLabel(dateFromKey(transfer.date)))}${transfer.notes ? ` · ${escapeHtml(transfer.notes)}` : ''}</small></div><strong class="transfer-row-amount">${currency.format(transfer.amount)}</strong><div class="card-actions"><button class="icon-button" type="button" aria-label="Editar transferência" data-edit-transfer="${escapeHtml(transfer.id)}">${materialIcon('edit')}</button><button class="icon-button delete" type="button" aria-label="Excluir transferência" data-delete-transfer="${escapeHtml(transfer.id)}">${materialIcon('close')}</button></div></div>`).join('') : '<p class="empty-note account-transfer-empty">Nenhuma transferência entre contas registrada.</p>';
+}
+function balanceForAccountAt(accountId, date) {
+  return Core.accountBalances(accounts, expenses, settlements, transfers, date, reconciliations).find(account => account.id === accountId)?.balance ?? 0;
+}
+function latestReconciliationDate(accountId) {
+  return reconciliations.filter(item => item.accountId === accountId).reduce((latest, item) => item.date > latest ? item.date : latest, accountById(accountId)?.openingDate || '');
+}
+function openReconciliationDialog(accountId) {
+  const account = accountById(accountId);
+  if (!account) return;
+  reconciliationAccountId = account.id;
+  $('reconciliation-form').reset();
+  $('reconciliation-account-name').textContent = account.name;
+  $('reconciliation-date').value = localDateKey();
+  $('reconciliation-date').min = latestReconciliationDate(account.id);
+  $('reconciliation-date').max = localDateKey();
+  clearFormValidation($('reconciliation-form'));
+  updateReconciliationPreview();
+  $('reconciliation-dialog').showModal();
+  $('reconciliation-actual').focus();
+}
+function updateReconciliationPreview() {
+  const account = accountById(reconciliationAccountId);
+  const date = $('reconciliation-date').value;
+  const actualText = $('reconciliation-actual').value.trim();
+  const minimumDate = account ? latestReconciliationDate(account.id) : '';
+  const expected = account && validCalendarDate(date) && date >= minimumDate && date <= localDateKey()
+    ? balanceForAccountAt(account.id, date) : null;
+  $('reconciliation-expected').textContent = expected === null ? '—' : currency.format(expected);
+  if (expected === null) {
+    $('reconciliation-preview-note').textContent = account ? `Escolha uma data entre ${dateLabel(dateFromKey(minimumDate))} e hoje.` : '';
+    $('reconciliation-adjustment').textContent = '—';
+    $('reconciliation-adjustment').className = 'reconciliation-adjustment';
+    return;
+  }
+  if (!actualText || !/\d/.test(actualText)) {
+    $('reconciliation-preview-note').textContent = 'Informe o saldo mostrado no banco para calcular a diferença.';
+    $('reconciliation-adjustment').textContent = '—';
+    $('reconciliation-adjustment').className = 'reconciliation-adjustment';
+    return;
+  }
+  const deltaCents = Math.round(parseSignedCurrencyInput(actualText) * 100) - Math.round(expected * 100);
+  const delta = deltaCents / 100;
+  $('reconciliation-adjustment').textContent = delta > 0 ? `+${currency.format(delta)}` : currency.format(delta);
+  $('reconciliation-adjustment').className = `reconciliation-adjustment${delta < 0 ? ' negative-balance' : delta > 0 ? ' positive-balance' : ''}`;
+  $('reconciliation-preview-note').textContent = delta ? 'A diferença será registrada como ajuste de saldo, sem alterar receitas ou despesas.' : 'O saldo informado já confere. Nenhum ajuste será necessário.';
+}
+function submitReconciliation(event) {
+  event.preventDefault();
+  const account = accountById(reconciliationAccountId);
+  const date = $('reconciliation-date').value;
+  const actualText = $('reconciliation-actual').value.trim();
+  if (!account) { $('reconciliation-dialog').close(); return; }
+  const minimumDate = latestReconciliationDate(account.id);
+  if (!validCalendarDate(date) || date > localDateKey() || date < minimumDate) {
+    setFieldValidationError($('reconciliation-date'), `Informe uma data entre ${dateLabel(dateFromKey(minimumDate))} e hoje.`);
+    return;
+  }
+  if (!actualText || !/\d/.test(actualText)) { setFieldValidationError($('reconciliation-actual'), 'Informe o saldo exibido no extrato.'); return; }
+  const actualBalance = Math.round(parseSignedCurrencyInput(actualText) * 100) / 100;
+  const expectedBalance = Math.round(balanceForAccountAt(account.id, date) * 100) / 100;
+  const adjustment = Math.round((actualBalance - expectedBalance) * 100) / 100;
+  const reconciliation = { id: createId('reconciliation'), accountId: account.id, date, expectedBalance, actualBalance, adjustment, createdAt: new Date().toISOString() };
+  if (!validReconciliation(reconciliation)) { showToast('Confira o saldo e a data informados.', 'error'); return; }
+  reconciliations.push(reconciliation);
+  saveReconciliations();
+  $('reconciliation-dialog').close();
+  reconciliationAccountId = null;
+  render();
+  showToast(adjustment ? `Conferência registrada com ajuste de ${currency.format(adjustment)}.` : 'Conferência registrada. Os saldos já estavam iguais.', 'success');
+}
+function deleteReconciliation(id) {
+  const item = reconciliations.find(record => record.id === id);
+  if (!item) return;
+  openDeleteConfirmation({ title: 'Excluir conferência?', message: 'O ajuste será removido e o saldo da conta será recalculado. Essa ação não altera receitas ou despesas.', confirmLabel: 'Excluir conferência', onConfirm: () => { reconciliations = reconciliations.filter(record => record.id !== id); saveReconciliations(); render(); showToast('Conferência excluída.', 'success'); } });
 }
 function openAccountDialog(account = null) {
   $('account-form').reset();
@@ -1051,7 +1176,7 @@ function submitTransfer(event) {
 function deleteAccount(id) {
   const account = accountById(id);
   if (!account) return;
-  if (accountInUse(id)) { showToast('Esta conta ainda está vinculada a lançamentos ou transferências.', 'error'); return; }
+  if (accountInUse(id)) { showToast('Esta conta ainda está vinculada a lançamentos, transferências ou conferências.', 'error'); return; }
   openDeleteConfirmation({ title: 'Excluir conta?', message: `A conta “${account.name}” e seu saldo inicial serão removidos.`, confirmLabel: 'Excluir conta', onConfirm: () => { accounts = accounts.filter(item => item.id !== id); saveAccounts(); render(); showToast('Conta excluída.', 'success'); } });
 }
 function deleteTransfer(id) {
@@ -1510,7 +1635,7 @@ function confirmSettlement(event) {
   showToast(`Pagamento de ${currency.format(total)} registrado via ${method}.`, 'success');
 }
 function exportBackup() {
-  const blob = new Blob([JSON.stringify({ app: 'MeuGasto', version: 4, exportedAt: new Date().toISOString(), expenses, cards, settlements, budgets, accounts, transfers }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'MeuGasto', version: 5, exportedAt: new Date().toISOString(), expenses, cards, settlements, budgets, accounts, transfers, reconciliations }, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = `meugasto-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1526,13 +1651,14 @@ async function importBackup(file) {
     const incomingSettlements = Array.isArray(parsed.settlements) ? parsed.settlements : [];
     const incomingAccounts = Array.isArray(parsed.accounts) ? parsed.accounts : [];
     const incomingTransfers = Array.isArray(parsed.transfers) ? parsed.transfers : [];
-    if (!Array.isArray(incoming) || !incoming.every(isValidExpense) || !incomingCards.every((card) => card && typeof card.id === 'string' && Number.isFinite(Number(card.limit))) || !incomingAccounts.every(validAccount) || !incomingTransfers.every(validTransfer)) throw new Error('invalid');
-    if ((expenses.length || cards.length || accounts.length || transfers.length) && !window.confirm('Importar este backup vai substituir registros, cartões, contas e pagamentos salvos neste PC. Continuar?')) return;
+    const incomingReconciliations = Array.isArray(parsed.reconciliations) ? parsed.reconciliations : [];
+    if (!Array.isArray(incoming) || !incoming.every(isValidExpense) || !incomingCards.every((card) => card && typeof card.id === 'string' && Number.isFinite(Number(card.limit))) || !incomingAccounts.every(validAccount) || !incomingTransfers.every(validTransfer) || !incomingReconciliations.every(validReconciliation)) throw new Error('invalid');
+    if ((expenses.length || cards.length || accounts.length || transfers.length || reconciliations.length) && !window.confirm('Importar este backup vai substituir registros, cartões, contas, transferências e conferências salvos neste PC. Continuar?')) return;
     if (parsed.budgets !== undefined && (!Array.isArray(parsed.budgets) || !parsed.budgets.every(validBudget))) throw new Error('invalid');
-    expenses = incoming; cards = incomingCards; settlements = incomingSettlements; budgets = parsed.budgets || []; accounts = incomingAccounts; transfers = incomingTransfers;
+    expenses = incoming; cards = incomingCards; settlements = incomingSettlements; budgets = parsed.budgets || []; accounts = incomingAccounts; transfers = incomingTransfers; reconciliations = incomingReconciliations;
     saveBudgets();
     migrateLegacyCardLinks();
-    saveExpenses(); saveCards(); saveSettlements(); saveAccounts(); saveTransfers(); render();
+    saveExpenses(); saveCards(); saveSettlements(); saveAccounts(); saveTransfers(); saveReconciliations(); render();
     showToast('Backup importado.', 'success');
   } catch { showToast('Não foi possível importar esse arquivo. Confira se ele foi exportado pelo MeuGasto e tente novamente.', 'error'); }
   finally { $('import-file').value = ''; }
@@ -1598,6 +1724,9 @@ function initialize() {
   $('expense-form').addEventListener('submit', submitExpense);
   $('account-form').addEventListener('submit', submitAccount);
   $('transfer-form').addEventListener('submit', submitTransfer);
+  $('reconciliation-form').addEventListener('submit', submitReconciliation);
+  $('reconciliation-date').addEventListener('change', updateReconciliationPreview);
+  $('reconciliation-actual').addEventListener('input', event => { formatSignedCurrencyInput(event.currentTarget); updateReconciliationPreview(); });
   $('payment').addEventListener('change', updatePaymentFields);
   $('recurring-record').addEventListener('change', updatePaymentFields);
   $('card-mode').addEventListener('change', updatePaymentFields);
@@ -1607,10 +1736,15 @@ function initialize() {
   $('account-opening-balance').addEventListener('input', event => formatCurrencyInput(event.currentTarget));
   $('transfer-amount').addEventListener('input', event => formatCurrencyInput(event.currentTarget));
   $('account-list').addEventListener('click', event => {
-    const edit = event.target.closest('[data-edit-account]'), remove = event.target.closest('[data-delete-account]'), add = event.target.closest('[data-account-add]');
+    const edit = event.target.closest('[data-edit-account]'), remove = event.target.closest('[data-delete-account]'), add = event.target.closest('[data-account-add]'), reconcile = event.target.closest('[data-reconcile-account]');
     if (edit) openAccountDialog(accountById(edit.dataset.editAccount));
     if (remove) deleteAccount(remove.dataset.deleteAccount);
     if (add) openAccountDialog();
+    if (reconcile) openReconciliationDialog(reconcile.dataset.reconcileAccount);
+  });
+  $('reconciliation-list').addEventListener('click', event => {
+    const remove = event.target.closest('[data-delete-reconciliation]');
+    if (remove) deleteReconciliation(remove.dataset.deleteReconciliation);
   });
   $('transfer-list').addEventListener('click', event => {
     const edit = event.target.closest('[data-edit-transfer]'), remove = event.target.closest('[data-delete-transfer]');

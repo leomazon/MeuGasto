@@ -154,3 +154,64 @@ test('debits a linked account when a planned cash expense is confirmed as paid',
   await page.getByRole('button', { name: 'Contas', exact: true }).click();
   assert.equal((await page.locator('#accounts-total-balance').innerText()).replace(/\s/g, ' '), 'R$ 400,00');
 });
+
+test('reconciles an account, keeps each adjustment in history and leaves monthly income and expenses unchanged', async () => {
+  const today = await page.evaluate(() => {
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  });
+  await page.getByRole('button', { name: 'Contas', exact: true }).click();
+  await page.locator('#new-account').click();
+  const accountForm = page.locator('#account-dialog');
+  await accountForm.locator('#account-name').fill('Conta principal');
+  await accountForm.locator('#account-opening-balance').fill('50000');
+  await accountForm.locator('#account-opening-date').fill(today);
+  await accountForm.getByRole('button', { name: 'Salvar conta', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
+  await page.getByRole('button', { name: 'Novo registro', exact: true }).click();
+  const recordForm = page.locator('#expense-dialog');
+  await recordForm.locator('#description').fill('Compra debitada');
+  await recordForm.locator('#amount').fill('10000');
+  await recordForm.locator('#record-account').selectOption({ label: 'Conta principal' });
+  await recordForm.getByRole('button', { name: 'Salvar registro', exact: true }).click();
+  await page.getByRole('button', { name: 'Visão geral', exact: true }).click();
+  const monthlyBalanceBefore = (await page.locator('#month-balance').innerText()).replace(/\s/g, ' ');
+
+  await page.getByRole('button', { name: 'Contas', exact: true }).click();
+  const accountList = page.locator('#account-list');
+  await accountList.getByRole('button', { name: 'Conferir saldo' }).click();
+  let reconciliation = page.locator('#reconciliation-dialog');
+  await reconciliation.waitFor({ state: 'visible' });
+  assert.match(await reconciliation.locator('#reconciliation-expected').innerText(), /400,00/);
+  await reconciliation.locator('#reconciliation-actual').fill('35000');
+  assert.match(await reconciliation.locator('#reconciliation-adjustment').innerText(), /-R\$\s50,00/);
+  await reconciliation.getByRole('button', { name: 'Registrar ajuste', exact: true }).click();
+  assert.match(await accountList.innerText(), /R\$\s350,00/);
+
+  await accountList.getByRole('button', { name: 'Conferir saldo' }).click();
+  reconciliation = page.locator('#reconciliation-dialog');
+  const yesterday = await page.evaluate(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  });
+  await reconciliation.locator('#reconciliation-date').fill(yesterday);
+  await reconciliation.locator('#reconciliation-actual').fill('32000');
+  await reconciliation.getByRole('button', { name: 'Registrar ajuste', exact: true }).click();
+  assert.equal(await page.locator('#reconciliation-list .reconciliation-row').count(), 1, 'a date before the last reconciliation cannot be saved');
+  assert.match(await reconciliation.innerText(), /A data deve ser igual ou posterior à última conferência de saldo/);
+  await reconciliation.locator('#reconciliation-date').fill(today);
+  assert.match(await reconciliation.locator('#reconciliation-expected').innerText(), /350,00/);
+  await reconciliation.locator('#reconciliation-actual').fill('32000');
+  assert.match(await reconciliation.locator('#reconciliation-adjustment').innerText(), /-R\$\s30,00/);
+  await reconciliation.getByRole('button', { name: 'Registrar ajuste', exact: true }).click();
+
+  const history = page.locator('#reconciliation-list');
+  assert.equal(await history.locator('.reconciliation-row').count(), 2);
+  assert.match(await history.innerText(), /R\$\s350,00/);
+  assert.match(await history.innerText(), /R\$\s320,00/);
+  assert.deepEqual((await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-reconciliations-v1')))).map(item => item.adjustment), [-50, -30]);
+  await page.getByRole('button', { name: 'Visão geral', exact: true }).click();
+  assert.equal((await page.locator('#month-balance').innerText()).replace(/\s/g, ' '), monthlyBalanceBefore);
+});

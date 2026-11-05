@@ -753,9 +753,28 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .account-opening-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding-top:11px;border-top:1px solid #e9e4f0;color:#777181;font-size:12px}
 .account-opening-row span strong{margin-left:4px;color:#494253;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
 .account-opening-row small{font-size:12px}
-.account-transfers-panel{margin-top:23px;padding:21px 22px;border:1px solid var(--line);border-radius:16px;background:#fff}
-.account-transfers-panel h2{margin:0;font-family:Manrope,sans-serif;font-size:18px;letter-spacing:-.3px}
+.account-card-footer{display:flex;justify-content:flex-end;margin-top:14px;padding-top:12px;border-top:1px solid #f0edf4}
+.account-reconcile-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:35px;padding:0 11px;border:1px solid #e6def6;border-radius:9px;background:#f7f4ff;color:#6541c8;font-size:12px;font-weight:700;transition:background-color .15s,border-color .15s,transform .15s}
+.account-reconcile-button:hover{border-color:#d6c9f1;background:#efe9ff;transform:translateY(-1px)}
+.account-reconcile-button .material-icons{font-size:17px}
+.account-reconciliations-panel,.account-transfers-panel{margin-top:23px;padding:21px 22px;border:1px solid var(--line);border-radius:16px;background:#fff}
+.account-reconciliations-panel h2,.account-transfers-panel h2{margin:0;font-family:Manrope,sans-serif;font-size:18px;letter-spacing:-.3px}
 .account-section-copy{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.45}
+.reconciliation-list{margin-top:12px}
+.reconciliation-row{display:grid;grid-template-columns:36px minmax(0,1fr) auto auto;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid #f0edf4}
+.reconciliation-row:last-child{border-bottom:0}
+.reconciliation-row-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#f1edff;color:var(--purple);font-size:19px}
+.reconciliation-row-description{display:grid;gap:4px;min-width:0}
+.reconciliation-row-description strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.reconciliation-row-description small{color:var(--muted);font-size:11px;line-height:1.4}
+.reconciliation-delta{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.positive-balance{color:#37866c}
+.reconciliation-dialog{max-width:540px}
+.reconciliation-preview{display:grid;gap:10px;margin:3px 0 18px;padding:14px 15px;border:1px solid #e9e3f4;border-radius:12px;background:#faf8fd}
+.reconciliation-preview>div{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.reconciliation-preview>div span{color:#777181;font-size:12px;font-weight:600}
+.reconciliation-preview>div strong{font-size:15px;font-variant-numeric:tabular-nums;text-align:right}
+.reconciliation-preview p{margin:0;padding-top:9px;border-top:1px solid #ebe6f2;color:var(--muted);font-size:11px;line-height:1.5}
 .transfer-list{margin-top:12px}
 .transfer-row{display:grid;grid-template-columns:38px minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #f0edf4}
 .transfer-row:last-child{border-bottom:0}
@@ -769,5 +788,5 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .account-empty{grid-column:1/-1}
 #accounts-view:not([hidden]){animation:view-arrive .32s cubic-bezier(.2,.7,.25,1) both}
 @media(max-width:900px){.account-list{grid-template-columns:1fr}}
-@media(max-width:760px){.accounts-view{padding-top:14px}.accounts-heading{align-items:flex-start}.account-actions{flex-wrap:wrap}.accounts-total-panel{padding:19px}.accounts-total-panel strong{font-size:27px}.account-card{padding:18px}.account-balance-panel{margin-top:15px;padding:13px 14px 11px}.account-transfers-panel{padding:18px}.transfer-row{grid-template-columns:36px minmax(0,1fr) auto;gap:9px}.transfer-row .card-actions{grid-column:2/-1;justify-content:flex-end}.transfer-row-amount{font-size:13px}}
-@media(max-width:500px){.account-actions{width:100%}.account-actions .cancel-button,.account-actions .add-button{flex:1;min-width:0;padding:0 10px;font-size:12px}.accounts-total-icon{width:42px;height:42px;font-size:22px}.accounts-total-panel{gap:12px;padding:16px}.accounts-total-panel strong{font-size:24px}.accounts-total-panel span{font-size:13px}.accounts-total-panel small{font-size:11px}.account-card-heading{gap:10px}.account-type-icon{width:39px;height:39px;font-size:21px}.account-card-title h3{font-size:16px}.account-balance{font-size:21px}.account-opening-row{gap:7px;font-size:11px}.account-opening-row small,.account-opening-row span strong{font-size:11px}.transfer-row{grid-template-columns:34px minmax(0,1fr) auto}.transfer-row-description>strong{font-size:12px}.transfer-row-description small{font-size:11px}}
+@media(max-width:760px){.accounts-view{padding-top:14px}.accounts-heading{align-items:flex-start}.account-actions{flex-wrap:wrap}.accounts-total-panel{padding:19px}.accounts-total-panel strong{font-size:27px}.account-card{padding:18px}.account-balance-panel{margin-top:15px;padding:13px 14px 11px}.account-reconciliations-panel,.account-transfers-panel{padding:18px}.reconciliation-row{grid-template-columns:34px minmax(0,1fr) auto auto;gap:8px}.transfer-row{grid-template-columns:36px minmax(0,1fr) auto;gap:9px}.transfer-row .card-actions{grid-column:2/-1;justify-content:flex-end}.transfer-row-amount{font-size:13px}}
+@media(max-width:500px){.account-actions{width:100%}.account-actions .cancel-button,.account-actions .add-button{flex:1;min-width:0;padding:0 10px;font-size:12px}.accounts-total-icon{width:42px;height:42px;font-size:22px}.accounts-total-panel{gap:12px;padding:16px}.accounts-total-panel strong{font-size:24px}.accounts-total-panel span{font-size:13px}.accounts-total-panel small{font-size:11px}.account-card-heading{gap:10px}.account-type-icon{width:39px;height:39px;font-size:21px}.account-card-title h3{font-size:16px}.account-balance{font-size:21px}.account-opening-row{gap:7px;font-size:11px}.account-opening-row small,.account-opening-row span strong{font-size:11px}.reconciliation-row{grid-template-columns:32px minmax(0,1fr) auto;gap:7px}.reconciliation-row-description strong{font-size:12px}.reconciliation-row-description small{font-size:10px}.reconciliation-delta{font-size:11px}.reconciliation-row .icon-button{grid-column:3;grid-row:1}.reconciliation-row .reconciliation-delta{grid-column:2;justify-self:start;margin-top:-2px}.reconciliation-preview{padding:12px}.reconciliation-preview>div span{font-size:11px}.reconciliation-preview>div strong{font-size:13px}.transfer-row{grid-template-columns:34px minmax(0,1fr) auto}.transfer-row-description>strong{font-size:12px}.transfer-row-description small{font-size:11px}}

@@ -21,11 +21,11 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 - Barras em Lançamentos mostram a participação de cada receita ou despesa na própria categoria do mês, sem mudar a base ao aplicar filtros.
 - Cadastro de cartões, limites e crédito disponível no dashboard.
 - Faturas mensais com liquidação integral ou cobrança por cobrança, via Pix ou outro cartão.
-- Contas e carteiras com saldo inicial, saldo atual e vínculo de receitas, despesas e pagamentos de fatura. Transferências entre contas atualizam os dois saldos sem serem tratadas como receita ou despesa.
+- Contas e carteiras com saldo inicial, saldo atual e vínculo de receitas, despesas e pagamentos de fatura. Transferências entre contas atualizam os dois saldos sem serem tratadas como receita ou despesa. **Conferência de saldo** compara o valor calculado com o extrato e registra ajustes datados com histórico, sem reescrever lançamentos nem alterar os totais mensais.
 - Lançamentos filtrados pelo mês selecionado, com busca, paginação e opções de 10, 20, 30 ou 50 itens por página.
 - Categorias com ícones, edição e exclusão de lançamentos.
 - Compras no cartão à vista ou parceladas. O app distribui o valor total em cobranças mensais; a última parcela ajusta a diferença de centavos.
-- Exportação e importação de backup em JSON, incluindo orçamentos.
+- Exportação e importação de backup em JSON, incluindo orçamentos, contas, transferências e conferências de saldo.
 - Cópias SQLite automáticas ao salvar, com intervalo mínimo de 30 minutos e retenção das 30 cópias mais recentes. Em **Backups locais**, gere uma cópia manual ou restaure uma anterior. Antes da restauração, o estado atual recebe uma cópia de segurança.
 - Evolução dos últimos 6 ou 12 meses até o mês selecionado, com receitas e despesas previstas, saldo previsto e saldo realizado.
 - Orçamentos mensais por categoria de despesa: limites recorrentes, valor comprometido, percentual utilizado e destaque ao se aproximar ou ultrapassar o limite.
@@ -46,6 +46,6 @@ Os dados ficam no arquivo `~/.local/share/meugasto/meugasto.sqlite3`, fora da pa
 
 As regras financeiras têm testes no Node.js, a persistência SQLite usa `unittest` do Python, e os fluxos de navegador usam Playwright. Na pasta do app, execute `npm test` e `npm run test:e2e`. Para preparar o ambiente E2E, execute `npm install` e `npx playwright install chromium`. Ao desenvolver novas funcionalidades ou corrigir defeitos, escreva primeiro um teste que descreva o comportamento esperado, confirme que ele falha e só então implemente a mudança.
 
-## Próximas evoluções possíveis
+## Decisões de implementação
 
-Metas financeiras, conciliação e sincronização opcional entre dispositivos.
+A conciliação usa o núcleo financeiro e a persistência local já existentes. Não foi adicionada uma biblioteca externa: o cálculo é pequeno e depende das regras específicas de data, conta e lançamentos do MeuGasto; uma dependência genérica não reduziria a complexidade nem melhoraria a integração.
