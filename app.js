@@ -11,12 +11,12 @@ const CATEGORY_DATA = [
   { name: 'Outros', icon: 'category', color: '#8b8298' },
 ];
 const INCOME_CATEGORY_DATA = [
-  { name: 'Prestação de serviço', icon: 'handyman', color: '#c8793a' },
-  { name: 'Salário', icon: 'work', color: '#317c62' },
-  { name: 'Vendas', icon: 'shopping_bag', color: '#c89b38' },
-  { name: 'Rendimentos', icon: 'trending_up', color: '#8a68c4' },
-  { name: 'Aluguéis', icon: 'home_work', color: '#46977c' },
-  { name: 'Outras receitas', icon: 'north_east', color: '#4a91b8' },
+  { name: 'Prestação de serviço', icon: 'handyman', color: '#087f8c' },
+  { name: 'Salário', icon: 'work', color: '#277448' },
+  { name: 'Vendas', icon: 'shopping_bag', color: '#738b18' },
+  { name: 'Rendimentos', icon: 'trending_up', color: '#176fa2' },
+  { name: 'Aluguéis', icon: 'home_work', color: '#aa6040' },
+  { name: 'Outras receitas', icon: 'north_east', color: '#526d78' },
 ];
 const BANK_DATA = [
   { key: 'bb', name: 'Banco do Brasil', aliases: ['bb'], symbol: 'BB', icon: 'assets/banks/00000000.svg', color: '#ffdc00', surface: '#FCFC30' },
