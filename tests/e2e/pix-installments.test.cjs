@@ -84,3 +84,35 @@ test('switching from an installment expense to income keeps the income as one re
   assert.equal(entry.installments, 1);
   assert.equal(entry.amount, 50);
 });
+
+test('offers up to 24 installments while preserving older longer purchases on edit', async () => {
+  await page.goto(appUrl);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
+  await page.getByRole('button', { name: 'Novo registro', exact: true }).click();
+  await page.locator('#card-mode').selectOption('Parcelado');
+  assert.deepEqual(await page.locator('#installments option').evaluateAll(options => options.map(option => Number(option.value))),
+    Array.from({ length: 23 }, (_, index) => index + 2));
+  await page.locator('#payment').selectOption('Cartão');
+  assert.equal(await page.locator('#installments option:last-child').getAttribute('value'), '24');
+  await page.locator('#close-dialog').click();
+
+  await page.evaluate(() => {
+    const today = new Date();
+    const firstDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    localStorage.setItem('meu-financeiro-v1', JSON.stringify([
+      { id: 'old-long-pix', description: 'Parcelamento antigo', type: 'expense', amount: 300,
+        installments: 30, payment: 'Pix', category: 'Compras', firstDate, status: 'planned' },
+    ]));
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
+  await page.getByRole('button', { name: 'Editar Parcelamento antigo' }).click();
+  assert.equal(await page.locator('#installments').inputValue(), '30');
+  await page.locator('#description').fill('Parcelamento antigo revisado');
+  await page.locator('#save-expense').click();
+  const entry = await page.evaluate(() => JSON.parse(localStorage.getItem('meu-financeiro-v1'))[0]);
+  assert.equal(entry.installments, 30);
+  assert.equal(entry.amount, 300);
+});
