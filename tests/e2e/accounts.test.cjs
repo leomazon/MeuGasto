@@ -156,6 +156,57 @@ test('debits a linked account when a planned cash expense is confirmed as paid',
   assert.equal((await page.locator('#accounts-total-balance').innerText()).replace(/\s/g, ' '), 'R$ 400,00');
 });
 
+test('defaults card invoice payments to the account linked to that card', async () => {
+  const today = await page.evaluate(() => {
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  });
+  await page.getByRole('button', { name: 'Contas', exact: true }).click();
+  for (const account of [
+    { name: 'Carteira', opening: '50000' },
+    { name: 'Mercado Pago', opening: '100000' },
+  ]) {
+    await page.locator('#new-account').click();
+    const form = page.locator('#account-dialog');
+    await form.locator('#account-name').fill(account.name);
+    await form.locator('#account-opening-balance').fill(account.opening);
+    await form.locator('#account-opening-date').fill(today);
+    await form.getByRole('button', { name: 'Salvar conta', exact: true }).click();
+  }
+
+  await page.getByRole('button', { name: 'Cartões', exact: true }).click();
+  await page.locator('#new-card').click();
+  const cardForm = page.locator('#card-dialog');
+  await cardForm.locator('#card-name').fill('Cartão vinculado');
+  await cardForm.locator('#card-bank').selectOption('Nubank');
+  await cardForm.locator('#card-limit').fill('100000');
+  await cardForm.locator('#card-closing-day').fill('28');
+  await cardForm.locator('#card-due-day').fill('30');
+  await cardForm.locator('#card-account').selectOption({ label: 'Mercado Pago' });
+  await cardForm.getByRole('button', { name: 'Salvar cartão', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
+  await page.getByRole('button', { name: 'Novo registro', exact: true }).click();
+  const recordForm = page.locator('#expense-dialog');
+  await recordForm.locator('#description').fill('Compra no cartão vinculado');
+  await recordForm.locator('#amount').fill('6000');
+  await recordForm.locator('#payment').selectOption('Cartão');
+  await recordForm.locator('#card-select').selectOption({ label: 'Cartão vinculado · Nubank' });
+  await recordForm.getByRole('button', { name: 'Salvar registro', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Cartões', exact: true }).click();
+  await page.locator('#cards-list').getByRole('button', { name: 'Liquidar fatura' }).click();
+  const settlementForm = page.locator('#settlement-dialog');
+  assert.equal(await settlementForm.locator('#settlement-account option:checked').innerText(), 'Mercado Pago');
+  await settlementForm.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Contas', exact: true }).click();
+  const accountList = (await page.locator('#account-list').innerText()).replace(/\s/g, ' ');
+  assert.match(accountList, /Carteira[\s\S]*R\$ 500,00/);
+  assert.match(accountList, /Mercado Pago[\s\S]*R\$ 940,00/);
+  assert.equal(await page.locator('[data-account-id]').filter({ hasText: 'Mercado Pago' }).getByRole('button', { name: 'Excluir Mercado Pago' }).isDisabled(), true);
+});
+
 test('reconciles an account, keeps each adjustment in history and leaves monthly income and expenses unchanged', async () => {
   const today = await page.evaluate(() => {
     const date = new Date();

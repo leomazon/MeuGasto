@@ -1085,9 +1085,10 @@ function renderCardItem(card) {
   const monthlyCharges = chargesForMonth(selectedMonth(), card.id).filter((charge) => charge.expense.payment === 'Cartão');
   const due = monthlyCharges.reduce((sum, charge) => sum + charge.remaining, 0);
   const unpaid = monthlyCharges.filter((charge) => charge.remaining > 0);
+  const linkedAccount = accountById(card.accountId);
   const rows = monthlyCharges.length ? monthlyCharges.map((charge) => `<div class="bill-line"><div class="bill-description"><strong>${escapeHtml(charge.expense.description)}</strong><span>${charge.expense.recurring === true ? 'Fixo mensal' : `${charge.index + 1}/${charge.expense.installments}`} · ${purchaseDateForCharge(charge) ? `Compra ${dateLabel(purchaseDateForCharge(charge))} · ` : ''}Vence ${dateLabel(charge.date)} · ${currency.format(charge.amount)}</span></div><strong>${charge.remaining <= 0 ? '<span class="paid-tag">Liquidado</span>' : currency.format(charge.remaining)}</strong>${charge.remaining > 0 ? `<button class="pay-charge-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}">Liquidar</button>` : ''}</div>`).join('') : '<p class="empty-note compact-empty">Nenhuma cobrança neste mês.</p>';
   return `<article class="credit-card-card" data-card-id="${escapeHtml(card.id)}">
-    <div class="credit-card-top">${bankBadgeMarkup(card.bank, 'credit-bank-badge')}<div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.closingDay ? `fecha dia ${card.closingDay} · ` : ''}${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">${materialIcon('close')}</button></div></div>
+    <div class="credit-card-top">${bankBadgeMarkup(card.bank, 'credit-bank-badge')}<div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.closingDay ? `fecha dia ${card.closingDay} · ` : ''}${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}${linkedAccount ? ` · conta padrão ${escapeHtml(linkedAccount.name)}` : ''}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">${materialIcon('close')}</button></div></div>
     <div class="limit-line"><span>Limite utilizado</span><strong>${currency.format(used)} <small>de ${currency.format(limit)}</small></strong></div>
     <div class="card-progress large-progress"><i style="width:${percentage}%"></i></div>
     <div class="limit-foot"><span>Disponível</span><strong class="${available < 0 ? 'over-limit' : ''}">${currency.format(available)}</strong></div>
@@ -1101,6 +1102,7 @@ function renderCards() {
 }
 function accountInUse(id) {
   return expenses.some(entry => entry.accountId === id || Object.values(entry.overrides || {}).some(override => override?.accountId === id))
+    || cards.some(card => card.accountId === id)
     || settlements.some(payment => payment.accountId === id)
     || transfers.some(transfer => transfer.fromAccountId === id || transfer.toAccountId === id)
     || reconciliations.some(item => item.accountId === id);
@@ -1111,7 +1113,7 @@ function accountIcon(kind) {
 function renderAccountCard(account) {
   const locked = accountInUse(account.id);
   return `<article class="account-card" data-account-id="${escapeHtml(account.id)}" data-kind="${escapeHtml(account.kind)}">
-    <div class="account-card-heading"><span class="account-type-icon material-icons" aria-hidden="true">${accountIcon(account.kind)}</span><div class="account-card-title"><h3>${escapeHtml(account.name)}</h3><span>${escapeHtml(ACCOUNT_KINDS[account.kind])}</span></div><div class="card-actions"><button class="icon-button" type="button" aria-label="Editar ${escapeHtml(account.name)}" data-edit-account="${escapeHtml(account.id)}">${materialIcon('edit')}</button><button class="icon-button delete" type="button" aria-label="Excluir ${escapeHtml(account.name)}" data-delete-account="${escapeHtml(account.id)}" ${locked ? 'disabled title="Há lançamentos, transferências ou conferências vinculados"' : ''}>${materialIcon('close')}</button></div></div>
+    <div class="account-card-heading"><span class="account-type-icon material-icons" aria-hidden="true">${accountIcon(account.kind)}</span><div class="account-card-title"><h3>${escapeHtml(account.name)}</h3><span>${escapeHtml(ACCOUNT_KINDS[account.kind])}</span></div><div class="card-actions"><button class="icon-button" type="button" aria-label="Editar ${escapeHtml(account.name)}" data-edit-account="${escapeHtml(account.id)}">${materialIcon('edit')}</button><button class="icon-button delete" type="button" aria-label="Excluir ${escapeHtml(account.name)}" data-delete-account="${escapeHtml(account.id)}" ${locked ? 'disabled title="Há cartões, lançamentos, transferências ou conferências vinculados"' : ''}>${materialIcon('close')}</button></div></div>
     <div class="account-balance-panel"><div class="account-balance-row"><span>Saldo atual</span><strong class="account-balance${account.balance < 0 ? ' negative-balance' : ''}">${currency.format(account.balance)}</strong></div>
     <div class="account-opening-row"><span>Saldo inicial <strong>${currency.format(account.openingBalance)}</strong></span><small>Desde ${escapeHtml(dateLabel(dateFromKey(account.openingDate)))}</small></div></div>
     <div class="account-card-footer"><button class="account-reconcile-button" type="button" data-reconcile-account="${escapeHtml(account.id)}"><span class="material-icons" aria-hidden="true">fact_check</span> Conferir saldo</button></div>
@@ -1274,7 +1276,7 @@ function submitTransfer(event) {
 function deleteAccount(id) {
   const account = accountById(id);
   if (!account) return;
-  if (accountInUse(id)) { showToast('Esta conta ainda está vinculada a lançamentos, transferências ou conferências.', 'error'); return; }
+  if (accountInUse(id)) { showToast('Esta conta ainda está vinculada a cartões, lançamentos, transferências ou conferências.', 'error'); return; }
   openDeleteConfirmation({ title: 'Excluir conta?', message: `A conta “${account.name}” e seu saldo inicial serão removidos.`, confirmLabel: 'Excluir conta', onConfirm: () => { accounts = accounts.filter(item => item.id !== id); saveAccounts(); render(); showToast('Conta excluída.', 'success'); } });
 }
 function deleteTransfer(id) {
@@ -1678,6 +1680,7 @@ function openCardDialog(card = null) {
   $('card-name').value = card?.name || '';
   setCardBankOptions(card?.bank || '');
   $('card-limit').value = card ? currency.format(Number(card.limit)) : '';
+  populateAccountSelect($('card-account'), card?.accountId || '');
   $('card-closing-day').value = card?.closingDay || '';
   $('card-due-day').value = card?.dueDay || '';
   $('card-dialog-title').textContent = card ? 'Editar cartão' : 'Adicionar cartão';
@@ -1693,15 +1696,17 @@ function submitCard(event) {
   const limit = Math.round(parseCurrencyInput($('card-limit').value) * 100) / 100;
   const closingDay = Number($('card-closing-day').value);
   const dueDay = Number($('card-due-day').value);
+  const accountId = $('card-account').value;
   if (!name) { setFieldValidationError($('card-name'), FIELD_ERROR_MESSAGES['card-name']); return; }
   if (!selectedBank) { setFieldValidationError($('card-bank'), FIELD_ERROR_MESSAGES['card-bank']); return; }
   if (selectedBank === OTHER_BANK_VALUE && !bank) { setFieldValidationError($('card-bank-other'), FIELD_ERROR_MESSAGES['card-bank-other']); return; }
   if (!(limit > 0)) { setFieldValidationError($('card-limit'), FIELD_ERROR_MESSAGES['card-limit']); return; }
+  if (accountId && !accountById(accountId)) { setFieldValidationError($('card-account'), 'Selecione uma conta válida para pagar a fatura.'); return; }
   if (!Number.isInteger(closingDay) || closingDay < 1 || closingDay > 31) { setFieldValidationError($('card-closing-day'), FIELD_ERROR_MESSAGES['card-closing-day']); return; }
   if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) { setFieldValidationError($('card-due-day'), FIELD_ERROR_MESSAGES['card-due-day']); return; }
   const id = $('card-id').value || createId('card');
   if (cards.some((card) => card.id !== id && card.name.toLocaleLowerCase('pt-BR') === name.toLocaleLowerCase('pt-BR'))) { setFieldValidationError($('card-name'), 'Já existe um cartão com esse nome.'); return; }
-  const updated = { id, name, bank, limit, closingDay, dueDay };
+  const updated = { id, name, bank, limit, closingDay, dueDay, accountId };
   const index = cards.findIndex((card) => card.id === id);
   if (index >= 0) cards[index] = updated; else cards.push(updated);
   for (const expense of expenses) if (expense.cardId === id) expense.card = name;
@@ -1735,7 +1740,10 @@ function startSettlement(charges) {
   $('settlement-summary').textContent = `${cardById(targetCardId)?.name || 'Cartão'} · ${monthLabel(selectedMonth())} · ${currency.format(total)}${payable.length === 1 ? ' nesta cobrança' : ` em ${payable.length} cobranças`}`;
   populateCardSelect($('funding-card'), targetCardId);
   const linkedAccounts = [...new Set(payable.map(charge => charge.expense.accountId).filter(id => accountById(id)))];
-  populateAccountSelect($('settlement-account'), linkedAccounts.length === 1 ? linkedAccounts[0] : accounts[0]?.id || '');
+  const cardAccountId = cardById(targetCardId)?.accountId;
+  const preferredAccountId = accountById(cardAccountId) ? cardAccountId
+    : linkedAccounts.length === 1 ? linkedAccounts[0] : accounts[0]?.id || '';
+  populateAccountSelect($('settlement-account'), preferredAccountId);
   updateSettlementMethod();
   $('settlement-dialog').showModal();
 }
