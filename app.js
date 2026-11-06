@@ -864,8 +864,12 @@ function renderExpenseRow(charge, actions = false, categoryShare = null) {
   const paymentStatus = charge.expense.payment !== 'Cartão' ? cashStatus.badge : isPaid ? '<span class="paid-tag">Liquidado</span>' : isOverdue ? '<span class="overdue-tag">Vencido</span>' : '';
   const statusMarkup = fixedStatus || paymentStatus ? `<span class="expense-statuses">${fixedStatus}${paymentStatus}</span>` : '';
   const categoryShareMarkup = categoryShare === null ? '' : `<div class="category-share" role="img" aria-label="${escapeHtml(charge.expense.description)} corresponde a ${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria ${escapeHtml(charge.expense.category || 'Outros')}"><span class="category-share-track" aria-hidden="true"><i style="width:${categoryShare}%;background:${info.color}"></i></span><span class="category-share-label">${categoryShare.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da categoria</span></div>`;
+  const chargeActionLabel = `${charge.expense.recurring === true ? monthLabel(monthKey(charge.date)) : `parcela ${charge.index + 1}`}`;
   const settleButton = actions && !income && charge.expense.payment === 'Cartão' && charge.remaining > 0
-    ? `<button class="row-settle-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Liquidar ${escapeHtml(charge.expense.description)}, ${charge.expense.recurring === true ? monthLabel(monthKey(charge.date)) : `parcela ${charge.index + 1}`}">Liquidar</button>` : charge.expense.payment !== 'Cartão' ? cashStatus.button : '';
+    ? `<button class="row-settle-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Liquidar ${escapeHtml(charge.expense.description)}, ${chargeActionLabel}">Liquidar</button>`
+    : actions && !income && charge.expense.payment === 'Cartão' && charge.remaining <= 0
+      ? `<button class="row-settle-button reopen-button" data-reopen-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Reabrir ${escapeHtml(charge.expense.description)}, ${chargeActionLabel}">Reabrir</button>`
+      : charge.expense.payment !== 'Cartão' ? cashStatus.button : '';
   return `<div class="expense-row">
     ${categoryIcon(info, 'expense-emoji')}
     <div class="expense-name"><strong>${escapeHtml(charge.expense.description)}</strong><span class="expense-meta"><span class="expense-details">${escapeHtml(charge.expense.category)} · ${escapeHtml(expenseLabel(charge))}${purchaseDate ? ` · Compra ${escapeHtml(dateLabel(purchaseDate))}` : ''}${linkedAccount ? ` · ${escapeHtml(linkedAccount.name)}` : ''}${charge.expense.notes ? ` · ${escapeHtml(charge.expense.notes)}` : ''}</span>${statusMarkup}</span>${categoryShareMarkup}</div>
@@ -1087,7 +1091,7 @@ function renderCardItem(card) {
   const due = monthlyCharges.reduce((sum, charge) => sum + charge.remaining, 0);
   const unpaid = monthlyCharges.filter((charge) => charge.remaining > 0);
   const linkedAccount = accountById(card.accountId);
-  const rows = monthlyCharges.length ? monthlyCharges.map((charge) => `<div class="bill-line"><div class="bill-description"><strong>${escapeHtml(charge.expense.description)}</strong><span>${charge.expense.recurring === true ? 'Fixo mensal' : `${charge.index + 1}/${charge.expense.installments}`} · ${purchaseDateForCharge(charge) ? `Compra ${dateLabel(purchaseDateForCharge(charge))} · ` : ''}Vence ${dateLabel(charge.date)} · ${currency.format(charge.amount)}</span></div><strong>${charge.remaining <= 0 ? '<span class="paid-tag">Liquidado</span>' : currency.format(charge.remaining)}</strong>${charge.remaining > 0 ? `<button class="pay-charge-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}">Liquidar</button>` : ''}</div>`).join('') : '<p class="empty-note compact-empty">Nenhuma cobrança neste mês.</p>';
+  const rows = monthlyCharges.length ? monthlyCharges.map((charge) => `<div class="bill-line"><div class="bill-description"><strong>${escapeHtml(charge.expense.description)}</strong><span>${charge.expense.recurring === true ? 'Fixo mensal' : `${charge.index + 1}/${charge.expense.installments}`} · ${purchaseDateForCharge(charge) ? `Compra ${dateLabel(purchaseDateForCharge(charge))} · ` : ''}Vence ${dateLabel(charge.date)} · ${currency.format(charge.amount)}</span></div><strong>${charge.remaining <= 0 ? '<span class="paid-tag">Liquidado</span>' : currency.format(charge.remaining)}</strong>${charge.remaining > 0 ? `<button class="pay-charge-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}">Liquidar</button>` : `<button class="pay-charge-button reopen-button" data-reopen-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Reabrir ${escapeHtml(charge.expense.description)}, ${charge.expense.recurring === true ? monthLabel(monthKey(charge.date)) : `parcela ${charge.index + 1}`}" title="Reabrir cobrança">Reabrir</button>`}</div>`).join('') : '<p class="empty-note compact-empty">Nenhuma cobrança neste mês.</p>';
   return `<article class="credit-card-card" data-card-id="${escapeHtml(card.id)}">
     <div class="credit-card-top">${bankBadgeMarkup(card.bank, 'credit-bank-badge')}<div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.closingDay ? `fecha dia ${card.closingDay} · ` : ''}${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'} · conta padrão ${escapeHtml(linkedAccount?.name || 'não definida')}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">${materialIcon('close')}</button></div></div>
     <div class="limit-line"><span>Limite utilizado</span><strong>${currency.format(used)} <small>de ${currency.format(limit)}</small></strong></div>
@@ -1100,6 +1104,63 @@ function renderCardItem(card) {
 }
 function renderCards() {
   $('cards-list').innerHTML = cards.length ? cards.map(renderCardItem).join('') : `<div class="cards-empty">${materialIcon('credit_card', 'empty-card-icon')}<h3>Cadastre seu primeiro cartão</h3><p>Informe o limite e vincule novas compras para acompanhar uso e faturas.</p><button class="add-button" data-create-card>${materialIcon('add')} Adicionar cartão</button></div>`;
+}
+function reopenCardCharge(expenseId, installmentIndex) {
+  const index = Number(installmentIndex);
+  const expense = expenses.find((item) => item.id === expenseId);
+  const charge = Core.monthlyRecords(expenses, settlements, selectedMonth())
+    .find((item) => item.expense.id === expenseId && item.index === index);
+  if (!expense || !charge || charge.expense.payment !== 'Cartão') return;
+  const removedPayments = settlements.filter((payment) => payment.expenseId === expenseId && Number(payment.installmentIndex) === index);
+  if (!removedPayments.length) { showToast('Esta cobrança já está em aberto.', 'info'); render(); return; }
+  const transferAdjustments = new Map();
+  for (const payment of removedPayments) {
+    if (payment.method !== 'Cartão') continue;
+    const batchPayments = payment.batchId
+      ? settlements.filter((item) => item.batchId === payment.batchId)
+      : [payment];
+    const batchTotalCents = batchPayments.reduce((sum, item) => sum + Math.round(Number(item.amount) * 100), 0);
+    const removedCents = batchPayments.filter((item) => item.expenseId === expenseId && Number(item.installmentIndex) === index)
+      .reduce((sum, item) => sum + Math.round(Number(item.amount) * 100), 0);
+    let transfer = payment.batchId ? expenses.find((item) => item.type === 'debt-transfer' && item.settlementBatchId === payment.batchId) : null;
+    if (!transfer && payment.sourceCardId && payment.targetCardId && payment.date) {
+      const targetName = cardById(payment.targetCardId)?.name || 'do cartão';
+      const candidates = expenses.filter((item) => item.type === 'debt-transfer' && item.cardId === payment.sourceCardId
+        && item.firstDate === payment.date && Math.round(Number(item.amount) * 100) === batchTotalCents
+        && item.description === `Pagamento da fatura ${targetName}`);
+      if (candidates.length === 1) transfer = candidates[0];
+    }
+    if (!transfer) {
+      showToast('Não foi possível localizar com segurança o pagamento feito por outro cartão. Revise a fatura antes de reabrir esta cobrança.', 'error');
+      return;
+    }
+    const adjustment = transferAdjustments.get(transfer.id) || { transfer, removedCents: 0 };
+    adjustment.removedCents += removedCents;
+    transferAdjustments.set(transfer.id, adjustment);
+  }
+
+  openDeleteConfirmation({
+    eyebrow: 'CONFIRME A ALTERAÇÃO',
+    title: 'Reabrir cobrança?',
+    message: `“${charge.expense.description}” voltará a ficar em aberto. A liquidação será removida e os saldos e limites relacionados serão recalculados.`,
+    confirmLabel: 'Reabrir cobrança',
+    confirmClass: 'add-button',
+    onConfirm: () => {
+      let changedTransfer = false;
+      for (const { transfer, removedCents } of transferAdjustments.values()) {
+        const remainingCents = Math.max(0, Math.round(Number(transfer.amount) * 100) - removedCents);
+        if (remainingCents === Math.round(Number(transfer.amount) * 100)) continue;
+        changedTransfer = true;
+        if (remainingCents === 0) expenses = expenses.filter((item) => item.id !== transfer.id);
+        else transfer.amount = remainingCents / 100;
+      }
+      settlements = settlements.filter((payment) => payment.expenseId !== expenseId || Number(payment.installmentIndex) !== index);
+      if (changedTransfer) saveExpenses();
+      saveSettlements();
+      render();
+      showToast('Cobrança reaberta.', 'success');
+    },
+  });
 }
 function accountInUse(id) {
   return expenses.some(entry => entry.accountId === id || Object.values(entry.overrides || {}).some(override => override?.accountId === id))
@@ -1803,7 +1864,7 @@ function confirmSettlement(event) {
     expenses.push({
       id: createId('transfer'), description: `Pagamento da fatura ${targetCard?.name || 'do cartão'}`,
       amount: total, category: 'Outros', payment: 'Cartão', cardId: sourceCard.id, card: sourceCard.name,
-      cardMode: 'À vista', installments: 1, firstDate: paidAt, notes: 'Pagamento de fatura com outro cartão', type: 'debt-transfer',
+      cardMode: 'À vista', installments: 1, firstDate: paidAt, notes: 'Pagamento de fatura com outro cartão', type: 'debt-transfer', settlementBatchId: batchId,
     });
     saveExpenses();
   }
@@ -1959,11 +2020,16 @@ function initialize() {
     const edit = event.target.closest('[data-edit]');
     const remove = event.target.closest('[data-delete]');
     const payCharge = event.target.closest('[data-pay-charge]');
+    const reopenCharge = event.target.closest('[data-reopen-charge]');
     if (edit) requestExpenseEdit(expenses.find((item) => item.id === edit.dataset.edit));
     if (remove) deleteExpense(remove.dataset.delete);
     if (payCharge) {
       const [expenseId, installmentIndex] = payCharge.dataset.payCharge.split('::');
       startSettlementForCharge(expenseId, installmentIndex);
+    }
+    if (reopenCharge) {
+      const [expenseId, installmentIndex] = reopenCharge.dataset.reopenCharge.split('::');
+      reopenCardCharge(expenseId, installmentIndex);
     }
   });
   $('cards-list').addEventListener('click', (event) => {
@@ -1971,6 +2037,7 @@ function initialize() {
     const remove = event.target.closest('[data-delete-card]');
     const payBill = event.target.closest('[data-pay-bill]');
     const payCharge = event.target.closest('[data-pay-charge]');
+    const reopenCharge = event.target.closest('[data-reopen-charge]');
     const create = event.target.closest('[data-create-card]');
     if (edit) openCardDialog(cardById(edit.dataset.editCard));
     if (remove) deleteCard(remove.dataset.deleteCard);
@@ -1978,6 +2045,10 @@ function initialize() {
     if (payCharge) {
       const [expenseId, installmentIndex] = payCharge.dataset.payCharge.split('::');
       startSettlementForCharge(expenseId, installmentIndex);
+    }
+    if (reopenCharge) {
+      const [expenseId, installmentIndex] = reopenCharge.dataset.reopenCharge.split('::');
+      reopenCardCharge(expenseId, installmentIndex);
     }
     if (create) openCardDialog();
   });

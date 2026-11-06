@@ -417,7 +417,7 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 @media(max-width:760px){.tooltip-copy{left:-4px}}
 
 .nav-item svg{width:20px;height:20px;flex:0 0 20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.transactions-list .row-settle-button[data-realize]{width:92px;min-height:36px;flex:0 0 92px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center}
+.transactions-list .row-settle-button{box-sizing:border-box;width:92px;min-height:36px;flex:0 0 92px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center}
 
 /* A small in-app calendar keeps date selection consistent across browsers. */
 .date-picker-control{position:relative;min-width:0}

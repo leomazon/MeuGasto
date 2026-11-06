@@ -180,8 +180,50 @@ test('lets the user settle one card installment from monthly transactions', asyn
   assert.equal(payments[0].expenseId, 'e2e-card-purchase');
   assert.equal(payments[0].installmentIndex, 0);
   assert.equal(await page.locator('#transactions-list').getByText('Liquidado', { exact: true }).count(), 1);
+  const reopen = page.getByRole('button', { name: 'Reabrir Compra para liquidar, parcela 1' });
+  assert.equal(await reopen.count(), 1, 'a settled card charge should offer the same reopen action as a paid cash expense');
+  await reopen.click();
+  const reopenDialog = page.getByRole('dialog');
+  assert.match(await reopenDialog.innerText(), /voltará a ficar em aberto/);
+  await reopenDialog.getByRole('button', { name: 'Reabrir cobrança' }).click();
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-card-payments-v1') || '[]')), []);
+  assert.equal(await page.locator('#transactions-list').getByText('Liquidado', { exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Liquidar Compra para liquidar, parcela 1' }).count(), 1, 'the reopened charge should be payable again');
   await page.getByRole('button', { name: 'Cartões', exact: true }).click();
-  assert.match(await page.locator('.credit-card-card .limit-line strong').innerText(), /R\$\s?0,00/);
+  assert.match(await page.locator('.credit-card-card .limit-line strong').innerText(), /R\$\s?90,00/);
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
+  await page.getByRole('button', { name: 'Liquidar Compra para liquidar, parcela 1' }).click();
+  await page.locator('#settlement-method').selectOption('Pix');
+  await page.getByRole('button', { name: 'Confirmar pagamento' }).click();
+  await page.getByRole('button', { name: 'Cartões', exact: true }).click();
+  const cardReopen = page.getByRole('button', { name: 'Reabrir Compra para liquidar, parcela 1' });
+  assert.equal(await cardReopen.count(), 1, 'the card invoice should also let the user reopen a settled charge');
+  await cardReopen.click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Reabrir cobrança' }).click();
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-card-payments-v1') || '[]')), []);
+  assert.match(await page.locator('.credit-card-card .limit-line strong').innerText(), /R\$\s?90,00/);
+
+  await page.evaluate(() => {
+    const savedCards = JSON.parse(localStorage.getItem('meugasto-cards-v1') || '[]');
+    savedCards.push({ id: 'e2e-source-card', name: 'Cartão Fonte E2E', bank: 'Banco E2E', limit: 500, accountId: 'e2e-account' });
+    localStorage.setItem('meugasto-cards-v1', JSON.stringify(savedCards));
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
+  await page.getByRole('button', { name: 'Liquidar Compra para liquidar, parcela 1' }).click();
+  await page.locator('#settlement-method').selectOption('Cartão');
+  await page.locator('#funding-card').selectOption('e2e-source-card');
+  await page.getByRole('button', { name: 'Confirmar pagamento' }).click();
+  const expensesAfterCardPayment = await page.evaluate(() => JSON.parse(localStorage.getItem('meu-financeiro-v1') || '[]'));
+  assert.equal(expensesAfterCardPayment.filter(entry => entry.type === 'debt-transfer').length, 1);
+  await page.getByRole('button', { name: 'Reabrir Compra para liquidar, parcela 1' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Reabrir cobrança' }).click();
+  const expensesAfterReopen = await page.evaluate(() => JSON.parse(localStorage.getItem('meu-financeiro-v1') || '[]'));
+  assert.equal(expensesAfterReopen.filter(entry => entry.type === 'debt-transfer').length, 0, 'reopening removes the debt created on the funding card too');
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-card-payments-v1') || '[]')), []);
+  await page.getByRole('button', { name: 'Cartões', exact: true }).click();
+  assert.match(await page.locator('[data-card-id="e2e-source-card"] .limit-line strong').innerText(), /R\$\s?0,00/);
+  assert.match(await page.locator('[data-card-id="e2e-card"] .limit-line strong').innerText(), /R\$\s?90,00/);
 });
 
 test('uses larger readable type for transaction details and card billing details', async () => {
