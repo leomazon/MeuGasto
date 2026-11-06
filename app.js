@@ -42,6 +42,7 @@ const BANK_DATA = [
 const OTHER_BANK_VALUE = '__other__';
 const STORAGE_KEY = 'meu-financeiro-v1'; // Keep the existing key so current expenses stay available.
 const CARD_STORAGE_KEY = 'meugasto-cards-v1';
+const MAX_INSTALLMENTS = 24;
 const PAYMENT_STORAGE_KEY = 'meugasto-card-payments-v1';
 const ACCOUNT_STORAGE_KEY = 'meugasto-accounts-v1';
 const TRANSFER_STORAGE_KEY = 'meugasto-transfers-v1';
@@ -1428,6 +1429,11 @@ function populateCardSelect(select, excludeId = '') {
   select.innerHTML = eligible.length ? eligible.map((card) => `<option value="${escapeHtml(card.id)}">${escapeHtml(card.name)} · ${escapeHtml(card.bank)}</option>`).join('') : '<option value="">Cadastre um cartão primeiro</option>';
   syncCardPicker();
 }
+function populateInstallments(expense = null) {
+  const legacyCount = Number(expense?.installments);
+  $('installments').innerHTML = Array.from({ length: MAX_INSTALLMENTS - 1 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('')
+    + (Number.isInteger(legacyCount) && legacyCount > MAX_INSTALLMENTS ? `<option value="${legacyCount}">${legacyCount}x (registro existente)</option>` : '');
+}
 function openExpense(expense = null, scope = 'series') {
   const root = expense;
   const monthOnly = root?.recurring === true && scope === 'month';
@@ -1449,6 +1455,7 @@ function openExpense(expense = null, scope = 'series') {
   $('payment').value = expense?.payment || 'Pix';
   updateRecordAccountField(expense?.accountId || (expense ? '' : accounts[0]?.id || ''));
   $('card-mode').value = expense?.cardMode || (Number(expense?.installments) > 1 ? 'Parcelado' : 'À vista');
+  populateInstallments(expense);
   $('installments').value = String(expense?.installments || 2);
   populateCardSelect($('card-select'));
   $('card-select').value = expense?.cardId || cardForExpense(expense || {})?.id || cards[0]?.id || '';
@@ -1563,6 +1570,10 @@ function submitExpense(event) {
   }
   const cardMode = payment === 'Cartão' ? recurring ? 'À vista' : $('card-mode').value : '';
   const installments = type === 'expense' && !recurring && ['Cartão', 'Pix'].includes(payment) && $('card-mode').value === 'Parcelado' ? Number($('installments').value) : 1;
+  if (installments > MAX_INSTALLMENTS && !(previous && Number(previous.installments) === installments && previous.payment === payment)) {
+    setFieldValidationError($('installments'), `Escolha no máximo ${MAX_INSTALLMENTS} parcelas.`);
+    return;
+  }
   const amount = recordAmountFromForm(previous, payment, installments);
   if (!(amount > 0)) { setFieldValidationError($('amount'), FIELD_ERROR_MESSAGES.amount); return; }
   if (previous?.recurring === true && $('edit-scope').value === 'month') { submitMonthlyOverride(previous, amount, chosenCard, accountId); return; }
@@ -1855,7 +1866,7 @@ function initialize() {
   setupCardPicker();
   $('alerts-view').addEventListener('click',event=>{const button=event.target.closest('[data-alert-action]');if (!button) return;const alert=currentFinancialAlerts[Number(button.dataset.alertAction)];if (alert) openAlertContext(alert);});
   updateCategoryFilter(); updatePaymentFilter();
-  $('installments').innerHTML = Array.from({ length: 35 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join('');
+  populateInstallments();
   populateCardSelect($('card-select'));
   document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; if (view==='cartoes'||view==='orcamentos') setPaymentsMenuExpanded(true); render(); }));
   $('new-expense').addEventListener('click', () => openExpense());
