@@ -29,7 +29,7 @@ const CATEGORY_ICON_OPTIONS = [
   ['category', 'Outros'], ['handyman', 'Serviços'], ['work', 'Trabalho'],
   ['trending_up', 'Rendimentos'], ['home_work', 'Imóveis'], ['north_east', 'Receita'],
   ['pets', 'Pets'], ['savings', 'Poupança'], ['receipt_long', 'Recibos'],
-  ['flight', 'Viagem'], ['sports_esports', 'Jogos'], ['child_care', 'Família'],
+  ['flight', 'Viagem'], ['sports_esports', 'Jogos'], ['music_note', 'Música'], ['child_care', 'Família'],
   ['medical_services', 'Cuidados'], ['business_center', 'Negócios'], ['redeem', 'Presentes'],
 ];
 const BANK_DATA = [
