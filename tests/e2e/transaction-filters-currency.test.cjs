@@ -89,6 +89,7 @@ test('formats purchase amounts and card limits as Brazilian reais while typing',
   await cardDialog.locator('#card-limit').pressSequentially('200000');
   assert.equal((await cardDialog.locator('#card-limit').inputValue()).replace(/\s/g, ' '), 'R$ 2.000,00');
   await cardDialog.locator('#card-due-day').fill('10');
+  await cardDialog.locator('#card-closing-day').fill('2');
   await cardDialog.getByRole('button', { name: 'Salvar cartão' }).click();
   assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('meugasto-cards-v1'))))[0].limit, 2000);
 });

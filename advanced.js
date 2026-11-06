@@ -29,7 +29,8 @@ function updateRecordStatus() {
   if (byCard) $('record-status').value = 'planned';
   if (!byCard && $('record-status').value === 'realized') $('first-date').max = localDateKey();
   else $('first-date').removeAttribute('max');
-  $('record-date-label').textContent = income ? ($('record-status').value === 'realized' ? 'Data de recebimento' : 'Data prevista de recebimento') : 'Data do primeiro pagamento';
+  $('record-date-label').textContent = income ? ($('record-status').value === 'realized' ? 'Data de recebimento' : 'Data prevista de recebimento')
+    : byCard ? 'Data da compra' : 'Data do primeiro pagamento';
 }
 function realizationMarkup(charge, actions) {
   const root = expenses.find(entry => entry.id === charge.expense.id);
@@ -88,15 +89,21 @@ function confirmRealization(event) {
 }
 function submitMonthlyOverride(previous, amount, chosenCard, accountId) {
   const month = selectedMonth(), index = occurrenceIndex(previous);
-  const date = $('first-date').value;
-  if (index < 0 || date.slice(0,7)!==month) { setFieldValidationError($('first-date'), 'Escolha uma data dentro do mês selecionado.'); return; }
-  const old = Core.occurrenceEntry(previous,index);
+  const enteredDate = $('first-date').value;
   const payment = $('payment').value;
-  const override = {description:$('description').value.trim(),amount,category:$('category').value,payment,cardId:chosenCard?.id || '',card:chosenCard?.name || '',accountId,notes:$('notes').value.trim(),date,status:payment==='Cartão' ? 'planned' : $('record-status').value};
-  const changed = Number(old.amount)!==amount || old.payment!==payment || (old.cardId || '')!==override.cardId || (old.accountId || '')!==accountId || localDateKey(Core.occurrenceDate(previous,index))!==date;
+  const date = payment === 'Cartão' && chosenCard?.closingDay && chosenCard?.dueDay
+    ? Core.firstCardInvoiceDate(enteredDate,chosenCard.closingDay,chosenCard.dueDay) : enteredDate;
+  if (index < 0 || !date || date.slice(0,7)!==month) { setFieldValidationError($('first-date'), payment === 'Cartão' ? 'A compra precisa entrar na fatura do mês selecionado.' : 'Escolha uma data dentro do mês selecionado.'); return; }
+  const old = Core.occurrenceEntry(previous,index);
+  const hasCardCycle = payment==='Cartão' && chosenCard?.closingDay && chosenCard?.dueDay;
+  const override = {description:$('description').value.trim(),amount,category:$('category').value,payment,cardId:chosenCard?.id || '',card:chosenCard?.name || '',accountId,notes:$('notes').value.trim(),date,
+    purchaseDate:hasCardCycle ? enteredDate : undefined,billingDay:hasCardCycle ? chosenCard.dueDay : undefined,
+    status:payment==='Cartão' ? 'planned' : $('record-status').value};
+  const oldPurchaseDate = previous.overrides?.[month]?.purchaseDate || (previous.purchaseDate && old.payment==='Cartão' ? localDateKey(Core.installmentDate(previous.purchaseDate,index)) : '');
+  const changed = Number(old.amount)!==amount || old.payment!==payment || (old.cardId || '')!==override.cardId || (old.accountId || '')!==accountId || localDateKey(Core.occurrenceDate(previous,index))!==date || oldPurchaseDate !== (override.purchaseDate || '');
   const linked = settlements.some(item=>item.expenseId===previous.id && Number(item.installmentIndex)===index);
   if (linked && settlementResetOnSave!==previous.id) { showToast('Confirme a edição antes de alterar um mês já liquidado.', 'error'); return; }
-  if (linked && (changed || override.status==='planned')) {
+  if (linked && (changed || (payment!=='Cartão' && override.status==='planned'))) {
     settlements = settlements.filter(item=>item.expenseId!==previous.id || Number(item.installmentIndex)!==index);
     override.status='planned';
   }

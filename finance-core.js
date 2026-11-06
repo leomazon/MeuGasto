@@ -76,18 +76,41 @@
     const lastDay = new Date(year, month, 0).getDate();
     return `${year}-${String(month).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`;
   }
+  function firstCardInvoiceDate(purchaseDate, closingDay, dueDay) {
+    const closing = Number(closingDay), due = Number(dueDay);
+    const purchase = dateKey(purchaseDate);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(purchase) || ![closing,due].every(day => Number.isInteger(day) && day >= 1 && day <= 31)) return null;
+    const [year, month] = purchase.split('-').map(Number);
+    if (month < 1 || month > 12 || new Date(year, month - 1, Number(purchase.slice(8))).getMonth() !== month - 1) return null;
+    let closingMonth = new Date(year, month - 1, 1);
+    const closingDate = cardDueDate(purchase, closing);
+    // A purchase made on the closing day enters the next invoice because posting may occur after closing.
+    if (purchase >= closingDate) closingMonth = new Date(year, month, 1);
+    const actualClosingDate = cardDueDate(dateKey(closingMonth), closing);
+    let dueMonth = closingMonth;
+    if (cardDueDate(dateKey(dueMonth), due) <= actualClosingDate) dueMonth = new Date(closingMonth.getFullYear(), closingMonth.getMonth() + 1, 1);
+    return cardDueDate(dateKey(dueMonth), due);
+  }
+  function installmentOccurrenceDate(entry, index) {
+    if (entry.payment !== 'Cartão' || !Number.isInteger(Number(entry.billingDay)) || Number(entry.billingDay) < 1 || Number(entry.billingDay) > 31) {
+      return installmentDate(entry.firstDate, index);
+    }
+    const [year, month] = entry.firstDate.split('-').map(Number);
+    const target = new Date(year, month - 1 + index, 1);
+    return new Date(`${cardDueDate(dateKey(target), entry.billingDay)}T00:00:00`);
+  }
   function isChargeOverdue(chargeDate, dueDay, today) {
     const dueDate = cardDueDate(chargeDate, dueDay);
     const currentDate = dateKey(today);
     return Boolean(dueDate && /^\d{4}-\d{2}-\d{2}$/.test(currentDate) && currentDate > dueDate);
   }
   function occurrenceEntry(entry, index) {
-    const month = dateKey(installmentDate(entry.firstDate, index)).slice(0,7);
+    const month = dateKey(installmentOccurrenceDate(entry, index)).slice(0,7);
     const override = entry.recurring === true ? entry.overrides?.[month] : null;
     return override ? { ...entry, ...override, id: entry.id, firstDate: entry.firstDate, recurring: true, overrides: entry.overrides } : entry;
   }
   function occurrenceDate(entry, index) {
-    const date = installmentDate(entry.firstDate, index);
+    const date = installmentOccurrenceDate(entry, index);
     const override = entry.recurring === true ? entry.overrides?.[dateKey(date).slice(0,7)] : null;
     return override?.date && /^\d{4}-\d{2}-\d{2}$/.test(override.date) && override.date.slice(0,7) === dateKey(date).slice(0,7)
       ? new Date(`${override.date}T00:00:00`) : date;
@@ -96,7 +119,7 @@
     const effective = occurrenceEntry(entry,index);
     if (effective.payment === 'Cartão') return false;
     if (entry.realizationStates?.[String(index)] === 'planned') return false;
-    const month = dateKey(installmentDate(entry.firstDate,index)).slice(0,7);
+    const month = dateKey(installmentOccurrenceDate(entry,index)).slice(0,7);
     if (entry.overrides?.[month]?.status) return entry.overrides[month].status === 'realized';
     return entry.recurring === true ? index === 0 && entry.status === 'realized' : entry.status !== 'planned';
   }
@@ -197,14 +220,17 @@
       if (entry.type === 'debt-transfer' || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey(entry.firstDate))) continue;
       const lastMonth = cutoff.slice(0, 7);
       const lastIndex = monthOffset(entry.firstDate, lastMonth);
-      if (lastIndex < 0) continue;
-      const count = entry.recurring === true ? lastIndex + 1 : Math.min(Math.max(1, Number(entry.installments) || 1), lastIndex + 1);
+      const paidIndex = payments.filter(payment => payment.expenseId === entry.id && payment.date && dateKey(payment.date) <= cutoff)
+        .reduce((maximum, payment) => Math.max(maximum, Number(payment.installmentIndex) || 0), -1);
+      if (lastIndex < 0 && paidIndex < 0) continue;
+      const count = entry.recurring === true ? Math.max(lastIndex, paidIndex) + 1
+        : Math.min(Math.max(1, Number(entry.installments) || 1), Math.max(lastIndex, paidIndex) + 1);
       for (let index = 0; index < count; index += 1) {
-        if (entry.recurring === true && entry.recurringUntil && dateKey(installmentDate(entry.firstDate, index)).slice(0, 7) > entry.recurringUntil) continue;
+        if (entry.recurring === true && entry.recurringUntil && dateKey(installmentOccurrenceDate(entry, index)).slice(0, 7) > entry.recurringUntil) continue;
         const occurrence = occurrenceEntry(entry, index);
         const occurrenceDay = dateKey(occurrenceDate(entry, index));
-        if (occurrenceDay > cutoff) continue;
         const recorded = payments.filter(payment => payment.expenseId === entry.id && Number(payment.installmentIndex) === index);
+        if (occurrenceDay > cutoff && !recorded.some(payment => payment.date && dateKey(payment.date) <= cutoff)) continue;
         if (recorded.length) {
           for (const payment of recorded) {
             const paidByCard = payment.method === 'Cartão' || Boolean(payment.sourceCardId);
@@ -307,7 +333,7 @@
         if (effective.payment==='Cartão') {
           const card=cardById.get(String(effective.cardId||''));
           const dueDay=card?.dueDay;
-          const invoiceDueDate=cardDueDate(dueDate,dueDay);
+          const invoiceDueDate=effective.billingDay ? dueDate : cardDueDate(dueDate,dueDay);
           const remaining=chargeRemaining(entry,index,payments);
           if (!invoiceDueDate || invoiceDueDate>horizonKey || remaining<=0) continue;
           const key=`${effective.cardId||effective.card||'card'}::${invoiceDueDate}`;
@@ -422,8 +448,12 @@
     const currentMonth = dateKey(asOf).slice(0,7);
     const usedCents = expenses.filter(expense => expense.type !== 'income')
       .reduce((total, expense) => {
+        if (expense.purchaseDate && expense.payment === 'Cartão' && expense.purchaseDate > dateKey(asOf)) return total;
         const lastMonth = expense.recurringUntil && expense.recurringUntil < currentMonth ? expense.recurringUntil : currentMonth;
-        const count = expense.recurring === true ? Math.max(0, monthOffset(expense.firstDate, lastMonth) + 1) : Number(expense.installments);
+        const invoiceCount = Math.max(0, monthOffset(expense.firstDate, lastMonth) + 1);
+        const count = expense.recurring === true
+          ? invoiceCount || (expense.purchaseDate && expense.payment === 'Cartão' && !expense.recurringUntil ? 1 : 0)
+          : Number(expense.installments);
         return total + Array.from({length:count}, (_,index) => {
           const effective = occurrenceEntry(expense,index);
           return effective.payment === 'Cartão' && effective.cardId === cardId ? cents(chargeRemaining(expense,index,payments)) : 0;
@@ -446,6 +476,7 @@
     setCategoryArchived,
     installmentAmount,
     installmentDate,
+    firstCardInvoiceDate,
     monthlyClosing,
     cardDueDate,
     isChargeOverdue,

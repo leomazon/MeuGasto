@@ -307,6 +307,7 @@
           <label class="field"><span id="record-date-label">Data do primeiro pagamento</span><input id="first-date" type="date" required /></label>
           <label class="field"><span>Observação <span class="optional">opcional</span></span><input id="notes" maxlength="120" placeholder="Uma nota curta" /></label>
         </div>
+        <p class="card-invoice-preview" id="card-invoice-preview" aria-live="polite" hidden></p>
         <label class="field full-field" id="record-status-wrap"><span id="record-status-label">Situação</span><select id="record-status"><option value="realized">Pago</option><option value="planned">Em aberto</option></select></label>
         <label class="field full-field" id="record-account-wrap" hidden>Conta ou carteira<select id="record-account"></select></label>
         <label class="recurring-control"><input type="checkbox" id="recurring-record" /><span>Registro fixo mensal</span></label>
@@ -370,7 +371,10 @@
           <label class="field">Limite total<input id="card-limit" class="currency-input" type="text" required inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" /></label>
         </div>
         <label class="field full-field other-bank-wrap" id="other-bank-wrap" hidden>Nome do banco<input id="card-bank-other" type="text" maxlength="60" autocomplete="organization" placeholder="Ex.: Banco Inter" /></label>
-        <label class="field full-field">Dia de vencimento mensal<input id="card-due-day" type="number" required min="1" max="31" step="1" inputmode="numeric" placeholder="Ex.: 10" /></label>
+        <div class="field-row">
+          <label class="field">Dia de fechamento mensal<input id="card-closing-day" type="number" required min="1" max="31" step="1" inputmode="numeric" placeholder="Ex.: 4" /></label>
+          <label class="field">Dia de vencimento mensal<input id="card-due-day" type="number" required min="1" max="31" step="1" inputmode="numeric" placeholder="Ex.: 16" /></label>
+        </div>
         <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-card-dialog">Cancelar</button><button class="add-button" id="save-card" type="submit">Salvar cartão</button></div>
       </form>
     </dialog>

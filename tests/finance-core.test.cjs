@@ -26,6 +26,34 @@ test('calculates monthly card due dates and detects overdue charges by calendar 
   assert.equal(Core.isChargeOverdue('2026-02-01', '', '2026-02-11'), false);
 });
 
+test('assigns a purchase to the first invoice whose closing day has not passed', () => {
+  assert.equal(Core.firstCardInvoiceDate('2026-11-03', 4, 16), '2026-11-16');
+  assert.equal(Core.firstCardInvoiceDate('2026-11-04', 4, 16), '2026-12-16');
+  assert.equal(Core.firstCardInvoiceDate('2026-11-05', 4, 16), '2026-12-16');
+  assert.equal(Core.firstCardInvoiceDate('2026-12-05', 20, 10), '2027-01-10');
+  assert.equal(Core.firstCardInvoiceDate('2026-02-27', 31, 10), '2026-03-10');
+});
+
+test('keeps the card purchase date separate from invoice dates across short months', () => {
+  const entry = { id: 'future-card', type: 'expense', description: 'Compra', amount: 90, installments: 3,
+    payment: 'Cartão', cardId: 'bb', purchaseDate: '2026-01-28', firstDate: '2026-02-28', billingDay: 31 };
+  assert.equal(Core.monthCharges([entry], [], 'bb', '2026-01').length, 0);
+  assert.deepEqual(['2026-02', '2026-03', '2026-04'].map(month =>
+    Core.monthCharges([entry], [], 'bb', month)[0]?.date.toISOString().slice(0, 10)),
+  ['2026-02-28', '2026-03-31', '2026-04-30']);
+  assert.equal(Core.cardUsed([entry], [], 'bb'), 90);
+  assert.equal(Core.cardUsed([entry], [], 'bb', '2026-01-27'), 0);
+  assert.equal(Core.cardUsed([entry], [], 'bb', '2026-01-28'), 90);
+});
+
+test('commits the limit of a fixed card purchase from its purchase month', () => {
+  const entry = { id: 'fixed-card-cycle', type: 'expense', amount: 40, installments: 1,
+    recurring: true, payment: 'Cartão', cardId: 'bb', purchaseDate: '2026-11-05', firstDate: '2026-12-16', billingDay: 16 };
+  assert.equal(Core.cardUsed([entry], [], 'bb', '2026-11-04'), 0);
+  assert.equal(Core.cardUsed([entry], [], 'bb', '2026-11-05'), 40);
+  assert.equal(Core.cardUsed([entry], [], 'bb', '2026-12-16'), 40);
+});
+
 test('returns only the selected card month charges and subtracts prior settlements', () => {
   const payments = [{ expenseId: 'installment', installmentIndex: 3, amount: 100 }];
   const charges = Core.monthCharges(sampleExpenses, payments, 'card-a', '2026-04');
@@ -104,6 +132,14 @@ test('calculates account balances from opening amounts, settled records and inte
   assert.deepEqual(balances.map(({ id, balance }) => [id, balance]), [['checking', 1115.1], ['wallet', 155]]);
   assert.equal(balances.reduce((total, account) => total + Math.round(account.balance * 100), 0) / 100, 1270.1,
     'moving money between owned accounts must leave the combined balance unchanged');
+});
+
+test('debits an account for an early card invoice payment before its due date', () => {
+  const accounts = [{ id: 'checking', openingBalance: 100, openingDate: '2026-11-01' }];
+  const entries = [{ id: 'card-early', type: 'expense', amount: 60, installments: 1,
+    payment: 'Cartão', purchaseDate: '2026-11-05', firstDate: '2026-12-16', billingDay: 16 }];
+  const payments = [{ expenseId: 'card-early', installmentIndex: 0, amount: 60, date: '2026-11-06', method: 'Pix', accountId: 'checking' }];
+  assert.equal(Core.accountBalances(accounts, entries, payments, [], '2026-11-06')[0].balance, 40);
 });
 
 test('uses the opening date to exclude earlier activity and ignores records without an account', () => {
