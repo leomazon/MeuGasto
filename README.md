@@ -13,7 +13,7 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 ## O que está incluído
 
 - Lançamentos unificados de receitas e despesas, com seletor de tipo, categorias específicas e edição/exclusão.
-- **Saldo previsto**: receitas menos despesas previstas no mês, incluindo registros fixos e parcelas de cartão.
+- **Saldo previsto**: receitas menos despesas previstas no mês, incluindo registros fixos e parcelas em Pix ou cartão.
 - **Saldo realizado**: recebimentos menos pagamentos confirmados, pela data em que ocorreram. Os dois saldos são movimentos do mês e não incluem saldo anterior.
 - Situação de receitas e despesas (previsto/em aberto ou recebido/pago), com confirmação de data e reabertura mediante confirmação. Pix, dinheiro e transferência entram no realizado quando confirmados; cartões entram ao pagar a fatura, sem contar transferências de dívida entre cartões como saída de dinheiro.
 - Registros avulsos antigos em Pix/dinheiro e receitas antigas são tratados como realizados para manter a compatibilidade. Registros fixos antigos seguem previstos até a confirmação mensal.
@@ -24,7 +24,7 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 - Contas e carteiras com saldo inicial, saldo atual e vínculo de receitas, despesas e pagamentos de fatura. Transferências entre contas atualizam os dois saldos sem serem tratadas como receita ou despesa. **Conferência de saldo** compara o valor calculado com o extrato e registra ajustes datados com histórico, sem reescrever lançamentos nem alterar os totais mensais.
 - Lançamentos filtrados pelo mês selecionado, com busca, paginação e opções de 10, 20, 30 ou 50 itens por página.
 - Categorias personalizadas de receita e despesa com nome, ícone Material e cor. Renomear atualiza lançamentos, exceções de registros fixos e orçamentos vinculados; arquivar impede novos usos sem apagar o histórico. Categorias arquivadas podem ser reativadas.
-- Compras no cartão à vista ou parceladas. O app distribui o valor total em cobranças mensais; a última parcela ajusta a diferença de centavos.
+- Despesas em Pix ou cartão à vista ou parceladas. No parcelamento, informe o valor de cada parcela: o app mostra o total calculado e lança as parcelas nos meses seguintes. No Pix, cada parcela pode ser paga ou reaberta separadamente. Compras parceladas antigas preservam o total já salvo, inclusive ajustes de centavos na última parcela.
 - Exportação e importação de backup em JSON, incluindo categorias, orçamentos, contas, transferências e conferências de saldo.
 - Cópias SQLite automáticas ao salvar, com intervalo mínimo de 30 minutos e retenção das 30 cópias mais recentes. Em **Backups locais**, gere uma cópia manual ou restaure uma anterior. Antes da restauração, o estado atual recebe uma cópia de segurança.
 - Evolução dos últimos 6 ou 12 meses até o mês selecionado, com receitas e despesas previstas, saldo previsto e saldo realizado.
@@ -48,4 +48,4 @@ As regras financeiras têm testes no Node.js, a persistência SQLite usa `unitte
 
 ## Decisões de implementação
 
-A conciliação usa o núcleo financeiro e a persistência local já existentes. Não foi adicionada uma biblioteca externa: o cálculo é pequeno e depende das regras específicas de data, conta e lançamentos do MeuGasto; uma dependência genérica não reduziria a complexidade nem melhoraria a integração. O cadastro de categorias reutiliza os ícones Material já hospedados no projeto e os controles nativos de cor e seleção, evitando uma dependência apenas para esses campos.
+A conciliação usa o núcleo financeiro e a persistência local já existentes. Não foi adicionada uma biblioteca externa: o cálculo é pequeno e depende das regras específicas de data, conta e lançamentos do MeuGasto; uma dependência genérica não reduziria a complexidade nem melhoraria a integração. O cadastro de categorias reutiliza os ícones Material já hospedados no projeto e os controles nativos de cor e seleção, evitando uma dependência apenas para esses campos. O Pix parcelado reutiliza o seletor mensal, a confirmação de pagamentos e os cálculos de parcelas já existentes; outra biblioteca acrescentaria dependência sem oferecer a integração com os saldos e alertas do app.

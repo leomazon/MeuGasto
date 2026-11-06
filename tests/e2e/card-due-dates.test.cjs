@@ -94,7 +94,7 @@ test('saves the monthly closing and due days when creating and editing a card', 
   assert.equal(cards[0].dueDay, 22);
 });
 
-test('records the purchase date and bills the first installment after closing', async () => {
+test('records the purchase date and bills card installments after closing', async () => {
   await page.goto(appUrl);
   await page.evaluate(() => {
     localStorage.clear();
@@ -106,8 +106,11 @@ test('records the purchase date and bills the first installment after closing', 
   await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
   await page.locator('#new-expense').click();
   await page.getByLabel('Descrição').fill('Compra após fechamento');
-  await page.getByLabel('Valor total').fill('12000');
   await page.locator('#payment').selectOption('Cartão');
+  await page.locator('#card-mode').selectOption('Parcelado');
+  await page.locator('#installments').selectOption('2');
+  assert.equal(await page.locator('#amount-label').innerText(), 'Valor da parcela');
+  await page.locator('#amount').fill('12000');
   await page.locator('#card-select').selectOption('bb-cycle');
   await page.locator('#first-date').fill('2026-11-05');
   assert.equal(await page.locator('#record-date-label').innerText(), 'Data da compra');
@@ -117,9 +120,12 @@ test('records the purchase date and bills the first installment after closing', 
   assert.equal(entry.purchaseDate, '2026-11-05');
   assert.equal(entry.firstDate, '2026-12-16');
   assert.equal(entry.billingDay, 16);
+  assert.equal(entry.amount, 240);
   await page.getByRole('button', { name: 'Cartões', exact: true }).click();
   assert.match(await page.locator('#cards-list').innerText(), /Compra após fechamento/);
   assert.match((await page.locator('#cards-list').innerText()).replace(/\u00a0/g, ' '), /R\$ 120,00/);
+  await page.getByRole('button', { name: 'Próximo mês', exact: true }).click();
+  assert.match(await page.locator('#cards-list').innerText(), /Compra após fechamento/);
 });
 
 test('keeps the invoice month of an older card record when it is edited', async () => {
@@ -143,6 +149,32 @@ test('keeps the invoice month of an older card record when it is edited', async 
   await page.locator('#save-expense').click();
   const entry = await page.evaluate(() => JSON.parse(localStorage.getItem('meu-financeiro-v1'))[0]);
   assert.equal(entry.firstDate, '2026-11-03');
+});
+
+test('does not change an older uneven installment total when its description is edited', async () => {
+  await page.goto(appUrl);
+  await page.evaluate(() => {
+    localStorage.clear();
+    localStorage.setItem('meugasto-cards-v1', JSON.stringify([
+      { id: 'old-card', name: 'Ourocard', bank: 'Banco do Brasil', limit: 1000, closingDay: 4, dueDay: 16 },
+    ]));
+    localStorage.setItem('meu-financeiro-v1', JSON.stringify([
+      { id: 'old-parts', description: 'Compra antiga', type: 'expense', amount: 100, installments: 3,
+        payment: 'Cartão', cardId: 'old-card', card: 'Ourocard', category: 'Compras', firstDate: '2026-11-16' },
+    ]));
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
+  await page.locator('#month-picker').fill('2026-11');
+  await page.locator('#month-picker').dispatchEvent('change');
+  await page.getByRole('button', { name: 'Editar Compra antiga' }).click();
+  assert.equal(await page.locator('#amount-label').innerText(), 'Valor da parcela');
+  assert.equal((await page.locator('#amount').inputValue()).replace(/\s/g, ' '), 'R$ 33,33');
+  await page.locator('#description').fill('Compra antiga revisada');
+  await page.locator('#save-expense').click();
+  const entry = await page.evaluate(() => JSON.parse(localStorage.getItem('meu-financeiro-v1'))[0]);
+  assert.equal(entry.amount, 100);
+  assert.equal(entry.description, 'Compra antiga revisada');
 });
 
 test('keeps a paid fixed card month settled when only its note changes', async () => {

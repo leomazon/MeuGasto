@@ -838,7 +838,7 @@ function expenseLabel(charge) {
   if (expense.type === 'income') return expense.payment;
   const card = expense.payment === 'Cartão' ? cardForExpense(expense) : null;
   const cardLabel = card ? ` · ${escapeHtml(card.name)}` : '';
-  return Number(expense.installments) > 1 ? `${index + 1}/${expense.installments} parcela${cardLabel}` : (expense.payment === 'Cartão' ? `${expense.cardMode || 'À vista'}${cardLabel}` : expense.payment);
+  return Number(expense.installments) > 1 ? `${index + 1}/${expense.installments} parcela${cardLabel || ` · ${escapeHtml(expense.payment)}`}` : (expense.payment === 'Cartão' ? `${expense.cardMode || 'À vista'}${cardLabel}` : expense.payment);
 }
 function purchaseDateForCharge(charge) {
   const entry = charge.expense;
@@ -1440,7 +1440,9 @@ function openExpense(expense = null, scope = 'series') {
   document.querySelectorAll('input[name="record-type"]').forEach(input=>{input.disabled=monthOnly;});
   $('expense-id').value = expense?.id || '';
   $('description').value = expense?.description || '';
-  $('amount').value = expense ? currency.format(Number(expense.amount)) : '';
+  $('amount').value = expense ? currency.format(Number(expense.installments) > 1 && ['Pix', 'Cartão'].includes(expense.payment)
+    ? Core.installmentAmount(expense.amount, expense.installments, 0) : Number(expense.amount)) : '';
+  $('amount').dataset.initialValue = $('amount').value;
   document.querySelector(`input[name="record-type"][value="${expense?.type === 'income' ? 'income' : 'expense'}"]`).checked = true;
   $('recurring-record').checked = expense?.recurring === true && (!expense.recurringUntil || expense.recurringUntil > selectedMonth());
   updateRecordType(expense?.category || '');
@@ -1497,11 +1499,16 @@ function updatePaymentFields() {
   }
   $('recurring-hint').textContent = recurringHint;
   const isCard = recordType() === 'expense' && $('payment').value === 'Cartão';
+  const isPix = recordType() === 'expense' && $('payment').value === 'Pix';
   $('record-date-label').textContent = isCard ? 'Data da compra' : recordType() === 'income' ? 'Data de recebimento' : 'Data do primeiro pagamento';
-  const isInstallment = isCard && $('card-mode').value === 'Parcelado';
-  $('card-mode-wrap').hidden = !isCard || fixed;
-  $('card-details-row').hidden = !isCard;
+  const isInstallment = (isCard || isPix) && !fixed && $('card-mode').value === 'Parcelado';
+  $('amount-label').textContent = isInstallment ? 'Valor da parcela' : 'Valor total';
+  $('payment-mode-label').textContent = isPix ? 'Parcelamento do Pix' : 'Tipo de compra';
+  $('card-mode-wrap').hidden = !(isCard || isPix) || fixed;
+  $('card-details-row').hidden = !isCard && !isInstallment;
+  $('card-select-wrap').hidden = !isCard;
   $('installments-wrap').hidden = !isInstallment;
+  $('installments').required = isInstallment;
   $('card-select').required = isCard;
   $('card-select').disabled = isCard && cards.length === 0;
   $('card-select-trigger').disabled = isCard && cards.length === 0;
@@ -1512,9 +1519,20 @@ function updatePaymentFields() {
   updateCardInvoicePreview();
   if ($('edit-scope').value === 'month' && existing?.recurring) $('recurring-hint').textContent = `Somente ${monthLabel(selectedMonth())} será alterado. Os demais meses e seus pagamentos serão preservados.`;
   if (!isInstallment) return;
-  const amount = parseCurrencyInput($('amount').value);
+  const unitAmount = parseCurrencyInput($('amount').value);
   const parts = Number($('installments').value) || 2;
-  $('installment-hint').textContent = amount ? `Serão lançadas ${parts} cobranças mensais de aproximadamente ${currency.format(amount / parts)}. O limite ficará comprometido pelo saldo total ainda em aberto.` : 'Informe o valor total para ver uma estimativa das parcelas.';
+  const total = recordAmountFromForm(existing, $('payment').value, parts);
+  $('installment-hint').textContent = unitAmount
+    ? `${parts} parcelas de ${currency.format(unitAmount)} · total ${currency.format(total)}. ${isCard ? 'O limite fica comprometido pelo saldo ainda em aberto.' : 'As próximas parcelas começam em aberto.'}`
+    : 'Informe o valor de cada parcela para ver o total.';
+}
+function recordAmountFromForm(previous, payment, installments) {
+  const unitAmount = Math.round(parseCurrencyInput($('amount').value) * 100) / 100;
+  const isInstallment = ['Cartão', 'Pix'].includes(payment) && $('card-mode').value === 'Parcelado' && installments > 1;
+  if (!isInstallment) return unitAmount;
+  if (previous && previous.payment === payment && Number(previous.installments) === installments
+    && $('amount').value === $('amount').dataset.initialValue) return Number(previous.amount);
+  return Core.totalFromInstallmentAmount(unitAmount, installments);
 }
 function submitExpense(event) {
   event.preventDefault();
@@ -1544,8 +1562,8 @@ function submitExpense(event) {
     return;
   }
   const cardMode = payment === 'Cartão' ? recurring ? 'À vista' : $('card-mode').value : '';
-  const installments = payment === 'Cartão' && cardMode === 'Parcelado' ? Number($('installments').value) : 1;
-  const amount = Math.round(parseCurrencyInput($('amount').value) * 100) / 100;
+  const installments = type === 'expense' && !recurring && ['Cartão', 'Pix'].includes(payment) && $('card-mode').value === 'Parcelado' ? Number($('installments').value) : 1;
+  const amount = recordAmountFromForm(previous, payment, installments);
   if (!(amount > 0)) { setFieldValidationError($('amount'), FIELD_ERROR_MESSAGES.amount); return; }
   if (previous?.recurring === true && $('edit-scope').value === 'month') { submitMonthlyOverride(previous, amount, chosenCard, accountId); return; }
   const firstDate = payment === 'Cartão' && !unchangedLegacyCardDate && chosenCard.closingDay && chosenCard.dueDay
