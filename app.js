@@ -121,11 +121,15 @@ let localDatabaseEnabled = false;
 let localDatabaseQueue = Promise.resolve();
 
 function createId(prefix = 'item') { return crypto.randomUUID ? crypto.randomUUID() : `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+function normalizeCard(item) {
+  const validDay = value => Number.isInteger(Number(value)) && Number(value) >= 1 && Number(value) <= 31 ? Number(value) : null;
+  return { ...item, closingDay: validDay(item.closingDay), dueDay: validDay(item.dueDay) };
+}
 function loadCards() {
   try {
     const stored = JSON.parse(localStorage.getItem(CARD_STORAGE_KEY) || '[]');
     return Array.isArray(stored) ? stored.filter((item) => item && typeof item.id === 'string' && typeof item.name === 'string' && Number.isFinite(Number(item.limit)) && Number(item.limit) >= 0)
-      .map((item) => ({ ...item, dueDay: Number.isInteger(Number(item.dueDay)) && Number(item.dueDay) >= 1 && Number(item.dueDay) <= 31 ? Number(item.dueDay) : null })) : [];
+      .map(normalizeCard) : [];
   } catch { return []; }
 }
 function loadExpenses() {
@@ -227,7 +231,7 @@ async function restoreLocalDatabase() {
     localDatabaseEnabled = true;
     if (initialized) {
       cards = state.cards.filter((item) => item && typeof item.id === 'string' && typeof item.name === 'string' && Number.isFinite(Number(item.limit)) && Number(item.limit) >= 0)
-        .map((item) => ({ ...item, dueDay: Number.isInteger(Number(item.dueDay)) && Number(item.dueDay) >= 1 && Number(item.dueDay) <= 31 ? Number(item.dueDay) : null }));
+        .map(normalizeCard);
       expenses = state.expenses.filter(isValidExpense);
       settlements = state.settlements.filter((item) => item && typeof item.id === 'string' && typeof item.expenseId === 'string' && Number.isInteger(Number(item.installmentIndex)) && Number(item.amount) > 0);
       budgets = Array.isArray(state.budgets) ? state.budgets.filter(validBudget) : [];
@@ -389,7 +393,7 @@ function updateRecordType(selectedCategory = '') {
   syncPaymentPicker();
   $('description').placeholder = income ? 'Ex.: salário, serviço prestado' : 'Ex.: mercado, conta de luz';
   $('payment-label').textContent = income ? 'Forma de recebimento' : 'Forma de pagamento';
-  $('record-date-label').textContent = income ? 'Data de recebimento' : 'Data do primeiro pagamento';
+  $('record-date-label').textContent = income ? 'Data de recebimento' : $('payment').value === 'Cartão' ? 'Data da compra' : 'Data do primeiro pagamento';
   if (income) $('first-date').max = localDateKey(); else $('first-date').removeAttribute('max');
   updatePaymentFields();
 }
@@ -571,6 +575,7 @@ const FIELD_ERROR_MESSAGES = {
   'card-bank': 'Selecione o banco ou emissor do cartão.',
   'card-bank-other': 'Digite o nome do banco.',
   'card-limit': 'Informe um limite maior que zero.',
+  'card-closing-day': 'Informe um dia de fechamento entre 1 e 31.',
   'card-due-day': 'Informe um dia de vencimento entre 1 e 31.',
   'funding-card': 'Selecione outro cartão para pagar esta fatura.',
   'realization-date': 'Informe a data do pagamento ou recebimento.',
@@ -585,7 +590,7 @@ function fieldValidationMessage(control) {
   const id = control.id;
   if (control.required && !value) return FIELD_ERROR_MESSAGES[id] || 'Preencha este campo.';
   if (['amount', 'card-limit', 'budget-amount'].includes(id) && parseCurrencyInput(value) <= 0) return FIELD_ERROR_MESSAGES[id];
-  if (id === 'card-due-day') {
+  if (id === 'card-due-day' || id === 'card-closing-day') {
     const day = Number(value);
     if (!Number.isInteger(day) || day < 1 || day > 31) return FIELD_ERROR_MESSAGES[id];
   }
@@ -594,7 +599,7 @@ function fieldValidationMessage(control) {
   if (!control.validity.valid) {
     if (control.validity.rangeOverflow && control.type === 'date') return 'Informe uma data igual ou anterior a hoje.';
     if (control.validity.rangeUnderflow && id === 'reconciliation-date') return 'A data deve ser igual ou posterior à última conferência de saldo.';
-    if (control.validity.rangeUnderflow && id === 'card-due-day') return FIELD_ERROR_MESSAGES[id];
+    if (control.validity.rangeUnderflow && (id === 'card-due-day' || id === 'card-closing-day')) return FIELD_ERROR_MESSAGES[id];
     if (control.validity.typeMismatch) return 'Confira o formato informado.';
     return FIELD_ERROR_MESSAGES[id] || 'Confira o valor informado.';
   }
@@ -835,6 +840,12 @@ function expenseLabel(charge) {
   const cardLabel = card ? ` · ${escapeHtml(card.name)}` : '';
   return Number(expense.installments) > 1 ? `${index + 1}/${expense.installments} parcela${cardLabel}` : (expense.payment === 'Cartão' ? `${expense.cardMode || 'À vista'}${cardLabel}` : expense.payment);
 }
+function purchaseDateForCharge(charge) {
+  const entry = charge.expense;
+  if (entry.payment !== 'Cartão' || !entry.purchaseDate) return null;
+  const override = entry.recurring === true ? entry.overrides?.[monthKey(charge.date)]?.purchaseDate : null;
+  return dateFromKey(override || (entry.recurring === true ? localDateKey(Core.installmentDate(entry.purchaseDate, charge.index)) : entry.purchaseDate));
+}
 function renderExpenseRow(charge, actions = false, categoryShare = null) {
   const income = charge.expense.type === 'income';
   const info = category(charge.expense.category, income ? 'income' : 'expense');
@@ -845,7 +856,8 @@ function renderExpenseRow(charge, actions = false, categoryShare = null) {
   const linkedAccount = accountById(accountId);
   const cashStatus = realizationMarkup(charge, actions);
   const isPaid = charge.expense.payment === 'Cartão' ? charge.remaining <= 0 : cashStatus.paid;
-  const isOverdue = !isPaid && paymentCard?.dueDay && Core.isChargeOverdue(charge.date, paymentCard.dueDay, localDateKey());
+  const isOverdue = !isPaid && paymentCard?.dueDay && Core.isChargeOverdue(charge.date, charge.expense.billingDay || paymentCard.dueDay, localDateKey());
+  const purchaseDate = purchaseDateForCharge(charge);
   const fixedStatus = charge.expense.recurring === true ? '<span class="fixed-tag"><span class="material-icons" aria-hidden="true">push_pin</span>Fixo mensal</span>' : '';
   const paymentStatus = charge.expense.payment !== 'Cartão' ? cashStatus.badge : isPaid ? '<span class="paid-tag">Liquidado</span>' : isOverdue ? '<span class="overdue-tag">Vencido</span>' : '';
   const statusMarkup = fixedStatus || paymentStatus ? `<span class="expense-statuses">${fixedStatus}${paymentStatus}</span>` : '';
@@ -854,7 +866,7 @@ function renderExpenseRow(charge, actions = false, categoryShare = null) {
     ? `<button class="row-settle-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}" aria-label="Liquidar ${escapeHtml(charge.expense.description)}, ${charge.expense.recurring === true ? monthLabel(monthKey(charge.date)) : `parcela ${charge.index + 1}`}">Liquidar</button>` : charge.expense.payment !== 'Cartão' ? cashStatus.button : '';
   return `<div class="expense-row">
     ${categoryIcon(info, 'expense-emoji')}
-    <div class="expense-name"><strong>${escapeHtml(charge.expense.description)}</strong><span class="expense-meta"><span class="expense-details">${escapeHtml(charge.expense.category)} · ${escapeHtml(expenseLabel(charge))}${linkedAccount ? ` · ${escapeHtml(linkedAccount.name)}` : ''}${charge.expense.notes ? ` · ${escapeHtml(charge.expense.notes)}` : ''}</span>${statusMarkup}</span>${categoryShareMarkup}</div>
+    <div class="expense-name"><strong>${escapeHtml(charge.expense.description)}</strong><span class="expense-meta"><span class="expense-details">${escapeHtml(charge.expense.category)} · ${escapeHtml(expenseLabel(charge))}${purchaseDate ? ` · Compra ${escapeHtml(dateLabel(purchaseDate))}` : ''}${linkedAccount ? ` · ${escapeHtml(linkedAccount.name)}` : ''}${charge.expense.notes ? ` · ${escapeHtml(charge.expense.notes)}` : ''}</span>${statusMarkup}</span>${categoryShareMarkup}</div>
     ${actions ? `<span class="row-date">${dateLabel(charge.date)}</span><span class="row-payment"><span class="record-kind ${income ? 'income-kind' : 'expense-kind'}">${income ? 'Receita' : 'Despesa'}</span><small>${escapeHtml(charge.expense.payment)}</small></span><strong class="expense-value ${income ? 'income-value' : ''}">${currency.format(charge.remaining > 0 ? charge.remaining : charge.amount)}</strong><div class="row-actions">${settleButton}<button class="icon-button" aria-label="Editar ${escapeHtml(charge.expense.description)}" data-edit="${escapeHtml(charge.expense.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(charge.expense.description)}" data-delete="${escapeHtml(charge.expense.id)}">${materialIcon('close')}</button></div>` : `<strong class="expense-value">${currency.format(charge.amount)}</strong>`}
   </div>`;
 }
@@ -1072,9 +1084,9 @@ function renderCardItem(card) {
   const monthlyCharges = chargesForMonth(selectedMonth(), card.id).filter((charge) => charge.expense.payment === 'Cartão');
   const due = monthlyCharges.reduce((sum, charge) => sum + charge.remaining, 0);
   const unpaid = monthlyCharges.filter((charge) => charge.remaining > 0);
-  const rows = monthlyCharges.length ? monthlyCharges.map((charge) => `<div class="bill-line"><div class="bill-description"><strong>${escapeHtml(charge.expense.description)}</strong><span>${charge.expense.recurring === true ? 'Fixo mensal' : `${charge.index + 1}/${charge.expense.installments}`} · ${dateLabel(charge.date)} · ${currency.format(charge.amount)}</span></div><strong>${charge.remaining <= 0 ? '<span class="paid-tag">Liquidado</span>' : currency.format(charge.remaining)}</strong>${charge.remaining > 0 ? `<button class="pay-charge-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}">Liquidar</button>` : ''}</div>`).join('') : '<p class="empty-note compact-empty">Nenhuma cobrança neste mês.</p>';
+  const rows = monthlyCharges.length ? monthlyCharges.map((charge) => `<div class="bill-line"><div class="bill-description"><strong>${escapeHtml(charge.expense.description)}</strong><span>${charge.expense.recurring === true ? 'Fixo mensal' : `${charge.index + 1}/${charge.expense.installments}`} · ${purchaseDateForCharge(charge) ? `Compra ${dateLabel(purchaseDateForCharge(charge))} · ` : ''}Vence ${dateLabel(charge.date)} · ${currency.format(charge.amount)}</span></div><strong>${charge.remaining <= 0 ? '<span class="paid-tag">Liquidado</span>' : currency.format(charge.remaining)}</strong>${charge.remaining > 0 ? `<button class="pay-charge-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}">Liquidar</button>` : ''}</div>`).join('') : '<p class="empty-note compact-empty">Nenhuma cobrança neste mês.</p>';
   return `<article class="credit-card-card" data-card-id="${escapeHtml(card.id)}">
-    <div class="credit-card-top">${bankBadgeMarkup(card.bank, 'credit-bank-badge')}<div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">${materialIcon('close')}</button></div></div>
+    <div class="credit-card-top">${bankBadgeMarkup(card.bank, 'credit-bank-badge')}<div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.closingDay ? `fecha dia ${card.closingDay} · ` : ''}${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">${materialIcon('close')}</button></div></div>
     <div class="limit-line"><span>Limite utilizado</span><strong>${currency.format(used)} <small>de ${currency.format(limit)}</small></strong></div>
     <div class="card-progress large-progress"><i style="width:${percentage}%"></i></div>
     <div class="limit-foot"><span>Disponível</span><strong class="${available < 0 ? 'over-limit' : ''}">${currency.format(available)}</strong></div>
@@ -1438,7 +1450,11 @@ function openExpense(expense = null, scope = 'series') {
   $('installments').value = String(expense?.installments || 2);
   populateCardSelect($('card-select'));
   $('card-select').value = expense?.cardId || cardForExpense(expense || {})?.id || cards[0]?.id || '';
-  $('first-date').value = monthOnly ? localDateKey(Core.occurrenceDate(root,index)) : expense?.firstDate || localDateKey();
+  $('first-date').value = monthOnly
+    ? expense?.purchaseDate && expense.payment === 'Cartão'
+      ? root?.overrides?.[selectedMonth()]?.purchaseDate || localDateKey(Core.installmentDate(root.purchaseDate,index))
+      : localDateKey(Core.occurrenceDate(root,index))
+    : expense?.purchaseDate || expense?.firstDate || localDateKey();
   $('notes').value = expense?.notes || '';
   $('dialog-title').textContent = expense ? 'Editar registro' : 'Novo registro';
   $('save-expense').textContent = expense ? 'Salvar alterações' : 'Salvar registro';
@@ -1447,6 +1463,27 @@ function openExpense(expense = null, scope = 'series') {
   updateRecordStatus();
   if (!$('expense-dialog').open) $('expense-dialog').showModal();
   $('description').focus();
+}
+function updateCardInvoicePreview() {
+  const preview = $('card-invoice-preview');
+  const isCard = recordType() === 'expense' && $('payment').value === 'Cartão';
+  preview.hidden = !isCard;
+  if (!isCard) return;
+  const card = cardById($('card-select').value);
+  if (!card) { preview.textContent = 'Selecione um cartão para ver a primeira fatura.'; return; }
+  const previous = expenses.find(entry => entry.id === $('expense-id').value);
+  if (previous?.payment === 'Cartão' && !previous.purchaseDate && previous.cardId === card.id && previous.firstDate === $('first-date').value) {
+    preview.textContent = 'Registro antigo: a fatura atual será preservada. Se mudar esta data, ela passará a ser a data da compra e a fatura será recalculada.';
+    return;
+  }
+  if (!card.closingDay || !card.dueDay) {
+    preview.textContent = 'Cadastre o dia de fechamento em Cartões para calcular a fatura; até lá, vale o mês informado no registro.';
+    return;
+  }
+  const dueDate = Core.firstCardInvoiceDate($('first-date').value, card.closingDay, card.dueDay);
+  preview.textContent = dueDate
+    ? `Primeira fatura: ${monthLabel(dueDate.slice(0,7))} · vence em ${new Intl.DateTimeFormat('pt-BR').format(dateFromKey(dueDate))}.`
+    : 'Escolha a data da compra para ver a primeira fatura.';
 }
 function updatePaymentFields() {
   const existing = expenses.find(entry => entry.id === $('expense-id').value);
@@ -1460,6 +1497,7 @@ function updatePaymentFields() {
   }
   $('recurring-hint').textContent = recurringHint;
   const isCard = recordType() === 'expense' && $('payment').value === 'Cartão';
+  $('record-date-label').textContent = isCard ? 'Data da compra' : recordType() === 'income' ? 'Data de recebimento' : 'Data do primeiro pagamento';
   const isInstallment = isCard && $('card-mode').value === 'Parcelado';
   $('card-mode-wrap').hidden = !isCard || fixed;
   $('card-details-row').hidden = !isCard;
@@ -1471,6 +1509,7 @@ function updatePaymentFields() {
   updateRecordAccountField();
   $('installment-hint').hidden = !isInstallment;
   updateRecordStatus();
+  updateCardInvoicePreview();
   if ($('edit-scope').value === 'month' && existing?.recurring) $('recurring-hint').textContent = `Somente ${monthLabel(selectedMonth())} será alterado. Os demais meses e seus pagamentos serão preservados.`;
   if (!isInstallment) return;
   const amount = parseCurrencyInput($('amount').value);
@@ -1497,6 +1536,9 @@ function submitExpense(event) {
     setFieldValidationError(cards.length ? $('card-select') : $('payment'), cards.length ? FIELD_ERROR_MESSAGES['card-select'] : 'Cadastre um cartão antes de registrar uma compra no crédito.');
     return;
   }
+  const enteredDate = $('first-date').value;
+  const unchangedLegacyCardDate = payment === 'Cartão' && previous?.payment === 'Cartão' && !previous.purchaseDate
+    && previous.firstDate === enteredDate && previous.cardId === cardId;
   if (payment !== 'Cartão' && accounts.length && !accountById(accountId)) {
     setFieldValidationError($('record-account'), 'Selecione a conta ou carteira deste lançamento.');
     return;
@@ -1506,19 +1548,24 @@ function submitExpense(event) {
   const amount = Math.round(parseCurrencyInput($('amount').value) * 100) / 100;
   if (!(amount > 0)) { setFieldValidationError($('amount'), FIELD_ERROR_MESSAGES.amount); return; }
   if (previous?.recurring === true && $('edit-scope').value === 'month') { submitMonthlyOverride(previous, amount, chosenCard, accountId); return; }
+  const firstDate = payment === 'Cartão' && !unchangedLegacyCardDate && chosenCard.closingDay && chosenCard.dueDay
+    ? Core.firstCardInvoiceDate(enteredDate, chosenCard.closingDay, chosenCard.dueDay) : enteredDate;
+  if (!firstDate) { setFieldValidationError($('first-date'), 'Informe uma data válida para a compra.'); return; }
   const expense = {
     ...previous,
     id: $('expense-id').value || createId('expense'), description: $('description').value.trim(), amount,
     category: $('category').value, payment, cardId, card: chosenCard?.name || '', accountId, cardMode, installments,
-    firstDate: $('first-date').value, notes: $('notes').value.trim(), type, recurring, status: payment==='Cartão' ? 'planned' : previous?.recurring === true ? previous.status || 'planned' : $('record-status').value, recurringUntil,
+    firstDate, purchaseDate: payment === 'Cartão' && !unchangedLegacyCardDate ? enteredDate : undefined,
+    billingDay: payment === 'Cartão' && !unchangedLegacyCardDate && chosenCard.closingDay ? chosenCard.dueDay : undefined,
+    notes: $('notes').value.trim(), type, recurring, status: payment==='Cartão' ? 'planned' : previous?.recurring === true ? previous.status || 'planned' : $('record-status').value, recurringUntil,
   };
   if (!expense.description) { setFieldValidationError($('description'), FIELD_ERROR_MESSAGES.description); return; }
   if (expense.status === 'realized' && expense.firstDate > localDateKey()) { setFieldValidationError($('first-date'), 'A data do registro não pode ser futura quando ele já está pago ou recebido.'); return; }
   if (recurringUntil && expense.firstDate.slice(0,7) > recurringUntil) { setFieldValidationError($('first-date'), 'A data inicial precisa ser anterior ao encerramento da repetição.'); return; }
-  if (previous?.recurring === true && recurringUntil && settlements.some(payment => payment.expenseId === previous.id && monthKey(Core.installmentDate(previous.firstDate, Number(payment.installmentIndex))) > recurringUntil)) { showToast('Há liquidações posteriores a esse mês. Encerre a repetição no último mês já liquidado ou depois dele.', 'error'); return; }
+  if (previous?.recurring === true && recurringUntil && settlements.some(payment => payment.expenseId === previous.id && monthKey(Core.occurrenceDate(previous, Number(payment.installmentIndex))) > recurringUntil)) { showToast('Há liquidações posteriores a esse mês. Encerre a repetição no último mês já liquidado ou depois dele.', 'error'); return; }
   const existing = expenses.findIndex((item) => item.id === expense.id);
   const authorizedEdit = existing >= 0 && settlementResetOnSave === expense.id;
-  const financialState = entry => JSON.stringify([Math.round(Number(entry.amount) * 100), entry.firstDate, entry.payment, entry.cardId || '', entry.accountId || '', entry.type || 'expense', Number(entry.installments) || 1, entry.recurring === true]);
+  const financialState = entry => JSON.stringify([Math.round(Number(entry.amount) * 100), entry.firstDate, entry.purchaseDate || '', entry.billingDay || '', entry.payment, entry.cardId || '', entry.accountId || '', entry.type || 'expense', Number(entry.installments) || 1, entry.recurring === true]);
   const financialChange = previous && financialState(previous) !== financialState(expense);
   const resetsSettlements = authorizedEdit && (!previous?.recurring || financialChange);
   if (existing >= 0 && settlements.some((item) => item.expenseId === expense.id) && !authorizedEdit) {
@@ -1602,6 +1649,7 @@ function openCardDialog(card = null) {
   $('card-name').value = card?.name || '';
   setCardBankOptions(card?.bank || '');
   $('card-limit').value = card ? currency.format(Number(card.limit)) : '';
+  $('card-closing-day').value = card?.closingDay || '';
   $('card-due-day').value = card?.dueDay || '';
   $('card-dialog-title').textContent = card ? 'Editar cartão' : 'Adicionar cartão';
   $('save-card').textContent = card ? 'Salvar alterações' : 'Salvar cartão';
@@ -1614,15 +1662,17 @@ function submitCard(event) {
   const selectedBank = $('card-bank').value;
   const bank = selectedBank === OTHER_BANK_VALUE ? $('card-bank-other').value.trim() : bankInfo(selectedBank).name;
   const limit = Math.round(parseCurrencyInput($('card-limit').value) * 100) / 100;
+  const closingDay = Number($('card-closing-day').value);
   const dueDay = Number($('card-due-day').value);
   if (!name) { setFieldValidationError($('card-name'), FIELD_ERROR_MESSAGES['card-name']); return; }
   if (!selectedBank) { setFieldValidationError($('card-bank'), FIELD_ERROR_MESSAGES['card-bank']); return; }
   if (selectedBank === OTHER_BANK_VALUE && !bank) { setFieldValidationError($('card-bank-other'), FIELD_ERROR_MESSAGES['card-bank-other']); return; }
   if (!(limit > 0)) { setFieldValidationError($('card-limit'), FIELD_ERROR_MESSAGES['card-limit']); return; }
+  if (!Number.isInteger(closingDay) || closingDay < 1 || closingDay > 31) { setFieldValidationError($('card-closing-day'), FIELD_ERROR_MESSAGES['card-closing-day']); return; }
   if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) { setFieldValidationError($('card-due-day'), FIELD_ERROR_MESSAGES['card-due-day']); return; }
   const id = $('card-id').value || createId('card');
   if (cards.some((card) => card.id !== id && card.name.toLocaleLowerCase('pt-BR') === name.toLocaleLowerCase('pt-BR'))) { setFieldValidationError($('card-name'), 'Já existe um cartão com esse nome.'); return; }
-  const updated = { id, name, bank, limit, dueDay };
+  const updated = { id, name, bank, limit, closingDay, dueDay };
   const index = cards.findIndex((card) => card.id === id);
   if (index >= 0) cards[index] = updated; else cards.push(updated);
   for (const expense of expenses) if (expense.cardId === id) expense.card = name;
@@ -1838,6 +1888,8 @@ function initialize() {
   $('reconciliation-date').addEventListener('change', updateReconciliationPreview);
   $('reconciliation-actual').addEventListener('input', event => { formatSignedCurrencyInput(event.currentTarget); updateReconciliationPreview(); });
   $('payment').addEventListener('change', updatePaymentFields);
+  $('card-select').addEventListener('change', updateCardInvoicePreview);
+  $('first-date').addEventListener('change', updateCardInvoicePreview);
   $('recurring-record').addEventListener('change', updatePaymentFields);
   $('card-mode').addEventListener('change', updatePaymentFields);
   $('installments').addEventListener('change', updatePaymentFields);

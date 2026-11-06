@@ -86,7 +86,8 @@ test('tracks linked income and expenses in account balances while transfers stay
   await cardForm.locator('#card-name').fill('Cartão teste');
   await cardForm.locator('#card-bank').selectOption('Nubank');
   await cardForm.locator('#card-limit').fill('100000');
-  await cardForm.locator('#card-due-day').fill('10');
+  await cardForm.locator('#card-due-day').fill('30');
+  await cardForm.locator('#card-closing-day').fill('28');
   await cardForm.getByRole('button', { name: 'Salvar cartão', exact: true }).click();
 
   await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();

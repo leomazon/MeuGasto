@@ -50,6 +50,7 @@ test('shows accessible Portuguese field errors instead of browser validation bub
   assert.equal(await page.locator('#card-bank-trigger').getAttribute('aria-invalid'), 'true');
   assert.equal(await page.locator('#field-error-card-bank').innerText(), 'Selecione o banco ou emissor do cartão.');
   assert.equal(await page.locator('#field-error-card-limit').innerText(), 'Informe um limite maior que zero.');
+  assert.equal(await page.locator('#field-error-card-closing-day').innerText(), 'Informe um dia de fechamento entre 1 e 31.');
   assert.equal(await page.locator('#field-error-card-due-day').innerText(), 'Informe um dia de vencimento entre 1 e 31.');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'card-name');
 });
@@ -66,6 +67,7 @@ test('clears a corrected card field error and shows a success toast after saving
   await page.locator('#bank-options [data-bank-option="Banco do Brasil"]').click();
   await page.getByLabel('Limite total').fill('100000');
   await page.getByLabel('Dia de vencimento mensal').fill('15');
+  await page.getByLabel('Dia de fechamento mensal').fill('4');
   await page.locator('#save-card').click();
 
   assert.equal(await page.locator('.notyf__toast--success .notyf__message').innerText(), 'Cartão salvo.');
