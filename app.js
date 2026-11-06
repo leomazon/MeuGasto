@@ -576,6 +576,7 @@ const FIELD_ERROR_MESSAGES = {
   'card-bank': 'Selecione o banco ou emissor do cartão.',
   'card-bank-other': 'Digite o nome do banco.',
   'card-limit': 'Informe um limite maior que zero.',
+  'card-account': 'Selecione uma conta para pagar a fatura.',
   'card-closing-day': 'Informe um dia de fechamento entre 1 e 31.',
   'card-due-day': 'Informe um dia de vencimento entre 1 e 31.',
   'funding-card': 'Selecione outro cartão para pagar esta fatura.',
@@ -1088,7 +1089,7 @@ function renderCardItem(card) {
   const linkedAccount = accountById(card.accountId);
   const rows = monthlyCharges.length ? monthlyCharges.map((charge) => `<div class="bill-line"><div class="bill-description"><strong>${escapeHtml(charge.expense.description)}</strong><span>${charge.expense.recurring === true ? 'Fixo mensal' : `${charge.index + 1}/${charge.expense.installments}`} · ${purchaseDateForCharge(charge) ? `Compra ${dateLabel(purchaseDateForCharge(charge))} · ` : ''}Vence ${dateLabel(charge.date)} · ${currency.format(charge.amount)}</span></div><strong>${charge.remaining <= 0 ? '<span class="paid-tag">Liquidado</span>' : currency.format(charge.remaining)}</strong>${charge.remaining > 0 ? `<button class="pay-charge-button" data-pay-charge="${escapeHtml(charge.expense.id)}::${charge.index}">Liquidar</button>` : ''}</div>`).join('') : '<p class="empty-note compact-empty">Nenhuma cobrança neste mês.</p>';
   return `<article class="credit-card-card" data-card-id="${escapeHtml(card.id)}">
-    <div class="credit-card-top">${bankBadgeMarkup(card.bank, 'credit-bank-badge')}<div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.closingDay ? `fecha dia ${card.closingDay} · ` : ''}${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'}${linkedAccount ? ` · conta padrão ${escapeHtml(linkedAccount.name)}` : ''}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">${materialIcon('close')}</button></div></div>
+    <div class="credit-card-top">${bankBadgeMarkup(card.bank, 'credit-bank-badge')}<div class="credit-card-title"><h3>${escapeHtml(card.name)}</h3><span>${escapeHtml(card.bank)} · ${card.closingDay ? `fecha dia ${card.closingDay} · ` : ''}${card.dueDay ? `vence dia ${card.dueDay}` : 'vencimento não informado'} · conta padrão ${escapeHtml(linkedAccount?.name || 'não definida')}</span></div><div class="card-actions"><button class="icon-button" aria-label="Editar ${escapeHtml(card.name)}" data-edit-card="${escapeHtml(card.id)}">${materialIcon('edit')}</button><button class="icon-button delete" aria-label="Excluir ${escapeHtml(card.name)}" data-delete-card="${escapeHtml(card.id)}">${materialIcon('close')}</button></div></div>
     <div class="limit-line"><span>Limite utilizado</span><strong>${currency.format(used)} <small>de ${currency.format(limit)}</small></strong></div>
     <div class="card-progress large-progress"><i style="width:${percentage}%"></i></div>
     <div class="limit-foot"><span>Disponível</span><strong class="${available < 0 ? 'over-limit' : ''}">${currency.format(available)}</strong></div>
@@ -1681,6 +1682,9 @@ function openCardDialog(card = null) {
   setCardBankOptions(card?.bank || '');
   $('card-limit').value = card ? currency.format(Number(card.limit)) : '';
   populateAccountSelect($('card-account'), card?.accountId || '');
+  $('card-account').disabled = accounts.length === 0;
+  $('card-account').required = accounts.length > 0;
+  if (!accounts.length) $('card-account').options[0].textContent = 'Cadastre uma conta para vincular';
   $('card-closing-day').value = card?.closingDay || '';
   $('card-due-day').value = card?.dueDay || '';
   $('card-dialog-title').textContent = card ? 'Editar cartão' : 'Adicionar cartão';
@@ -1739,11 +1743,6 @@ function startSettlement(charges) {
   const total = payable.reduce((sum, charge) => sum + charge.remaining, 0);
   $('settlement-summary').textContent = `${cardById(targetCardId)?.name || 'Cartão'} · ${monthLabel(selectedMonth())} · ${currency.format(total)}${payable.length === 1 ? ' nesta cobrança' : ` em ${payable.length} cobranças`}`;
   populateCardSelect($('funding-card'), targetCardId);
-  const linkedAccounts = [...new Set(payable.map(charge => charge.expense.accountId).filter(id => accountById(id)))];
-  const cardAccountId = cardById(targetCardId)?.accountId;
-  const preferredAccountId = accountById(cardAccountId) ? cardAccountId
-    : linkedAccounts.length === 1 ? linkedAccounts[0] : accounts[0]?.id || '';
-  populateAccountSelect($('settlement-account'), preferredAccountId);
   updateSettlementMethod();
   $('settlement-dialog').showModal();
 }
@@ -1757,12 +1756,18 @@ function startSettlementForCharge(expenseId, installmentIndex) {
 }
 function updateSettlementMethod() {
   const byCard = $('settlement-method').value === 'Cartão';
+  const card = cardById(settlementTarget?.cardId);
+  const linkedAccount = accountById(card?.accountId);
   $('funding-card-wrap').hidden = !byCard;
   $('funding-card-hint').hidden = !byCard;
   $('funding-card').required = byCard;
   $('funding-card').disabled = byCard && cards.filter((card) => card.id !== settlementTarget?.cardId).length === 0;
-  $('settlement-account-wrap').hidden = byCard || accounts.length === 0;
-  $('settlement-account').required = !byCard && accounts.length > 0;
+  $('settlement-account-summary').classList.toggle('is-error', !byCard && !linkedAccount);
+  $('settlement-account-summary').textContent = byCard
+    ? 'O pagamento com outro cartão não movimenta a conta padrão vinculada.'
+    : linkedAccount
+      ? `A fatura será debitada de ${linkedAccount.name}, conta padrão deste cartão.`
+      : 'Edite o cartão para vincular uma conta antes de pagar a fatura por Pix, transferência ou dinheiro.';
 }
 function confirmSettlement(event) {
   event.preventDefault();
@@ -1770,9 +1775,9 @@ function confirmSettlement(event) {
   const targetCard = cardById(settlementTarget.cardId);
   const method = $('settlement-method').value;
   const sourceCardId = method === 'Cartão' ? $('funding-card').value : '';
-  const accountId = method !== 'Cartão' && accounts.length ? $('settlement-account').value : '';
+  const accountId = method !== 'Cartão' ? targetCard?.accountId || '' : '';
   const sourceCard = cardById(sourceCardId);
-  if (method !== 'Cartão' && accounts.length && !accountById(accountId)) { setFieldValidationError($('settlement-account'), 'Selecione a conta ou carteira usada para pagar a fatura.'); return; }
+  if (method !== 'Cartão' && !accountById(accountId)) { setFieldValidationError($('settlement-method'), 'Vincule uma conta ao cartão antes de pagar a fatura por Pix, transferência ou dinheiro.'); return; }
   if (method === 'Cartão' && !sourceCard) {
     const hasOtherCard = cards.some((card) => card.id !== targetCard?.id);
     setFieldValidationError(hasOtherCard ? $('funding-card') : $('settlement-method'), hasOtherCard ? FIELD_ERROR_MESSAGES['funding-card'] : 'Cadastre outro cartão antes de escolher essa forma de pagamento.');

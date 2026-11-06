@@ -534,6 +534,7 @@ dialog[open]{position:fixed;inset:50% auto auto 50%;margin:0;transform:translate
 .field-row{align-items:start}
 .card-invoice-preview{margin:-3px 0 17px;padding:11px 13px;border:1px solid #ded5fa;border-radius:10px;background:#f7f4ff;color:#503494;font-size:13px;line-height:1.5}
 .card-invoice-preview[hidden]{display:none}
+.settlement-account-summary.is-error{background:#fff1f1;color:#ad3e49}
 .field input:disabled,.field select:disabled{cursor:not-allowed;background:#f2f0f6;color:#837d8d;border-color:#e4e0eb}
 
 
