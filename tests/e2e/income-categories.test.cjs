@@ -44,7 +44,7 @@ test('keeps category option labels clean and hides the native calendar control',
 
   assert.deepEqual(await page.locator('#category option').allTextContents(), [
     'Moradia', 'Alimentação', 'Transporte', 'Saúde', 'Lazer',
-    'Educação', 'Compras', 'Assinaturas', 'Contas', 'Outros',
+    'Educação', 'Compras', 'Assinaturas', 'Contas', 'Financiamento', 'Outros',
   ]);
   assert.equal(await page.locator('#first-date').evaluate(input =>
     input.closest('.date-picker-control').querySelectorAll('.date-picker-trigger').length), 1);
@@ -69,7 +69,7 @@ test('shows Material icons in expense and income category choices', async () => 
 
   await page.locator('#category-trigger').click();
   const expenseOptions=page.locator('#category-options [role="option"]');
-  assert.equal(await expenseOptions.count(),10);
+  assert.equal(await expenseOptions.count(),11);
   assert.equal(await expenseOptions.first().locator('.material-icons').innerText(),'home');
   await expenseOptions.filter({hasText:'Alimentação'}).click();
   assert.equal(await page.locator('#category').inputValue(),'Alimentação');

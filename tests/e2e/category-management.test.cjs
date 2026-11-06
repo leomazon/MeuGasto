@@ -109,3 +109,18 @@ test('keeps an existing budget and recurring month exception when an expense cat
   assert.equal(stored.category, 'Casa');
   assert.equal(Object.values(stored.overrides)[0].category, 'Casa');
 });
+
+test('offers Financing among expense categories with its finance icon', async () => {
+  await page.goto(appUrl);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
+  await page.locator('#new-expense').click();
+  await page.locator('#category-trigger').click();
+
+  const option = page.locator('#category-options [role="option"]').filter({ hasText: 'Financiamento' });
+  assert.equal(await option.count(), 1);
+  assert.equal(await option.locator('.material-icons').innerText(), 'account_balance');
+  await option.click();
+  assert.equal(await page.locator('#category-selected-name').innerText(), 'Financiamento');
+});

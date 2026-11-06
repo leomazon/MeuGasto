@@ -8,6 +8,7 @@ const CATEGORY_DATA = [
   { name: 'Compras', icon: 'shopping_bag', color: '#cf805d' },
   { name: 'Assinaturas', icon: 'headphones', color: '#577ab4' },
   { name: 'Contas', icon: 'lightbulb', color: '#c89b38' },
+  { name: 'Financiamento', icon: 'account_balance', color: '#6f6b8d' },
   { name: 'Outros', icon: 'category', color: '#8b8298' },
 ];
 const INCOME_CATEGORY_DATA = [
@@ -26,7 +27,7 @@ const CATEGORY_ICON_OPTIONS = [
   ['home', 'Casa'], ['restaurant', 'Alimentação'], ['directions_bike', 'Transporte'],
   ['health_and_safety', 'Saúde'], ['local_activity', 'Lazer'], ['school', 'Educação'],
   ['shopping_bag', 'Compras'], ['headphones', 'Assinaturas'], ['lightbulb', 'Contas'],
-  ['category', 'Outros'], ['handyman', 'Serviços'], ['work', 'Trabalho'],
+  ['category', 'Outros'], ['account_balance', 'Financiamento'], ['handyman', 'Serviços'], ['work', 'Trabalho'],
   ['trending_up', 'Rendimentos'], ['home_work', 'Imóveis'], ['north_east', 'Receita'],
   ['pets', 'Pets'], ['savings', 'Poupança'], ['receipt_long', 'Recibos'],
   ['flight', 'Viagem'], ['sports_esports', 'Jogos'], ['music_note', 'Música'], ['child_care', 'Família'],
