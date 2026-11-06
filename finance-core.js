@@ -53,6 +53,11 @@
     const baseCents = Math.floor(totalCents / parts);
     return (index === parts - 1 ? totalCents - baseCents * (parts - 1) : baseCents) / 100;
   }
+  function totalFromInstallmentAmount(amount, count) {
+    const parts = Number(count);
+    if (!Number.isInteger(parts) || parts < 1 || !Number.isFinite(Number(amount))) return 0;
+    return cents(amount) * parts / 100;
+  }
   function paymentTotal(expenseId, installmentIndex, payments) {
     return payments.filter((payment) => payment.expenseId === expenseId && Number(payment.installmentIndex) === installmentIndex)
       .reduce((total, payment) => total + cents(payment.amount), 0);
@@ -119,9 +124,11 @@
     const effective = occurrenceEntry(entry,index);
     if (effective.payment === 'Cartão') return false;
     if (entry.realizationStates?.[String(index)] === 'planned') return false;
+    if (entry.realizationStates?.[String(index)] === 'confirmed') return true;
     const month = dateKey(installmentOccurrenceDate(entry,index)).slice(0,7);
     if (entry.overrides?.[month]?.status) return entry.overrides[month].status === 'realized';
-    return entry.recurring === true ? index === 0 && entry.status === 'realized' : entry.status !== 'planned';
+    if (entry.recurring === true || Number(entry.installments) > 1) return index === 0 && entry.status === 'realized';
+    return entry.status !== 'planned';
   }
   function realizedAmount(entry,index,payments) {
     const recorded = payments.filter(p=>p.expenseId === entry.id && Number(p.installmentIndex)===index);
@@ -475,6 +482,7 @@
     saveCategoryInCatalog,
     setCategoryArchived,
     installmentAmount,
+    totalFromInstallmentAmount,
     installmentDate,
     firstCardInvoiceDate,
     monthlyClosing,

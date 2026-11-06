@@ -12,6 +12,29 @@ test('splits money to cents and assigns a rounding remainder to the final instal
   assert.deepEqual([0, 1, 2].map((index) => Core.installmentAmount(100, 3, index)), [33.33, 33.33, 33.34]);
 });
 
+test('calculates a purchase total from the amount of each monthly installment', () => {
+  assert.equal(Core.totalFromInstallmentAmount(120, 2), 240);
+  assert.equal(Core.totalFromInstallmentAmount(33.33, 3), 99.99);
+  assert.equal(Core.totalFromInstallmentAmount(0.1, 3), 0.3);
+});
+
+test('treats later Pix installments as planned until each one is paid', () => {
+  const entry = { id: 'pix-parts', type: 'expense', description: 'Compra Pix', amount: 100,
+    installments: 3, firstDate: '2026-11-05', payment: 'Pix', status: 'realized', accountId: 'checking' };
+  assert.deepEqual([0, 1, 2].map(index => Core.realizedAmount(entry, index, [])), [33.33, 0, 0]);
+  assert.equal(Core.monthlyOverview([entry], [], '2026-12').pix, 33.33);
+  assert.equal(Core.monthlyCashFlow([entry], [], '2026-11').expenses, 33.33);
+  assert.equal(Core.monthlyCashFlow([entry], [], '2026-12').expenses, 0);
+  assert.ok(Core.financialAlerts([entry], [], [], [], '2026-12-01', '2026-12')
+    .some(alert => alert.kind === 'expense-upcoming' && alert.installmentIndex === 1));
+  const accounts = [{ id: 'checking', openingBalance: 100, openingDate: '2026-11-01' }];
+  assert.equal(Core.accountBalances(accounts, [entry], [], [], '2026-12-06')[0].balance, 66.67);
+  const payments = [{ expenseId: 'pix-parts', installmentIndex: 1, amount: 33.33, date: '2026-12-05', method: 'Pix', accountId: 'checking' }];
+  assert.equal(Core.realizedAmount(entry, 1, payments), 33.33);
+  assert.equal(Core.realizedAmount(entry, 2, payments), 0);
+  assert.equal(Core.accountBalances(accounts, [entry], payments, [], '2026-12-06')[0].balance, 33.34);
+});
+
 test('counts all unpaid installments, including future ones, as card limit used', () => {
   const payments = [{ expenseId: 'installment', installmentIndex: 0, amount: 100 }];
   assert.equal(Core.cardUsed(sampleExpenses, payments, 'card-a'), 500);
