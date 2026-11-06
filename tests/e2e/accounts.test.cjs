@@ -88,6 +88,7 @@ test('tracks linked income and expenses in account balances while transfers stay
   await cardForm.locator('#card-limit').fill('100000');
   await cardForm.locator('#card-due-day').fill('30');
   await cardForm.locator('#card-closing-day').fill('28');
+  await cardForm.locator('#card-account').selectOption({ label: 'Conta principal' });
   await cardForm.getByRole('button', { name: 'Salvar cartão', exact: true }).click();
 
   await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
@@ -105,7 +106,8 @@ test('tracks linked income and expenses in account balances while transfers stay
   await page.locator('#cards-list').getByRole('button', { name: 'Liquidar fatura' }).click();
   const settlementForm = page.locator('#settlement-dialog');
   await settlementForm.locator('#settlement-method').selectOption('Transferência');
-  await settlementForm.locator('#settlement-account').selectOption({ label: 'Conta principal' });
+  assert.equal(await settlementForm.locator('#settlement-account').count(), 0);
+  assert.match(await settlementForm.locator('#settlement-account-summary').innerText(), /Conta principal/);
   await settlementForm.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
 
   await page.getByRole('button', { name: 'Contas', exact: true }).click();
@@ -182,6 +184,8 @@ test('defaults card invoice payments to the account linked to that card', async 
   await cardForm.locator('#card-limit').fill('100000');
   await cardForm.locator('#card-closing-day').fill('28');
   await cardForm.locator('#card-due-day').fill('30');
+  await cardForm.getByRole('button', { name: 'Salvar cartão', exact: true }).click();
+  assert.equal(await cardForm.locator('#field-error-card-account').count(), 1);
   await cardForm.locator('#card-account').selectOption({ label: 'Mercado Pago' });
   await cardForm.getByRole('button', { name: 'Salvar cartão', exact: true }).click();
 
@@ -197,7 +201,8 @@ test('defaults card invoice payments to the account linked to that card', async 
   await page.getByRole('button', { name: 'Cartões', exact: true }).click();
   await page.locator('#cards-list').getByRole('button', { name: 'Liquidar fatura' }).click();
   const settlementForm = page.locator('#settlement-dialog');
-  assert.equal(await settlementForm.locator('#settlement-account option:checked').innerText(), 'Mercado Pago');
+  assert.equal(await settlementForm.locator('#settlement-account').count(), 0);
+  assert.match(await settlementForm.locator('#settlement-account-summary').innerText(), /Mercado Pago/);
   await settlementForm.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
 
   await page.getByRole('button', { name: 'Contas', exact: true }).click();
@@ -205,6 +210,47 @@ test('defaults card invoice payments to the account linked to that card', async 
   assert.match(accountList, /Carteira[\s\S]*R\$ 500,00/);
   assert.match(accountList, /Mercado Pago[\s\S]*R\$ 940,00/);
   assert.equal(await page.locator('[data-account-id]').filter({ hasText: 'Mercado Pago' }).getByRole('button', { name: 'Excluir Mercado Pago' }).isDisabled(), true);
+});
+
+test('does not choose an arbitrary account for a legacy card without an account link', async () => {
+  const today = await page.evaluate(() => {
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  });
+  await page.getByRole('button', { name: 'Cartões', exact: true }).click();
+  await page.locator('#new-card').click();
+  const cardForm = page.locator('#card-dialog');
+  await cardForm.locator('#card-name').fill('Cartão antigo');
+  await cardForm.locator('#card-bank').selectOption('Nubank');
+  await cardForm.locator('#card-limit').fill('100000');
+  await cardForm.locator('#card-closing-day').fill('28');
+  await cardForm.locator('#card-due-day').fill('30');
+  await cardForm.getByRole('button', { name: 'Salvar cartão', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
+  await page.getByRole('button', { name: 'Novo registro', exact: true }).click();
+  const recordForm = page.locator('#expense-dialog');
+  await recordForm.locator('#description').fill('Compra antiga');
+  await recordForm.locator('#amount').fill('2500');
+  await recordForm.locator('#payment').selectOption('Cartão');
+  await recordForm.locator('#card-select').selectOption({ label: 'Cartão antigo · Nubank' });
+  await recordForm.getByRole('button', { name: 'Salvar registro', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Contas', exact: true }).click();
+  await page.locator('#new-account').click();
+  const accountForm = page.locator('#account-dialog');
+  await accountForm.locator('#account-name').fill('Conta principal');
+  await accountForm.locator('#account-opening-balance').fill('100000');
+  await accountForm.locator('#account-opening-date').fill(today);
+  await accountForm.getByRole('button', { name: 'Salvar conta', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Cartões', exact: true }).click();
+  await page.locator('#cards-list').getByRole('button', { name: 'Liquidar fatura' }).click();
+  const settlementForm = page.locator('#settlement-dialog');
+  assert.match(await settlementForm.locator('#settlement-account-summary').innerText(), /Edite o cartão para vincular uma conta/);
+  await settlementForm.getByRole('button', { name: 'Confirmar pagamento', exact: true }).click();
+  assert.match(await settlementForm.locator('#field-error-settlement-method').innerText(), /Vincule uma conta ao cartão/);
+  assert.equal((await page.locator('#accounts-total-balance').innerText()).replace(/\s/g, ' '), 'R$ 1.000,00');
 });
 
 test('reconciles an account, keeps each adjustment in history and leaves monthly income and expenses unchanged', async () => {

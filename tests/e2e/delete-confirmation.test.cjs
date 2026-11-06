@@ -48,7 +48,8 @@ beforeEach(async () => {
       id: 'e2e-market', description: 'Mercado E2E', amount: 25, category: 'Alimentação', payment: 'Pix',
       installments: 1, firstDate, notes: '', type: 'expense',
     }]));
-    localStorage.setItem('meugasto-cards-v1', JSON.stringify([{ id: 'e2e-card', name: 'Cartão E2E', bank: 'Banco E2E', limit: 500 }]));
+    localStorage.setItem('meugasto-accounts-v1', JSON.stringify([{ id: 'e2e-account', name: 'Conta E2E', kind: 'checking', openingBalance: 0, openingDate: firstDate }]));
+    localStorage.setItem('meugasto-cards-v1', JSON.stringify([{ id: 'e2e-card', name: 'Cartão E2E', bank: 'Banco E2E', limit: 500, accountId: 'e2e-account' }]));
   });
   await page.reload();
 });

@@ -88,7 +88,8 @@ test('repeats fixed income and expense monthly and stops future repetition witho
 test('settles each fixed card month independently and preserves payments when recurrence is stopped',async()=>{
   await page.evaluate(()=>{
     const d=new Date();const firstDate=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
-    localStorage.setItem('meugasto-cards-v1',JSON.stringify([{id:'fixed-card',name:'Cartão fixo',bank:'Banco',limit:1000,dueDay:10}]));
+    localStorage.setItem('meugasto-accounts-v1',JSON.stringify([{id:'fixed-account',name:'Conta fixa',kind:'checking',openingBalance:0,openingDate:firstDate}]));
+    localStorage.setItem('meugasto-cards-v1',JSON.stringify([{id:'fixed-card',name:'Cartão fixo',bank:'Banco',limit:1000,dueDay:10,accountId:'fixed-account'}]));
     localStorage.setItem('meu-financeiro-v1',JSON.stringify([{id:'fixed-sub',description:'Assinatura fixa',type:'expense',recurring:true,amount:40,installments:1,firstDate,payment:'Cartão',cardId:'fixed-card',card:'Cartão fixo',cardMode:'À vista',category:'Assinaturas'}]));
     localStorage.setItem('meugasto-card-payments-v1',JSON.stringify([{id:'paid-first',expenseId:'fixed-sub',installmentIndex:0,amount:40}]));
   });

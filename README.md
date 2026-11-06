@@ -19,8 +19,8 @@ O servidor local usa apenas a biblioteca padrão do Python. Ele atende o app som
 - Registros avulsos antigos em Pix/dinheiro e receitas antigas são tratados como realizados para manter a compatibilidade. Registros fixos antigos seguem previstos até a confirmação mensal.
 - Aba Análises com gráficos separados de receitas e despesas por categoria, evolução mensal e orçamentos por categoria. A Visão geral reúne saldos, formas de pagamento e registros recentes.
 - Barras em Lançamentos mostram a participação de cada receita ou despesa na própria categoria do mês, sem mudar a base ao aplicar filtros.
-- Cadastro de cartões, limites e crédito disponível no dashboard. Cada cartão pode ter uma conta padrão vinculada para pagar faturas.
-- Faturas mensais com liquidação integral ou cobrança por cobrança, via conta vinculada, Pix ou outro cartão.
+- Cadastro de cartões, limites e crédito disponível no dashboard. Ao cadastrar um cartão com contas disponíveis, escolha uma conta padrão para as faturas.
+- Faturas mensais com liquidação integral ou cobrança por cobrança: Pix, transferência ou dinheiro debitam a conta padrão do cartão; pagar com outro cartão não movimenta uma conta.
 - Contas e carteiras com saldo inicial, saldo atual e vínculo de receitas, despesas e pagamentos de fatura. Transferências entre contas atualizam os dois saldos sem serem tratadas como receita ou despesa. **Conferência de saldo** compara o valor calculado com o extrato e registra ajustes datados com histórico, sem reescrever lançamentos nem alterar os totais mensais.
 - Lançamentos filtrados pelo mês selecionado, com busca, paginação e opções de 10, 20, 30 ou 50 itens por página.
 - Categorias personalizadas de receita e despesa com nome, ícone Material e cor. Renomear atualiza lançamentos, exceções de registros fixos e orçamentos vinculados; arquivar impede novos usos sem apagar o histórico. Categorias arquivadas podem ser reativadas.

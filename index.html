@@ -370,7 +370,7 @@
           <div class="field"><span id="card-bank-label">Banco ou emissor</span><div class="bank-picker" id="bank-picker"><select id="card-bank" required tabindex="-1" aria-hidden="true" aria-labelledby="card-bank-label"><option value="">Selecione um banco</option><option value="Banco do Brasil">Banco do Brasil</option><option value="Nubank">Nubank</option><option value="Bradesco">Bradesco</option><option value="Itaú">Itaú</option><option value="Santander">Santander</option><option value="__other__">Outro</option></select><button class="bank-picker-trigger" id="card-bank-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="card-bank-label bank-selected-name" aria-controls="bank-options"><span class="bank-badge bank-badge-selected" id="card-bank-selected-icon" aria-hidden="true"></span><span id="bank-selected-name">Selecione um banco</span><span class="material-icons bank-picker-chevron" aria-hidden="true">expand_more</span></button><div class="bank-picker-options" id="bank-options" role="listbox" aria-labelledby="card-bank-label" hidden></div></div></div>
           <label class="field">Limite total<input id="card-limit" class="currency-input" type="text" required inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" /></label>
         </div>
-        <label class="field full-field"><span>Conta padrão para pagar fatura <span class="optional">(opcional)</span></span><select id="card-account"></select></label>
+        <label class="field full-field">Conta padrão para pagar fatura<select id="card-account"></select></label>
         <label class="field full-field other-bank-wrap" id="other-bank-wrap" hidden>Nome do banco<input id="card-bank-other" type="text" maxlength="60" autocomplete="organization" placeholder="Ex.: Banco Inter" /></label>
         <div class="field-row">
           <label class="field">Dia de fechamento mensal<input id="card-closing-day" type="number" required min="1" max="31" step="1" inputmode="numeric" placeholder="Ex.: 4" /></label>
@@ -384,7 +384,7 @@
         <div class="dialog-heading"><div><p class="eyebrow">PAGAMENTO DE FATURA</p><h2>Liquidar cobrança</h2></div><button class="close-button" type="button" id="close-settlement-dialog" aria-label="Fechar"><span class="material-icons" aria-hidden="true">close</span></button></div>
         <p class="settlement-summary" id="settlement-summary"></p>
         <label class="field full-field">Forma de pagamento<select id="settlement-method"><option value="Pix">Pix</option><option value="Transferência">Transferência</option><option value="Dinheiro">Dinheiro</option><option value="Cartão">Outro cartão</option></select></label>
-        <label class="field full-field" id="settlement-account-wrap">Conta ou carteira usada<select id="settlement-account"></select></label>
+        <p class="installment-hint settlement-account-summary" id="settlement-account-summary" role="status"></p>
         <label class="field full-field" id="funding-card-wrap" hidden>Cartão usado para pagar<select id="funding-card"></select></label>
         <p class="installment-hint" id="funding-card-hint" hidden>O valor pago será registrado como uma nova compra nesse cartão, mantendo o limite utilizado correto.</p>
         <div class="dialog-actions"><button type="button" class="cancel-button" id="cancel-settlement">Cancelar</button><button class="add-button" type="submit">Confirmar pagamento</button></div>
