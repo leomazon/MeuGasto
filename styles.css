@@ -155,8 +155,9 @@
 
 /* Three payment methods fit as a calm, readable comparison in the overview. */
 .payment-panel{min-height:0}
-.payment-lines{gap:14px;margin-top:18px}
-.payment-line{min-height:37px}
+.payment-lines{grid-template-columns:38px minmax(0,1fr) max-content;column-gap:13px;row-gap:14px;margin-top:18px}
+.payment-line{display:contents}
+.payment-line>strong{text-align:right}
 .pix-brand{display:block;width:30px;height:30px;object-fit:contain}
 .cash-icon{background:#fff3dd;color:#9b6814;font-size:20px}
 .payment-panel #cash-bar{background:#d39a3e}
